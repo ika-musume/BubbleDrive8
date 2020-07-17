@@ -25,7 +25,7 @@ wire            load_bootloader;
 
 BubbleDrive8Top testBubbleDrive8Top
 (
-	.master_clock (master_clock),
+    .master_clock (master_clock),
     .clock_out (clock_out),
 
     .bubble_shift_enable (bubble_shift_enable),
@@ -52,6 +52,7 @@ always #1 master_clock = ~master_clock;
 
 initial
 begin
+//bootloader
 #90000 bubble_shift_enable = 1'b0;
 #4387745 bubble_shift_enable = 1'b1;
 #423 bootloop_enable = 1'b1;
@@ -316,12 +317,33 @@ begin
 #1000 replicator_enable = 1'b0;
 #682 replicator_enable = 1'b1;
 #673983 bubble_shift_enable = 1'b1;
-
-
-
-
-
-
+//105
+#75000 bubble_shift_enable = 1'b0;
+#1000 replicator_enable = 1'b0;
+#682 replicator_enable = 1'b1;
+#673983 bubble_shift_enable = 1'b1;
+//106
+#75000 bubble_shift_enable = 1'b0;
+#1000 replicator_enable = 1'b0;
+#682 replicator_enable = 1'b1;
+#673983 bubble_shift_enable = 1'b1;
+//107
+#75000 bubble_shift_enable = 1'b0;
+#1000 replicator_enable = 1'b0;
+#682 replicator_enable = 1'b1;
+#673983 bubble_shift_enable = 1'b1;
+//108
+#75000 bubble_shift_enable = 1'b0;
+#1000 replicator_enable = 1'b0;
+#682 replicator_enable = 1'b1;
+#673983 bubble_shift_enable = 1'b1;
+//109
+#75000 bubble_shift_enable = 1'b0;
+#1000 replicator_enable = 1'b0;
+#682 replicator_enable = 1'b1;
+#673983 bubble_shift_enable = 1'b1;
+	
+//and so on
 end
 
 initial
