@@ -4,34 +4,34 @@ module TimingGenerator
 Original pinout below:
              +---------+
     CLKOUT<--|    U    |---+5V
-      /REP-->|         |-->/CLAMP
-    /SWAP?-->|         |-->STROBE
-       GND---|         |-->/REPEN
+    /REPEN-->|         |-->/CLAMP
+  /SWAPEN?-->|         |-->STROBE
+       GND---|         |-->/REP
        /BS-->|         |-->/REPOUT
-      /BSS-->| MB14506 |-->/SWAPEN?
-(floating)---|         |-->/WRITEEN
+      /BSS-->| MB14506 |-->/SWAP?
+(floating)---|         |-->/WR
      CLKIN-->|         |-->+X
          ?-->|         |-->-X
        GND---|         |-->+Y
        GND---|         |-->-Y
              +---------+
 1. CLKOUT: 4MHz clock out
-2. REP: Replicator enable
-3. SWAP: Swap gate enable
-5. BS: Shifts bubbles during LOW
-6. BSS: Bubble shift start pulse
+2. /REPEN: Replicator enable
+3. /SWAPEN: Swap gate enable
+5. /BS: Shifts bubbles during LOW
+6. /BSS: Bubble shift start pulse
 8. CLKIN: 12MHz clock in
 9. ?: Something related to a voltage detection circuit, grounded.
 12. -Y: -Y driver enable
 13. +Y: +Y driver enable
 14. -X: -X driver enable
 15. +X: +X driver enable
-16. WRITEEN: 74LS32 write data enable
-17. SWAPEN: Swap gate enable (MB3910 Pin 5)
-18. REPOUT: Replicate out pulse (MB3910 Pin 7)
-19. REPEN: Replicator enable (MB3910 Pin 6)
+16. /WR: 74LS32 write data enable
+17. /SWAP: Swap gate enable (MB3910 Pin 5)
+18. /REPOUT: Replicate out pulse (MB3910 Pin 7)
+19. /REP: Replicator enable (MB3910 Pin 6)
 20. STROBE: Bubble data out strobe (MB3908 Pin 10)
-21. CLAMP: Clamps bubble detector signal (MB3908 Pin 11)
+21. /CLAMP: Clamps bubble detector signal (MB3908 Pin 11)
 */
 (
     //48MHz input clock
@@ -40,7 +40,7 @@ Original pinout below:
     output  reg             clock_out = 1'b1,
 
     //Bubble control signal inputs
-    //input   wire            bubble_shift_start,
+    //input   wire            bubble_shift_start, //not used
     input   wire            bubble_shift_enable,
     input   wire            replicator_enable,
     input   wire            bootloop_enable,
@@ -50,7 +50,7 @@ Original pinout below:
     output  wire            data_out_strobe, //Starts at 180 degree, ends at 240 degree, can put bubble data at a falling edge (active high)
     output  wire            data_out_notice, //Same as replicator clamp (active high)
     output  wire            position_latch, //Current bubble position can be latched when this line has been asserted (active high)
-    output  wire            bootloader_select, //Bootloader select, bypass signal of bootloop_enable (active high)
+    output  wire            bootloader_select, //Bootloader select, synchronized signal of bootloop_enable (active high)
     output  wire            coil_run //Goes high when bubble moves - same as COIL RUN (active high)
 );
 
@@ -62,7 +62,7 @@ Original pinout below:
 //Global clock
 reg             clock12MHz = 1'b1;
 
-//Synchronization registers HI[bubble_shift_start / bubble_shift_enable / replicator_enable / bootloop_enable]LO
+//Synchronization registers HI[bubble_shift_enable / replicator_enable / bootloop_enable]LO
 reg     [2:0]   stepOne = 3'b111;
 reg     [2:0]   stepTwo = 3'b111;
 reg     [2:0]   stepThree = 3'b111;
@@ -88,7 +88,7 @@ reg             coilRun = 1'b0; //Goes HIGH while driving
 /*
     SIGNAL ASSIGNMENTS
 */
-assign position_change = ~(coilEnable[3] || coilEnable[1]); 
+assign position_change = ~(coilEnable[3] || coilEnable[1]); //pulse at rotational field of +Y
 assign data_out_notice = ~detectorClamp;
 assign data_out_strobe = detectorStrobe;
 assign position_latch = ~functionRepOut; 
@@ -155,6 +155,8 @@ end
 /*
     MAIN SEQUENCER
 */
+//Because of the 12MHz synchronizer, there's a delay of 3 clock cycles on three internal signal BS, REPEN, and BOOTEN. 
+//I subtracted 3 from the reg mainStateCounter for timing compensation.
 always @(posedge clock12MHz)
 begin
     if(bubbleShiftEnableInternal == 1'b1) //STOP
@@ -163,7 +165,7 @@ begin
         begin
             mainStateCounter <= 8'd0;
         end
-        else //COIL RUN
+        else //WHILE RUNNING
         begin
             if(mainStateCounter >= 8'd18 && mainStateCounter <= 8'd44) //-X vector
             begin
@@ -185,7 +187,7 @@ begin
     end
     else //SHIFTING
     begin
-        if(mainStateCounter == 8'd139) //After first rotation
+        if(mainStateCounter == 8'd139) //After a full rotation
         begin
             mainStateCounter <= 8'd20; //Loop
         end
