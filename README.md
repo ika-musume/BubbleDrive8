@@ -5,3 +5,5 @@ This is a Konami Bubble System Bubble Memory Cartridge FBM-#101 Emulator for Alt
 ## Versions
 ### V0.5
 Added several modules and the testbench code for ModelSim.
+### V0.6
+Added BubbleCalc, a bubble page-position correspondence table generator for Verilog HDL.
