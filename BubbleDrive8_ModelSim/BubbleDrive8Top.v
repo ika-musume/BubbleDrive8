@@ -15,13 +15,12 @@ module BubbleDrive8Top
     output  wire            bubble_out_even,
 
 
-    output  wire    [21:0]  start_of_page_address,
     input   wire    [10:0]  bubble_buffer_write_address,
-    input   wire    [1:0]   bubble_buffer_data_input,
+    input   wire    [1:0]   bubble_buffer_write_data_input,
     input   wire            bubble_buffer_write_enable,
     input   wire            bubble_buffer_write_clock,
-    output	wire		    load_page,
-	output  wire            load_bootloader
+    output  wire            load_page,
+    output  wire            load_bootloader
 );
 
 wire            position_change;
@@ -46,11 +45,11 @@ TimingGenerator         TimingGenerator_0       (.master_clock(master_clock), .c
                                                 .bubble_shift_enable(bubble_shift_enable), .replicator_enable(replicator_enable), .bootloop_enable(bootloop_enable),
                                                 .position_change(position_change), .data_out_strobe(data_out_strobe), .data_out_notice(data_out_notice), .position_latch(position_latch), .bootloader_select(bootloader_select), .coil_run(coil_run));
 
-BubbleInterface         BubbleInterface_0       (.master_clock(master_clock), .bubble_interface_enable(bubble_interface_enable), .image_number(image_number),
+BubbleInterface         BubbleInterface_0       (.master_clock(master_clock), .bubble_interface_enable(bubble_interface_enable), /*.image_number(image_number),*/
                                                 .position_change(position_change), .data_out_strobe(data_out_strobe), .data_out_notice(data_out_notice), .position_latch(position_latch), .bootloader_select(bootloader_select), .coil_run(coil_run),
-                                                .convert(convert), .bubble_position_output(bubble_position_wire), .bubble_page_input(bubble_page_wire),
+                                                .convert(convert), .bubble_position_output(bubble_position_wire), /*.bubble_page_input(bubble_page_wire),*/
 
-                                                .start_of_page_address(start_of_page_address), .bubble_buffer_write_address(bubble_buffer_write_address), .bubble_buffer_data_input(bubble_buffer_data_input),
+                                                /*.start_of_page_address(start_of_page_address),*/ .bubble_buffer_write_address(bubble_buffer_write_address), .bubble_buffer_write_data_input(bubble_buffer_write_data_input),
                                                 .bubble_buffer_write_enable(bubble_buffer_write_enable), .bubble_buffer_write_clock(bubble_buffer_write_clock), .load_page(load_page), .load_bootloader(load_bootloader),
 
                                                 .bubble_out_odd(bubble_out_odd), .bubble_out_even(bubble_out_even));
