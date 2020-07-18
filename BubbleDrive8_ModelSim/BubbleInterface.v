@@ -1,4 +1,3 @@
-
 module BubbleInterface
 (
     //Master clock
@@ -6,25 +5,23 @@ module BubbleInterface
 
     //Data from management module
     input   wire            bubble_interface_enable, //active low
-    input   wire    [2:0]   image_number, //management module latches them at the very initial time of total boot process
 
     //Timing signals from TimingGenerator module
     input   wire            position_change, //0 degree, bubble position change notification (active high)
     input   wire            data_out_strobe, //Starts at 180 degree, ends at 240 degree, can put bubble data at a falling edge (active high)
     input   wire            data_out_notice, //Same as replicator clamp (active high)
     input   wire            position_latch, //Current bubble position can be latched when this line has been asserted (active high)
-    input   wire            bootloader_select, //As-is (active high)
-    input   wire            coil_run, //As-is (active high)
+    input   wire            bootloader_select, //Bootloader select, synchronized signal of bootloop_enable (active high)
+    input   wire            coil_run, //Goes high when bubble moves - same as COIL RUN (active high)
 
     //Bubble position to page converter I/O
     output  wire            convert,
-    output  wire    [11:0]  bubble_position_output, //upper 12 bits of whole 13 bit position counter
-    input   wire    [11:0]  bubble_page_input, //0000/PPPP/PPPP/PPPP
+    output  wire    [11:0]  bubble_position_output, //12 bit counter
+
 
     //SPI Loader
-    output  wire    [21:0]  start_of_page_address,
     input   wire    [10:0]  bubble_buffer_write_address,
-    input   wire    [1:0]   bubble_buffer_data_input,
+    input   wire    [1:0]   bubble_buffer_write_data_input,
     input   wire            bubble_buffer_write_enable,
     input   wire            bubble_buffer_write_clock,
     output  wire            load_page,
@@ -42,7 +39,7 @@ module BubbleInterface
 */
 /*
                     |-------(26420us)-------|(pos0)|-------(19290us)-------|
-74LS32 pulse   |____|                  |____|                         |____|        (90 degree)
+74LS32 pulse   |____|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|____|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|____|        (90 degree)
 */
 localparam THE_NUMBER_OF_BUBBLE_POSITIONS = 12'd2053; //0000 - 2052: 2053 positions
 localparam INITIAL_POSITION_VALUE = 12'd1464; //(initial value) + (pre-position 0 length) - 2053 = 0
@@ -65,28 +62,12 @@ assign           bufferDataOutCounterEnable = bootloaderLoadOutEnable & pageLoad
 reg     [13:0]   bufferDataOutNoticeCounter = 13'd0;
 reg     [13:0]   bufferDataOutCounter = 13'd0;
 
-reg              bufferReadAddressCounterEnable = 1'b1; //active low, address incrementation enable
+reg              bufferReadAddressCountEnable = 1'b1; //active low, address incrementation enable
 reg              bubbleReadClockEnable = 1'b0; //active low, bubble block RAM buffer read clock (negative edge of STROBE)
 
 reg     [1:0]    bubbleOutMux = 2'b0;
 
-/*
-HI [00II/IPPP/PPPP/PPPP/PAAA/AAAA] LO
 
-00II/IXXX = 3 bits of image number
-XPPP/PPPP/PPPP/PXXX = 12 bits of page number
-XAAA/AAAA = 7 bits of address of a page(128 bytes)
-
-0x000 - page
-0x001 - page
-...
-0x804 - page
-0x805 - bootloader
-0x806 - bootloader
-0x807 - bootloader
-0x808 - bootloader
-*/
-assign start_of_page_address = {image_number[2:0], bubble_page_input[11:0], 7'b000_0000};
 
 
 /*
@@ -173,7 +154,7 @@ always @ (posedge bubble_buffer_write_clock) //write
 begin
     if (bubble_buffer_write_enable == 1'b0)
     begin
-        bubbleBuffer[bubble_buffer_write_address] <= bubble_buffer_data_input;
+        bubbleBuffer[bubble_buffer_write_address] <= bubble_buffer_write_data_input;
     end
 end
     
@@ -228,9 +209,9 @@ begin
 end
 
 //Address counter
-always @(posedge data_out_strobe or posedge bufferReadAddressCounterEnable)
+always @(posedge data_out_strobe or posedge bufferReadAddressCountEnable)
 begin
-    if(bufferReadAddressCounterEnable == 1'b1) //counter stop
+    if(bufferReadAddressCountEnable == 1'b1) //counter stop
     begin
         bubbleBufferReadAddress <= 11'b111_1111_1111;
     end
@@ -248,8 +229,7 @@ begin
 end
 
 /*
-BOOTLOADER OUT BIT COUNTER: counts 4571 negedge + 4571 posedge
-
+BOOTLOADER OUT BIT COUNTER
 1 to 4571 pulse (the number of DATA_OUT_STROBE pulse)
 0001 - 2640: HIGH
 2641 - 2642: START PATTERN 0111
@@ -257,8 +237,7 @@ BOOTLOADER OUT BIT COUNTER: counts 4571 negedge + 4571 posedge
 4563 - 4568: LOW (DUMMY DATA)
 4569 - 4571: HIGH (DUMMY BITS: DON'T CARE)
 
-PAGE OUT BIT COUNTER: counts 703 negedge + 703 posedge
-
+PAGE OUT BIT COUNTER
 1 to 703 (the number of DATA_OUT_STROBE pulse)
 001 - 100: HIGH (DON'T CARE?)
 101 - 612: DATA 1024 BITS
@@ -271,20 +250,19 @@ begin
     case ({bootloaderLoadOutEnable, pageLoadOutEnable})
         2'b00:
             begin
-                bufferReadAddressCounterEnable <= 1'b1;
+                bufferReadAddressCountEnable <= 1'b1;
                 bubbleReadClockEnable <= 1'b1;
             end
         2'b01: //bootloader enable
             begin
                 if(bufferDataOutNoticeCounter >= 13'd2643 && bufferDataOutNoticeCounter <= 13'd4562)
                 begin
-                    bufferReadAddressCounterEnable <= 1'b0;
+                    bufferReadAddressCountEnable <= 1'b0;
                     bubbleReadClockEnable <= 1'b0;
-
                 end
                 else
                 begin
-                    bufferReadAddressCounterEnable <= 1'b1;
+                    bufferReadAddressCountEnable <= 1'b1;
                     bubbleReadClockEnable <= 1'b1;
                 end
             end
@@ -292,18 +270,18 @@ begin
             begin
                 if(bufferDataOutNoticeCounter >= 13'd101 && bufferDataOutNoticeCounter <= 13'd612)
                 begin
-                    bufferReadAddressCounterEnable <= 1'b0;
+                    bufferReadAddressCountEnable <= 1'b0;
                     bubbleReadClockEnable <= 1'b0;
                 end
                 else
                 begin
-                    bufferReadAddressCounterEnable <= 1'b1;
+                    bufferReadAddressCountEnable <= 1'b1;
                     bubbleReadClockEnable <= 1'b1;
                 end
             end
         2'b11:
             begin
-                bufferReadAddressCounterEnable <= 1'b1;
+                bufferReadAddressCountEnable <= 1'b1;
                 bubbleReadClockEnable <= 1'b1;
             end
     endcase
