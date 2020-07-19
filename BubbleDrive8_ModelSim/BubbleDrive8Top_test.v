@@ -15,12 +15,14 @@ reg     [2:0]   image_dip_switch = 3'b000;
 wire            bubble_out_odd;
 wire            bubble_out_even;
 
-reg     [10:0]  bubble_buffer_write_address = 11'd0;
-reg     [1:0]   bubble_buffer_write_data_input = 2'b00;
-reg             bubble_buffer_write_enable = 1'b1;
-reg             bubble_buffer_write_clock = 1'b0;
-wire            load_page;
-wire            load_bootloader;
+
+wire            CS;
+wire            MOSI;
+reg             MISO;
+wire            WP;
+wire            HOLD;
+wire            CLK;
+
 
 BubbleDrive8Top testBubbleDrive8Top
 (
@@ -38,12 +40,12 @@ BubbleDrive8Top testBubbleDrive8Top
     .bubble_out_odd(bubble_out_odd),
     .bubble_out_even(bubble_out_even),
 
-    .bubble_buffer_write_address(bubble_buffer_write_address),
-    .bubble_buffer_write_data_input(bubble_buffer_write_data_input),
-    .bubble_buffer_write_enable(bubble_buffer_write_enable),
-    .bubble_buffer_write_clock(bubble_buffer_write_clock),
-    .load_page(load_page),
-    .load_bootloader(load_bootloader)
+    .CS(CS),
+    .MOSI(MOSI),
+    .MISO(MISO),
+    .WP(WP),
+    .HOLD(HOLD),
+    .CLK(CLK)
 );
 
 always #1 master_clock = ~master_clock;
@@ -342,63 +344,11 @@ begin
 #682 replicator_enable = 1'b1;
 #673983 bubble_shift_enable = 1'b1;
 
-
-
-
-
-
 end
 
 initial
 begin
-#10 bubble_buffer_write_enable = 1'b0;
+#10 MISO = 1'b1;
 
-#1bubble_buffer_write_data_input = 2'b11;
-bubble_buffer_write_address = 11'd0;
-#1 bubble_buffer_write_clock = 1'b1;
-#1 bubble_buffer_write_clock = 1'b0;
-
-#1bubble_buffer_write_data_input = 2'b10;
-bubble_buffer_write_address = 11'd1;
-#1 bubble_buffer_write_clock = 1'b1;
-#1 bubble_buffer_write_clock = 1'b0;
-
-#1bubble_buffer_write_data_input = 2'b01;
-bubble_buffer_write_address = 11'd2;
-#1 bubble_buffer_write_clock = 1'b1;
-#1 bubble_buffer_write_clock = 1'b0;
-
-#1bubble_buffer_write_data_input = 2'b00;
-bubble_buffer_write_address = 11'd3;
-#1 bubble_buffer_write_clock = 1'b1;
-#1 bubble_buffer_write_clock = 1'b0;
-
-#1bubble_buffer_write_data_input = 2'b11;
-bubble_buffer_write_address = 11'd511;
-#1 bubble_buffer_write_clock = 1'b1;
-#1 bubble_buffer_write_clock = 1'b0;
-
-#1bubble_buffer_write_data_input = 2'b11;
-bubble_buffer_write_address = 11'd1023;
-#1 bubble_buffer_write_clock = 1'b1;
-#1 bubble_buffer_write_clock = 1'b0;
-
-#1bubble_buffer_write_data_input = 2'b11;
-bubble_buffer_write_address = 11'd1417;
-#1 bubble_buffer_write_clock = 1'b1;
-#1 bubble_buffer_write_clock = 1'b0;
-
-#1bubble_buffer_write_data_input = 2'b00;
-bubble_buffer_write_address = 11'd1918;
-#1 bubble_buffer_write_clock = 1'b1;
-#1 bubble_buffer_write_clock = 1'b0;
-
-#1bubble_buffer_write_data_input = 2'b00;
-bubble_buffer_write_address = 11'd1919;
-#1 bubble_buffer_write_clock = 1'b1;
-#1 bubble_buffer_write_clock = 1'b0;
-
-#10 bubble_buffer_write_enable = 1'b1;
 end
-
 endmodule
