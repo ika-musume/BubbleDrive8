@@ -13,7 +13,7 @@ module SPILoader
 
     //To BubbleInterface block RAM
     output  reg     [10:0]  bubble_buffer_write_address = 11'd0,
-    output  reg     [1:0]   bubble_buffer_write_data_output= 2'b00,
+    output  reg     [1:0]   bubble_buffer_write_data_output = 2'b00,
     output  reg             bubble_buffer_write_enable = 1'b1,
     output  reg             bubble_buffer_write_clock = 1'b0,
 
@@ -47,8 +47,6 @@ XAAA/AAAA = 7 bits of address of a page(128 bytes)
 reg    [32:0]  spiInstruction = {1'b0, 32'h0000_0000}; //33 bit register: 1 bit MOSI + 8 bit instruction + 24 bit address
 assign MOSI = spiInstruction[32];
 
-reg     [3:0]   state;
-
 reg     [12:0]  spiStateCounter = 13'b0; 
 
 localparam Standby = 4'b0000;
@@ -61,28 +59,31 @@ localparam BubbleOddIn = 4'b0110;
 localparam AddressIncrement = 4'b0111;
 localparam BubbleEvenIn = 4'b1000;
 localparam Quit = 4'b1001;
+localparam LoadBootloaderAddress = 4'b1010;
+
+reg     [3:0]   state = Standby;
 
 /*
 13 bit counter for SPI I/O
 
-0000 - 0029: Standby
-0030: LoadPageAddress
-0031: ChipEnable
-0032 - 0063: InstructionShift(LSB = 0), Wait(LSB = 1)
+0000 - 0061: Standby
+0062: LoadPageAddress
+0063: ChipEnable
+0064 - 0127: InstructionShift(LSB = 0), Wait(LSB = 1)
 
-from 0064(0000_0000_0010_0000)
+from 00128(1000_0000)
 XX00: BufferWrite
 XX01: BubbleOddIn
 XX10: AddressIncrement
 XX11: BubbleEvenIn
 
-to 7743(bootloader 480B)
-7744 - 7751: for last byte writing
-7752: Quit
+to 7807(bootloader 480B)
+7808 - 7815: for last byte writing
+7816: Quit
 
-to 2111(page 128B)
-2112 - 2119: for last byte writing
-2120: Quit
+to 2175(page 128B)
+2176 - 2183: for last byte writing
+2184: Quit
 */
 
 always @(posedge master_clock)
@@ -94,22 +95,22 @@ begin
         end
         2'b01: //bootloader
         begin
-            if(spiStateCounter == 13'd30)
+            if(spiStateCounter == 13'd62)
             begin
-                state <= LoadPageAddress;
+                state <= LoadBootloaderAddress;
             end
-            else if(spiStateCounter == 13'd31)
+            else if(spiStateCounter == 13'd63)
             begin
                 state <= ChipEnable;
             end
-            else if(spiStateCounter >= 13'd32 && spiStateCounter <= 13'd63)
+            else if(spiStateCounter >= 13'd64 && spiStateCounter <= 13'd127)
             begin
                 case(spiStateCounter[0])
                     1'b0: state <= InstructionShift;
                     1'b1: state <= Wait;
                 endcase
             end
-            else if(spiStateCounter >= 13'd64 && spiStateCounter <= 13'd7751)
+            else if(spiStateCounter >= 13'd128 && spiStateCounter <= 13'd7815)
             begin
                 case(spiStateCounter[1:0])
                     2'b00: state <= BufferWrite;
@@ -118,7 +119,7 @@ begin
                     2'b11: state <= BubbleEvenIn;
                 endcase
             end
-            else if(spiStateCounter == 13'd7752)
+            else if(spiStateCounter == 13'd7816)
             begin
                 state <= Quit;
             end
@@ -138,22 +139,22 @@ begin
         end
         2'b10: 
         begin
-            if(spiStateCounter == 13'd30)
+            if(spiStateCounter == 13'd62)
             begin
                 state <= LoadPageAddress;
             end
-            else if(spiStateCounter == 13'd31)
+            else if(spiStateCounter == 13'd63)
             begin
                 state <= ChipEnable;
             end
-            else if(spiStateCounter >= 13'd32 && spiStateCounter <= 13'd63)
+            else if(spiStateCounter >= 13'd64 && spiStateCounter <= 13'd127)
             begin
                 case(spiStateCounter[0])
                     1'b0: state <= InstructionShift;
                     1'b1: state <= Wait;
                 endcase
             end
-            else if(spiStateCounter >= 13'd64 && spiStateCounter <= 13'd2119)
+            else if(spiStateCounter >= 13'd128 && spiStateCounter <= 13'd2183)
             begin
                 case(spiStateCounter[1:0])
                     2'b00: state <= BufferWrite;
@@ -162,7 +163,7 @@ begin
                     2'b11: state <= BubbleEvenIn;
                 endcase
             end
-            else if(spiStateCounter == 13'd2120)
+            else if(spiStateCounter == 13'd2184)
             begin
                 state <= Quit;
             end
@@ -305,6 +306,17 @@ begin
             bubble_buffer_write_address <= 11'b111_1111_1111;
             bubble_buffer_write_data_output <= 2'b00;
             bubble_buffer_write_enable <= 1'b1;
+            bubble_buffer_write_clock <= 1'b0;
+        end
+        4'b1010: //LoadBootloaderAddress
+        begin
+            spiInstruction <= {1'b0, 8'b0000_0011, 2'b00, image_number[2:0], 12'h805, 7'b000_0000};
+            CS <= 1'b1;
+            CLK <= 1'b1;
+
+            bubble_buffer_write_address <= 11'b111_1111_1111;
+            bubble_buffer_write_data_output <= 2'b00;
+            bubble_buffer_write_enable <= 1'b0;
             bubble_buffer_write_clock <= 1'b0;
         end
         default
