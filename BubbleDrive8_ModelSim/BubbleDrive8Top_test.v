@@ -1,4 +1,4 @@
-`timescale 10ps/1ps
+`timescale 10ns/10ns
 module BubbleDrive8Top_tb;
 
 reg             master_clock = 1'b1;
@@ -16,14 +16,6 @@ wire            bubble_out_odd;
 wire            bubble_out_even;
 
 
-wire            CS;
-wire            MOSI;
-reg             MISO;
-wire            WP;
-wire            HOLD;
-wire            CLK;
-
-
 BubbleDrive8Top testBubbleDrive8Top
 (
 	.master_clock (master_clock),
@@ -38,14 +30,7 @@ BubbleDrive8Top testBubbleDrive8Top
     .image_dip_switch(image_dip_switch),
 
     .bubble_out_odd(bubble_out_odd),
-    .bubble_out_even(bubble_out_even),
-
-    .CS(CS),
-    .MOSI(MOSI),
-    .MISO(MISO),
-    .WP(WP),
-    .HOLD(HOLD),
-    .CLK(CLK)
+    .bubble_out_even(bubble_out_even)
 );
 
 always #1 master_clock = ~master_clock;
@@ -62,42 +47,44 @@ begin
 #650000 bubble_shift_enable = 1'b0;
 #1139570 replicator_enable = 1'b0;
 #683 replicator_enable = 1'b1;
-#673986 bubble_shift_enable = 1'b1;
+#673978 bubble_shift_enable = 1'b1;
 //182
 #75000 bubble_shift_enable = 1'b0;
-#1000 replicator_enable = 1'b0;
-#682 replicator_enable = 1'b1;
-#673983 bubble_shift_enable = 1'b1;
+#999 replicator_enable = 1'b0;
+#684 replicator_enable = 1'b1;
+#673977 bubble_shift_enable = 1'b1;
 //183
 #75000 bubble_shift_enable = 1'b0;
-#1000 replicator_enable = 1'b0;
-#682 replicator_enable = 1'b1;
-#673983 bubble_shift_enable = 1'b1;
+#998 replicator_enable = 1'b0;
+#684 replicator_enable = 1'b1;
+#673978 bubble_shift_enable = 1'b1;
 //184
 #75000 bubble_shift_enable = 1'b0;
-#1000 replicator_enable = 1'b0;
-#682 replicator_enable = 1'b1;
-#673983 bubble_shift_enable = 1'b1;
+#999 replicator_enable = 1'b0;
+#684 replicator_enable = 1'b1;
+#673977 bubble_shift_enable = 1'b1;
 //185
 #75000 bubble_shift_enable = 1'b0;
-#1000 replicator_enable = 1'b0;
-#682 replicator_enable = 1'b1;
-#673983 bubble_shift_enable = 1'b1;
+#998 replicator_enable = 1'b0;
+#684 replicator_enable = 1'b1;
+#673978 bubble_shift_enable = 1'b1;
 //186
 #75000 bubble_shift_enable = 1'b0;
-#1000 replicator_enable = 1'b0;
-#682 replicator_enable = 1'b1;
-#673983 bubble_shift_enable = 1'b1;
+#999 replicator_enable = 1'b0;
+#684 replicator_enable = 1'b1;
+#673977 bubble_shift_enable = 1'b1;
 //187
 #75000 bubble_shift_enable = 1'b0;
-#1000 replicator_enable = 1'b0;
-#682 replicator_enable = 1'b1;
-#673983 bubble_shift_enable = 1'b1;
-//188
+#998 replicator_enable = 1'b0;
+#684 replicator_enable = 1'b1;
+#673978 bubble_shift_enable = 1'b1;
+//187
 #75000 bubble_shift_enable = 1'b0;
-#1000 replicator_enable = 1'b0;
-#682 replicator_enable = 1'b1;
-#673983 bubble_shift_enable = 1'b1;
+#999 replicator_enable = 1'b0;
+#684 replicator_enable = 1'b1;
+#673977 bubble_shift_enable = 1'b1;
+
+
 //191
 #75000 bubble_shift_enable = 1'b0;
 #1465973 replicator_enable = 1'b0;
@@ -348,7 +335,7 @@ end
 
 initial
 begin
-#10 MISO = 1'b1;
+//#10 MISO = 1'b1;
 
 end
 endmodule

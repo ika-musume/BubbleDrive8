@@ -80,4 +80,6 @@ SPILoader               SPILoader_0             (.master_clock(master_clock), .i
 
                                                 .CS(CS), .MOSI(MOSI), .MISO(MISO), .WP(WP), .HOLD(HOLD), .CLK(CLK));
 
+W25Q32JVxxIM            W25Q32JVxxIM            (.CSn(CS), .CLK(CLK), .DO(MISO), .DIO(MOSI), .WPn(WP), .HOLDn(HOLD), .RESETn(HOLD));
+
 endmodule
