@@ -25,12 +25,12 @@ begin
     if(power_good == 1'b0)
     begin
         bubble_interface_enable <= 1'b0;
-        image_number <= image_dip_switch;
+        image_number <= ~image_dip_switch;
     end
     else
     begin
         bubble_interface_enable <= 1'b1;
-        image_number <= image_dip_switch;
+        image_number <= ~image_dip_switch;
     end
 end
 endmodule

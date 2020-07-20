@@ -10,7 +10,7 @@ reg             bootloop_enable = 1'b0;
 
 reg             power_good = 1'b0;
 
-reg     [2:0]   image_dip_switch = 3'b000;
+reg     [2:0]   image_dip_switch = 3'b111;
 
 wire            bubble_out_odd;
 wire            bubble_out_even;
@@ -83,8 +83,6 @@ begin
 #999 replicator_enable = 1'b0;
 #684 replicator_enable = 1'b1;
 #673977 bubble_shift_enable = 1'b1;
-
-
 //191
 #75000 bubble_shift_enable = 1'b0;
 #1465973 replicator_enable = 1'b0;
@@ -330,12 +328,6 @@ begin
 #1000 replicator_enable = 1'b0;
 #682 replicator_enable = 1'b1;
 #673983 bubble_shift_enable = 1'b1;
-
 end
 
-initial
-begin
-//#10 MISO = 1'b1;
-
-end
 endmodule
