@@ -11,3 +11,5 @@ Added BubbleCalc, a bubble page-position correspondence table generator for Veri
 Now SPILoader works
 ### v0.7
 We can emulate a bubble memory cartridge on a computer! It works!
+### v0.71
+Just got a great logo for BubbleDrive8! Thanks to the courtesy of [@Akamig]( https://github.com/Akamig )
