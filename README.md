@@ -9,3 +9,5 @@ Added several modules and the testbench code for ModelSim.
 Added BubbleCalc, a bubble page-position correspondence table generator for Verilog HDL and SPILoader.v(not tested)
 ### v0.61
 Now SPILoader works
+### v0.7
+We can emulate a bubble memory cartridge on a computer! It works!
