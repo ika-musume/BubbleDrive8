@@ -11,6 +11,7 @@ module BubbleDrive8Top
 
     //signals from motherboard
     input   wire            power_good,
+    output  wire            temperature_low,
 
     //onboard components
     input   wire    [2:0]   image_dip_switch,
@@ -33,9 +34,9 @@ wire            position_change;
 wire            data_out_strobe;
 wire            data_out_notice;
 wire            position_latch;
-wire            bootloader_select;
+wire            page_select;
 wire            coil_run;
-wire            bubble_interface_enable;
+wire            bubble_module_enable;
 
 //To PositionPageConverter
 wire            convert;
@@ -50,20 +51,19 @@ wire            load_bootloader;
 //SPILoader buffer
 wire    [1:0]   bubble_buffer_write_data_wire;
 wire    [10:0]  bubble_buffer_write_address;
-wire    [1:0]   bubble_buffer_write_data_input;
 wire            bubble_buffer_write_enable;
 wire            bubble_buffer_write_clock;
 
 
-ManagementModule        ManagementModule        (.master_clock(master_clock), .power_good(power_good), .bubble_interface_enable(bubble_interface_enable), .image_number(image_number), .image_dip_switch(image_dip_switch));
+ManagementModule        ManagementModule        (.master_clock(master_clock), .power_good(power_good), .temperature_low(temperature_low), .bubble_module_enable(bubble_module_enable), .image_number(image_number), .image_dip_switch(image_dip_switch));
 
 
-TimingGenerator         TimingGenerator_0       (.master_clock(master_clock), .clock_out(clock_out),
+TimingGenerator         TimingGenerator_0       (.master_clock(master_clock), .clock_out(clock_out), .bubble_module_enable(bubble_module_enable),
                                                 .bubble_shift_enable(bubble_shift_enable), .replicator_enable(replicator_enable), .bootloop_enable(bootloop_enable),
-                                                .position_change(position_change), .data_out_strobe(data_out_strobe), .data_out_notice(data_out_notice), .position_latch(position_latch), .bootloader_select(bootloader_select), .coil_run(coil_run));
+                                                .position_change(position_change), .data_out_strobe(data_out_strobe), .data_out_notice(data_out_notice), .position_latch(position_latch), .page_select(page_select), .coil_run(coil_run));
 
-BubbleInterface         BubbleInterface_0       (.master_clock(master_clock), .bubble_interface_enable(bubble_interface_enable),
-                                                .position_change(position_change), .data_out_strobe(data_out_strobe), .data_out_notice(data_out_notice), .position_latch(position_latch), .bootloader_select(bootloader_select), .coil_run(coil_run),
+BubbleInterface         BubbleInterface_0       (.master_clock(master_clock), .bubble_module_enable(bubble_module_enable),
+                                                .position_change(position_change), .data_out_strobe(data_out_strobe), .data_out_notice(data_out_notice), .position_latch(position_latch), .page_select(page_select), .coil_run(coil_run),
                                                 .convert(convert), .bubble_position_output(bubble_position_wire),
 
                                                 .bubble_buffer_write_address(bubble_buffer_write_address), .bubble_buffer_write_data_input(bubble_buffer_write_data_wire),

@@ -36,11 +36,14 @@ Original pinout below:
 (
     //48MHz input clock
     input   wire            master_clock,
+
+    //control
+    input   wire            bubble_module_enable,
+
     //4MHz output clock
     output  reg             clock_out = 1'b1,
 
     //Bubble control signal inputs
-    //input   wire            bubble_shift_start, //not used
     input   wire            bubble_shift_enable,
     input   wire            replicator_enable,
     input   wire            bootloop_enable,
@@ -50,7 +53,7 @@ Original pinout below:
     output  wire            data_out_strobe, //Starts at 180 degree, ends at 240 degree, can put bubble data at a falling edge (active high)
     output  wire            data_out_notice, //Same as replicator clamp (active high)
     output  wire            position_latch, //Current bubble position can be latched when this line has been asserted (active high)
-    output  wire            bootloader_select, //Bootloader select, synchronized signal of bootloop_enable (active high)
+    output  wire            page_select, //Program page select, synchronized signal of bootloop_enable (active high)
     output  wire            coil_run //Goes high when bubble moves - same as COIL RUN (active high)
 );
 
@@ -72,15 +75,14 @@ reg             bootloopEnableInternal = 1'b0;
 
 //State counters
 reg     [7:0]   mainStateCounter = 8'd0;
-reg     [7:0]   replicatorStateCounter = 6'd0;   
 
 //Function signals
 reg     [3:0]   coilEnable = 4'b1111; //HI[+Y -Y -X +X]LO
 reg             detectorClamp = 1'b1;
 reg             detectorStrobe = 1'b0;
-reg             functionRepEnable = 1'b1;
+//reg             functionRepEnable = 1'b1;
 reg             functionRepOut = 1'b1;
-reg             dataInEnable = 1'b1;
+//reg             dataInEnable = 1'b1;
 reg             coilRun = 1'b0; //Goes HIGH while driving
 
 
@@ -88,11 +90,11 @@ reg             coilRun = 1'b0; //Goes HIGH while driving
 /*
     SIGNAL ASSIGNMENTS
 */
-assign position_change = ~(coilEnable[3] || coilEnable[1]); //pulse at rotational field of +Y
+assign position_change = ~(coilEnable[3] | coilEnable[1]); //pulse at rotational field of +Y
 assign data_out_notice = ~detectorClamp;
 assign data_out_strobe = detectorStrobe;
 assign position_latch = ~functionRepOut; 
-assign bootloader_select = ~bootloopEnableInternal;
+assign page_select = bootloopEnableInternal;
 assign coil_run = coilRun;
  
 
@@ -102,9 +104,9 @@ assign coil_run = coilRun;
 */
 always @(posedge clock12MHz)
 begin
-    stepOne[2] <= bubble_shift_enable;
-    stepOne[1] <= replicator_enable;
-    stepOne[0] <= bootloop_enable;
+    stepOne[2] <= bubble_module_enable | bubble_shift_enable;
+    stepOne[1] <= bubble_module_enable | replicator_enable;
+    stepOne[0] <= ~bubble_module_enable & bootloop_enable;
 
     stepTwo <= stepOne;
     stepThree <= stepTwo;
@@ -199,14 +201,9 @@ begin
 end
 
 //Coil driver signal generation
-always @(*)
+always @(mainStateCounter)
 begin
-    if(mainStateCounter >= 8'd0 && mainStateCounter <= 8'd17) //intro
-    begin
-        coilEnable <= 4'b1111; //HI[+Y -Y -X +X]LO
-        coilRun <= 1'b0;
-    end
-    else if(mainStateCounter >= 8'd18 && mainStateCounter <= 8'd45)
+    if(mainStateCounter >= 8'd18 && mainStateCounter <= 8'd45)
     begin
         coilEnable <= 4'b1101; //HI[+Y -Y -X +X]LO
         coilRun <= 1'b1;
@@ -258,8 +255,57 @@ begin
     end
 end
 
+//Replicator signal generation
+always @(mainStateCounter)
+begin
+    if(replicatorEnableInternal == 1'b1)
+    begin
+        //functionRepEnable <= 1'b1;
+        functionRepOut <= 1'b1;
+    end
+    else
+    begin
+        if(mainStateCounter >= 8'd19 && mainStateCounter <= 8'd20)
+        begin
+            //functionRepEnable <= 1'b0;
+            functionRepOut <= 1'b1;
+        end
+        else if(mainStateCounter >= 8'd21 && mainStateCounter <= 8'd23)
+        begin
+            //functionRepEnable <= 1'b0;
+            functionRepOut <= 1'b0;
+        end
+        else if(mainStateCounter >= 8'd24 && mainStateCounter <= 8'd54)
+        begin
+            //functionRepEnable <= 1'b0;
+            functionRepOut <= 1'b1;
+        end
+        else if(mainStateCounter >= 8'd139 && mainStateCounter <= 8'd140)
+        begin
+            //functionRepEnable <= 1'b0;
+            functionRepOut <= 1'b1;
+        end
+        else if(mainStateCounter >= 8'd141 && mainStateCounter <= 8'd143)
+        begin
+            //functionRepEnable <= 1'b0;
+            functionRepOut <= 1'b0;
+        end
+        else if(mainStateCounter >= 8'd144 && mainStateCounter <= 8'd174)
+        begin
+            //functionRepEnable <= 1'b0;
+            functionRepOut <= 1'b1;
+        end
+        else
+        begin
+            //functionRepEnable <= 1'b1;
+            functionRepOut <= 1'b1;
+        end
+    end
+end
+
+/*
 //Data in enable(74LS32) signal generation
-always @(*)
+always @(mainStateCounter)
 begin
     if(mainStateCounter >= 8'd16 && mainStateCounter <= 8'd18)
     begin
@@ -274,9 +320,10 @@ begin
         dataInEnable <= 1'b1;
     end
 end
+*/
 
 //Sense amplifier signal generation
-always @(*)
+always @(mainStateCounter)
 begin
     if(mainStateCounter >= 8'd56 && mainStateCounter <= 8'd77)
     begin
@@ -292,60 +339,6 @@ begin
     begin
         detectorClamp <= 1'b1;
         detectorStrobe <= 1'b0;
-    end
-end
-
-
-
-/*
-    REPLICATOR SEQUENCER
-*/
-reg             replicatorRun = 1'b0; //Goes HIGH while running
-always @(posedge clock12MHz)
-begin
-    if(replicatorEnableInternal == 1'b1) //STOP
-    begin
-        if(replicatorRun == 1'b0) //REPLICATOR STOP
-        begin
-            replicatorStateCounter <= 8'd0;
-        end
-        else //REPLICATOR RUN
-        begin
-            replicatorStateCounter <= replicatorStateCounter + 8'd1;
-        end
-    end
-    else //RUN
-    begin
-        replicatorStateCounter <= replicatorStateCounter + 8'd1;
-    end
-end
-
-//Replicator signal generation
-always @(*)
-begin
-    if(replicatorStateCounter >= 8'd14 && replicatorStateCounter <= 8'd15)
-    begin
-        functionRepEnable <= 1'b0;
-        functionRepOut <= 1'b1;
-        replicatorRun <= 1'b1;
-    end
-    else if(replicatorStateCounter >= 8'd16 && replicatorStateCounter <= 8'd18)
-    begin
-        functionRepEnable <= 1'b0;
-        functionRepOut <= 1'b0;
-        replicatorRun <= 1'b1;
-    end
-    else if(replicatorStateCounter >= 8'd19 && replicatorStateCounter <= 8'd49)
-    begin
-        functionRepEnable <= 1'b0;
-        functionRepOut <= 1'b1;
-        replicatorRun <= 1'b1;
-    end
-    else
-    begin
-        functionRepEnable <= 1'b1;
-        functionRepOut <= 1'b1;
-        replicatorRun <= 1'b0;
     end
 end
 endmodule

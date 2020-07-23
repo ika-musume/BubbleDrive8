@@ -4,14 +4,14 @@ module BubbleInterface
     input   wire            master_clock, //48MHz master clock
 
     //Data from management module
-    input   wire            bubble_interface_enable, //active low
+    input   wire            bubble_module_enable, //active low
 
     //Timing signals from TimingGenerator module
     input   wire            position_change, //0 degree, bubble position change notification (active high)
     input   wire            data_out_strobe, //Starts at 180 degree, ends at 240 degree, can put bubble data at a falling edge (active high)
     input   wire            data_out_notice, //Same as replicator clamp (active high)
     input   wire            position_latch, //Current bubble position can be latched when this line has been asserted (active high)
-    input   wire            bootloader_select, //Bootloader select, synchronized signal of bootloop_enable (active high)
+    input   wire            page_select, //Bootloader select, synchronized signal of bootloop_enable (active high)
     input   wire            coil_run, //Goes high when bubble moves - same as COIL RUN (active high)
 
     //Bubble position to page converter I/O
@@ -53,7 +53,6 @@ localparam PAGE_OUT_LENGTH = 11'd703; //1 to 703
 */
 reg              bootloaderLoadOutEnable = 1'b1; //active low, goes low while bootloader load/out
 assign           load_bootloader = bootloaderLoadOutEnable;
-
 reg              pageLoadOutEnable = 1'b1; //active low,  goes low while page load/out
 assign           load_page = pageLoadOutEnable;
 
@@ -65,7 +64,7 @@ reg     [13:0]   bufferDataOutCounter = 13'd0;
 reg              bufferReadAddressCountEnable = 1'b1; //active low, address incrementation enable
 reg              bubbleReadClockEnable = 1'b0; //active low, bubble block RAM buffer read clock (negative edge of STROBE)
 
-reg     [1:0]    bubbleOutMux = 2'b0;
+reg     [1:0]    bubbleOutMux = 2'b00;
 
 
 
@@ -78,7 +77,7 @@ reg     [1:0]    bubbleOutMux = 2'b0;
 always @(negedge master_clock)
 begin
     //bootloader load out
-    bootloaderLoadOutEnable <= ~(bootloader_select & coil_run); //goes 0 when bootloader shifting starts, goes 1 when bubble shifting ends
+    bootloaderLoadOutEnable <= (page_select | ~coil_run); //goes 0 when bootloader shifting starts, goes 1 when bubble shifting ends
 
     //page load out: goes 0 when bubbles replicate out, goes 1 when bubble shifting ends
     case ({position_latch, coil_run})
@@ -96,7 +95,7 @@ end
 */
 reg     [11:0]   positionCounter = INITIAL_POSITION_VALUE;
 
-assign convert = position_latch & ~bootloader_select; //only works when bootloader is not selected
+assign convert = position_latch & page_select; //only works when bootloader is not selected
 assign bubble_position_output = positionCounter;
 
 //position counter
@@ -119,7 +118,7 @@ end
 */
 always @(*)
 begin
-    if(bubble_interface_enable == 1'b1) //disabled
+    if(bubble_module_enable == 1'b1) //disabled
     begin
         bubble_out_odd <= 1'b0;
         bubble_out_even <= 1'b0;        
@@ -183,7 +182,7 @@ begin
         end
         else
         begin
-            bufferDataOutNoticeCounter <= 13'd1;
+            bufferDataOutNoticeCounter <= bufferDataOutNoticeCounter;
         end
     end
 end
@@ -203,7 +202,7 @@ begin
         end
         else
         begin
-            bufferDataOutCounter <= 13'd1;
+            bufferDataOutCounter <= bufferDataOutCounter;
         end
     end
 end
@@ -298,12 +297,7 @@ begin
             end
         2'b01: //bootloader enable
             begin
-                if(bufferDataOutCounter >= 13'd1 && bufferDataOutCounter <= 13'd2640)
-                begin
-                    bubbleOutMux[1] <= 1'b0;
-                    bubbleOutMux[0] <= 1'b0;
-                end
-                else if(bufferDataOutCounter == 13'd2641)
+                if(bufferDataOutCounter == 13'd2641)
                 begin     
                     bubbleOutMux[1] <= 1'b0;
                     bubbleOutMux[0] <= 1'b1;
@@ -313,12 +307,7 @@ begin
                     bubbleOutMux[1] <= 1'b1;
                     bubbleOutMux[0] <= 1'b1;
                 end
-                else if(bufferDataOutCounter >= 13'd2643 && bufferDataOutCounter <= 13'd4561)
-                begin
-                    bubbleOutMux[1] <= bubbleBufferDataOutput[1];
-                    bubbleOutMux[0] <= bubbleBufferDataOutput[0];
-                end
-                 else if(bufferDataOutCounter == 13'd4562)
+                else if(bufferDataOutCounter >= 13'd2643 && bufferDataOutCounter <= 13'd4562)
                 begin
                     bubbleOutMux[1] <= bubbleBufferDataOutput[1];
                     bubbleOutMux[0] <= bubbleBufferDataOutput[0];
@@ -336,30 +325,10 @@ begin
             end
         2'b10:
             begin
-                if(bufferDataOutCounter >= 13'd1 && bufferDataOutCounter <= 13'd99)
-                begin
-                    bubbleOutMux[1] <= 1'b0;
-                    bubbleOutMux[0] <= 1'b0;
-                end
-                else if(bufferDataOutCounter == 13'd100)
-                begin
-                    bubbleOutMux[1] <= 1'b0;
-                    bubbleOutMux[0] <= 1'b0;
-                end
-                else if(bufferDataOutCounter >= 13'd101 && bufferDataOutCounter <= 13'd611)
+                if(bufferDataOutCounter >= 13'd101 && bufferDataOutCounter <= 13'd612)
                 begin
                     bubbleOutMux[1] <= bubbleBufferDataOutput[1];
                     bubbleOutMux[0] <= bubbleBufferDataOutput[0];
-                end
-                else if(bufferDataOutCounter == 13'd612)
-                begin
-                    bubbleOutMux[1] <= bubbleBufferDataOutput[1];
-                    bubbleOutMux[0] <= bubbleBufferDataOutput[0];
-                end
-                else if(bufferDataOutCounter >= 13'd613 && bufferDataOutCounter <= 13'd703)
-                begin
-                    bubbleOutMux[1] <= 1'b0;
-                    bubbleOutMux[0] <= 1'b0;
                 end
                 else
                 begin
