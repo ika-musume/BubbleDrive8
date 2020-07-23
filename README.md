@@ -15,3 +15,5 @@ Now SPILoader works
 We can emulate a bubble memory cartridge on a computer! It works!
 ### v0.71
 Just got a great logo for BubbleDrive8! Thanks to the courtesy of [@Akamig]( https://github.com/Akamig )
+### v0.73
+Start delay implementation
