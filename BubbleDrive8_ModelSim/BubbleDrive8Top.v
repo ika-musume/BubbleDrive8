@@ -35,7 +35,7 @@ wire            data_out_strobe;
 wire            data_out_notice;
 wire            position_latch;
 wire            page_select;
-wire            coil_run;
+wire            coil_enable;
 wire            bubble_module_enable;
 
 //To PositionPageConverter
@@ -60,10 +60,10 @@ ManagementModule        ManagementModule        (.master_clock(master_clock), .p
 
 TimingGenerator         TimingGenerator_0       (.master_clock(master_clock), .clock_out(clock_out), .bubble_module_enable(bubble_module_enable),
                                                 .bubble_shift_enable(bubble_shift_enable), .replicator_enable(replicator_enable), .bootloop_enable(bootloop_enable),
-                                                .position_change(position_change), .data_out_strobe(data_out_strobe), .data_out_notice(data_out_notice), .position_latch(position_latch), .page_select(page_select), .coil_run(coil_run));
+                                                .position_change(position_change), .data_out_strobe(data_out_strobe), .data_out_notice(data_out_notice), .position_latch(position_latch), .page_select(page_select), .coil_enable(coil_enable));
 
 BubbleInterface         BubbleInterface_0       (.master_clock(master_clock), .bubble_module_enable(bubble_module_enable),
-                                                .position_change(position_change), .data_out_strobe(data_out_strobe), .data_out_notice(data_out_notice), .position_latch(position_latch), .page_select(page_select), .coil_run(coil_run),
+                                                .position_change(position_change), .data_out_strobe(data_out_strobe), .data_out_notice(data_out_notice), .position_latch(position_latch), .page_select(page_select), .coil_enable(coil_enable),
                                                 .convert(convert), .bubble_position_output(bubble_position_wire),
 
                                                 .bubble_buffer_write_address(bubble_buffer_write_address), .bubble_buffer_write_data_input(bubble_buffer_write_data_wire),

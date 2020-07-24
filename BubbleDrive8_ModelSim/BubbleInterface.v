@@ -12,7 +12,7 @@ module BubbleInterface
     input   wire            data_out_notice, //Same as replicator clamp (active high)
     input   wire            position_latch, //Current bubble position can be latched when this line has been asserted (active high)
     input   wire            page_select, //Bootloader select, synchronized signal of bootloop_enable (active high)
-    input   wire            coil_run, //Goes high when bubble moves - same as COIL RUN (active high)
+    input   wire            coil_enable, //Goes low when bubble moves - same as COIL RUN (active low)
 
     //Bubble position to page converter I/O
     output  wire            convert,
@@ -68,23 +68,72 @@ reg     [1:0]    bubbleOutMux = 2'b00;
 
 
 
-
 /*
     ENABLE SIGNAL GENERATOR FOR BUBBLE OUT SEQUENCER / FLASH DATA LOADER
 */
 //Signals from TimingGenerator module change at positive edges of 12MHz clock, and 12MHz clock alters at every positive edges of 48MHz master clock.
 //We can capture signals at every negative edge of 48MHz master clock.
+
+/*
+~functionRepOut     ____|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_______________________|¯|___________________________
+
+page_select         __________________________________________|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+coil_enable         ¯¯|_____________________________________|¯¯¯¯¯¯¯¯¯|____________________________________|¯¯¯¯
+position_latch      ______________________________________________________________|¯|___________________________
+                      |----(bootloader load out enable)-----|                     |-(page load out enable)-|
+----->TIME          A                    B                   A    C         D      E            D             C           X: POSSIBLE GLITCH
+
+A: STANDBY(INITIAL)
+B: BOOTLOADER LOAD/OUT
+C: STANDBY(NORMAL)
+D: HOLD PREVIOUS STATE
+E: PAGE LOAD/OUT START
+X: POSSIBLE GLITCH - HOLD PREVIOUS STATE
+*/
+
 always @(negedge master_clock)
 begin
-    //bootloader load out
-    bootloaderLoadOutEnable <= (page_select | ~coil_run); //goes 0 when bootloader shifting starts, goes 1 when bubble shifting ends
-
-    //page load out: goes 0 when bubbles replicate out, goes 1 when bubble shifting ends
-    case ({position_latch, coil_run})
-        2'b00:  pageLoadOutEnable <= 1'b1;
-        2'b01:  pageLoadOutEnable <= pageLoadOutEnable;
-        2'b10:  pageLoadOutEnable <= pageLoadOutEnable;
-        2'b11:  pageLoadOutEnable <= 1'b0;
+    case ({page_select, coil_enable, position_latch})
+        3'b000: //B
+        begin
+            bootloaderLoadOutEnable <= 1'b0;
+            pageLoadOutEnable <= 1'b1;
+        end
+        3'b001: //X
+        begin
+            bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
+            pageLoadOutEnable <= pageLoadOutEnable;
+        end
+        3'b010: //A
+        begin
+            bootloaderLoadOutEnable <= 1'b1;
+            pageLoadOutEnable <= 1'b1;
+        end
+        3'b011: //X
+        begin
+            bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
+            pageLoadOutEnable <= pageLoadOutEnable;
+        end
+        3'b100: //D 
+        begin
+            bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
+            pageLoadOutEnable <= pageLoadOutEnable;
+        end
+        3'b101: //E
+        begin
+            bootloaderLoadOutEnable <= 1'b1;
+            pageLoadOutEnable <= 1'b0;
+        end
+        3'b110: //C
+        begin
+            bootloaderLoadOutEnable <= 1'b1;
+            pageLoadOutEnable <= 1'b1;
+        end
+        3'b111: //X
+        begin
+            bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
+            pageLoadOutEnable <= pageLoadOutEnable;
+        end
     endcase
 end
 
@@ -95,7 +144,7 @@ end
 */
 reg     [11:0]   positionCounter = INITIAL_POSITION_VALUE;
 
-assign convert = position_latch & page_select; //only works when bootloader is not selected
+assign convert = position_latch; //only works when bootloader is not selected
 assign bubble_position_output = positionCounter;
 
 //position counter

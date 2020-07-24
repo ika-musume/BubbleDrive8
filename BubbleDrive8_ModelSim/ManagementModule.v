@@ -11,7 +11,7 @@ module ManagementModule
     output  reg             bubble_module_enable = 1'b1, //active low
 
     //Data from/to SPILoader
-    output  reg     [2:0]   image_number = 3'b000, //management module latches them at the very initial time of total boot process
+    output  wire     [2:0]   image_number, //management module latches them at the very initial time of total boot process
     
     //On-board components
     //input   wire    [11:0]  bubble_page_input, //PPPP/PPPP/PPPP
@@ -19,14 +19,25 @@ module ManagementModule
     //input   wire    [3:0]   function_dip_switch
 );
 
+
+
+/*
+    GLOBAL REGISTERS
+*/
+//Synchronization registers
 reg             stepOne = 1'b0;
 reg             stepTwo = 1'b0;
 reg             stepThree = 1'b0;
 reg             powerGoodInternal = 1'b0;
 
-reg     [28:0]  clockCounter = 32'd0;
-localparam COUNTER_MAX = 32'd511; //orig 48000000
+reg     [31:0]  clockCounter = 32'd0;
+localparam COUNTER_MAX = 32'd8191; //orig 48000000
 //TTTT_TTTT_XXXX_XXXX_XXXX_XXXX_XXXX_XXXX (25bit)
+
+reg     [2:0]   imageNumberLatch = 3'b000;
+assign image_number = imageNumberLatch;
+
+
 
 /*
     SYNCHRONIZER
@@ -44,9 +55,13 @@ begin
 end
 
 
+
+/*
+    CLOCK COUNTER
+*/
 always @(posedge master_clock)
 begin
-    if(powerGoodInternal == 1'b0)
+    if(powerGoodInternal == 1'b1)
     begin
         clockCounter <= 32'd0;    
     end
@@ -63,31 +78,28 @@ begin
     end
 end
 
-always @(clockCounter[8:6])
+always @(clockCounter[12:10] or image_dip_switch)
 begin
-    if(clockCounter[8:6] == 3'd0) //NOT_READY
+    if(clockCounter[12:10] == 3'd0) //NOT_READY
     begin
         temperature_low <= 1'b0;
         bubble_module_enable <= 1'b1;
-        image_number <= 3'b000;
     end
-    else if(clockCounter[8:6] == 3'd1)  //LATCH_IMAGE_NUMBER
+    else if(clockCounter[12:10] == 3'd1)  //LATCH_IMAGE_NUMBER
     begin
         temperature_low <= 1'b0;
         bubble_module_enable <= 1'b1;
-        image_number <= ~image_dip_switch;
+        imageNumberLatch <= ~image_dip_switch;
     end
-    else if(clockCounter[8:6] == 3'd2) //RUN
+    else if(clockCounter[12:10] == 3'd2) //RUN
     begin
         temperature_low <= 1'b1;
         bubble_module_enable <= 1'b0;
-        image_number <= image_number;
     end
     else
     begin
         temperature_low <= 1'b1;
         bubble_module_enable <= 1'b0;
-        image_number <= image_number;
     end
 end
 

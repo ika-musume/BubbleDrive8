@@ -54,7 +54,7 @@ Original pinout below:
     output  wire            data_out_notice, //Same as replicator clamp (active high)
     output  wire            position_latch, //Current bubble position can be latched when this line has been asserted (active high)
     output  wire            page_select, //Program page select, synchronized signal of bootloop_enable (active high)
-    output  wire            coil_run //Goes high when bubble moves - same as COIL RUN (active high)
+    output  wire            coil_enable //Goes high when bubble moves - same as COIL RUN (active low)
 );
 
 
@@ -93,9 +93,9 @@ reg             coilRun = 1'b0; //Goes HIGH while driving
 assign position_change = ~(coilEnable[3] | coilEnable[1]); //pulse at rotational field of +Y
 assign data_out_notice = ~detectorClamp;
 assign data_out_strobe = detectorStrobe;
-assign position_latch = ~functionRepOut; 
+assign position_latch = ~functionRepOut & bootloopEnableInternal; 
 assign page_select = bootloopEnableInternal;
-assign coil_run = coilRun;
+assign coil_enable = ~coilRun;
  
 
 
@@ -256,7 +256,7 @@ begin
 end
 
 //Replicator signal generation
-always @(mainStateCounter)
+always @(mainStateCounter or replicatorEnableInternal)
 begin
     if(replicatorEnableInternal == 1'b1)
     begin
@@ -303,25 +303,6 @@ begin
     end
 end
 
-/*
-//Data in enable(74LS32) signal generation
-always @(mainStateCounter)
-begin
-    if(mainStateCounter >= 8'd16 && mainStateCounter <= 8'd18)
-    begin
-        dataInEnable <= 1'b0;
-    end
-    else if(mainStateCounter >= 8'd136 && mainStateCounter <= 8'd138)
-    begin
-        dataInEnable <= 1'b0;
-    end
-    else
-    begin
-        dataInEnable <= 1'b1;
-    end
-end
-*/
-
 //Sense amplifier signal generation
 always @(mainStateCounter)
 begin
@@ -341,4 +322,23 @@ begin
         detectorStrobe <= 1'b0;
     end
 end
+
+/*
+//Data in enable(74LS32) signal generation
+always @(mainStateCounter)
+begin
+    if(mainStateCounter >= 8'd16 && mainStateCounter <= 8'd18)
+    begin
+        dataInEnable <= 1'b0;
+    end
+    else if(mainStateCounter >= 8'd136 && mainStateCounter <= 8'd138)
+    begin
+        dataInEnable <= 1'b0;
+    end
+    else
+    begin
+        dataInEnable <= 1'b1;
+    end
+end
+*/
 endmodule
