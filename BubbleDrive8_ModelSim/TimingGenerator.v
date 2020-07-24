@@ -90,7 +90,7 @@ reg             coilRun = 1'b0; //Goes HIGH while driving
 /*
     SIGNAL ASSIGNMENTS
 */
-assign position_change = ~(coilEnable[3] | coilEnable[1]); //pulse at rotational field of +Y
+assign position_change = ~(coilEnable[3] | coilEnable[1]); //pulse at rotational vector of +Y
 assign data_out_notice = ~detectorClamp;
 assign data_out_strobe = detectorStrobe;
 assign position_latch = ~functionRepOut & bootloopEnableInternal; 
@@ -206,53 +206,55 @@ begin
     if(mainStateCounter >= 8'd18 && mainStateCounter <= 8'd45)
     begin
         coilEnable <= 4'b1101; //HI[+Y -Y -X +X]LO
-        coilRun <= 1'b1;
     end
     else if(mainStateCounter >= 8'd46 && mainStateCounter <= 8'd48)
     begin
         coilEnable <= 4'b1001; //HI[+Y -Y -X +X]LO
-        coilRun <= 1'b1;
     end
     else if(mainStateCounter >= 8'd49 && mainStateCounter <= 8'd72)
     begin
         coilEnable <= 4'b1011; //HI[+Y -Y -X +X]LO
-        coilRun <= 1'b1;
     end
     else if(mainStateCounter >= 8'd73 && mainStateCounter <= 8'd79)
     begin
         coilEnable <= 4'b1010; //HI[+Y -Y -X +X]LO
-        coilRun <= 1'b1;
     end
     else if(mainStateCounter >= 8'd80 && mainStateCounter <= 8'd105) //MB3910 strobe goes LOW, clamp goes HIGH at positive edge of 97th clock
     begin
         coilEnable <= 4'b1110; //HI[+Y -Y -X +X]LO
-        coilRun <= 1'b1;
     end
     else if(mainStateCounter >= 8'd106 && mainStateCounter <= 8'd109)
     begin
         coilEnable <= 4'b0110; //HI[+Y -Y -X +X]LO
-        coilRun <= 1'b1;
     end
     else if(mainStateCounter >= 8'd110 && mainStateCounter <= 8'd137)
     begin
         coilEnable <= 4'b0111; //HI[+Y -Y -X +X]LO
-        coilRun <= 1'b1;
     end
     else if(mainStateCounter >= 8'd138 && mainStateCounter <= 8'd139)
     begin
         coilEnable <= 4'b0101; //HI[+Y -Y -X +X]LO
-        coilRun <= 1'b1;
     end
     else if(mainStateCounter >= 8'd140 && mainStateCounter <= 8'd168)
     begin
         coilEnable <= 4'b1101; //HI[+Y -Y -X +X]LO
-        coilRun <= 1'b1;
     end
     else
     begin
         coilEnable <= 4'b1111; //HI[+Y -Y -X +X]LO
-        coilRun <= 1'b0;
     end
+end
+
+always @(mainStateCounter)
+begin
+    if(mainStateCounter >= 8'd18 && mainStateCounter <= 8'd168)
+    begin
+        coilRun <= 1'b1;
+    end
+	 else
+	 begin
+	     coilRun <= 1'b0;
+	 end
 end
 
 //Replicator signal generation
