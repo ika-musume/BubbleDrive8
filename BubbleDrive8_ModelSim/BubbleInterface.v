@@ -69,7 +69,7 @@ reg     [1:0]    bubbleOutMux = 2'b00;
 
 
 /*
-    ENABLE SIGNAL GENERATOR FOR BUBBLE OUT SEQUENCER / FLASH DATA LOADER
+    ENABLE SIGNAL STATE MACHINE FOR BUBBLE OUT SEQUENCER / FLASH DATA LOADER
 */
 //Signals from TimingGenerator module change at positive edges of 12MHz clock, and 12MHz clock alters at every positive edges of 48MHz master clock.
 //We can capture signals at every negative edge of 48MHz master clock.
@@ -77,62 +77,122 @@ reg     [1:0]    bubbleOutMux = 2'b00;
 /*
 ~functionRepOut     ____|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_______________________|¯|___________________________
 
-page_select         __________________________________________|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-coil_enable         ¯¯|_____________________________________|¯¯¯¯¯¯¯¯¯|____________________________________|¯¯¯¯
+page_select         ________________________________________|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+coil_enable         ¯¯|_______________________________________|¯¯¯¯¯¯¯¯¯|____________________________________|¯¯
 position_latch      ______________________________________________________________|¯|___________________________
                       |----(bootloader load out enable)-----|                     |-(page load out enable)-|
------>TIME          A                    B                   A    C         D      E            D             C           X: POSSIBLE GLITCH
+----->TIME          A                    B                   D     C        D      E            D             C           X: POSSIBLE GLITCH
 
-A: STANDBY(INITIAL)
-B: BOOTLOADER LOAD/OUT
-C: STANDBY(NORMAL)
-D: HOLD PREVIOUS STATE
-E: PAGE LOAD/OUT START
+A: INITIAL_STANDBY
+B: BOOTLOADER_ACCESS
+C: NORMAL_STANDBY
+D: NORMAL_ACCESS
+E: PAGE_LATCH
 X: POSSIBLE GLITCH - HOLD PREVIOUS STATE
 */
+
+localparam BOOTLOADER_ACCESS = 3'b000;  //B
+localparam INITIAL_STANDBY = 3'b010;    //A
+localparam NORMAL_ACCESS = 3'b100;      //D
+localparam PAGE_LATCH = 3'b101;         //E
+localparam NORMAL_STANDBY = 3'b110;     //C
+
+reg     [2:0]    previousState = INITIAL_STANDBY;
+
 
 always @(negedge master_clock)
 begin
     case ({page_select, coil_enable, position_latch})
-        3'b000: //B
+        BOOTLOADER_ACCESS: //B
         begin
-            bootloaderLoadOutEnable <= 1'b0;
-            pageLoadOutEnable <= 1'b1;
+            if(previousState == NORMAL_ACCESS || previousState == PAGE_LATCH) //D or E->B: GLITCH
+            begin
+                bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
+                pageLoadOutEnable <= pageLoadOutEnable;
+                previousState <= previousState;
+            end
+            else
+            begin
+                bootloaderLoadOutEnable <= 1'b0;
+                pageLoadOutEnable <= 1'b1;
+                previousState <= BOOTLOADER_ACCESS;
+            end
         end
+
         3'b001: //X
         begin
             bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
             pageLoadOutEnable <= pageLoadOutEnable;
+            previousState <= previousState;
         end
-        3'b010: //A
+
+        INITIAL_STANDBY: //A
         begin
-            bootloaderLoadOutEnable <= 1'b1;
-            pageLoadOutEnable <= 1'b1;
+            if(previousState == PAGE_LATCH) //E->A: GLITCH
+            begin
+                bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
+                pageLoadOutEnable <= pageLoadOutEnable;
+                previousState <= previousState;
+            end
+            else
+            begin
+                bootloaderLoadOutEnable <= 1'b1;
+                pageLoadOutEnable <= 1'b1;
+                previousState <= INITIAL_STANDBY;
+            end
         end
+
         3'b011: //X
         begin
             bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
             pageLoadOutEnable <= pageLoadOutEnable;
+            previousState <= previousState;
         end
-        3'b100: //D 
+
+        NORMAL_ACCESS: //D 
         begin
             bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
             pageLoadOutEnable <= pageLoadOutEnable;
+            previousState <= NORMAL_ACCESS;
         end
-        3'b101: //E
+
+        PAGE_LATCH: //E
         begin
-            bootloaderLoadOutEnable <= 1'b1;
-            pageLoadOutEnable <= 1'b0;
+            if(previousState == NORMAL_ACCESS) //ONLY D->E ALLOWED
+            begin
+                bootloaderLoadOutEnable <= 1'b1;
+                pageLoadOutEnable <= 1'b0;
+                previousState <= PAGE_LATCH;
+            end
+            else
+            begin
+                bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
+                pageLoadOutEnable <= pageLoadOutEnable;
+                previousState <= previousState;
+            end
         end
-        3'b110: //C
+
+        NORMAL_STANDBY: //C
         begin
-            bootloaderLoadOutEnable <= 1'b1;
-            pageLoadOutEnable <= 1'b1;
+            if(previousState == PAGE_LATCH) //E->C GLITCH
+            begin
+                bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
+                pageLoadOutEnable <= pageLoadOutEnable;
+                previousState <= previousState;
+            end
+            else
+            begin
+                bootloaderLoadOutEnable <= 1'b1;
+                pageLoadOutEnable <= 1'b1;
+                previousState <= NORMAL_STANDBY;
+            end
         end
+
         3'b111: //X
         begin
             bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
             pageLoadOutEnable <= pageLoadOutEnable;
+            previousState <= previousState;
         end
     endcase
 end
