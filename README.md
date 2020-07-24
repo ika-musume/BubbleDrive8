@@ -4,7 +4,7 @@
 ## What's this?
 This is a Konami Bubble System Bubble Memory Cartridge FBM-#101 Emulator for Altera EP4CE6E22C FPGA. 
 
-## Changelogs
+## Changelog
 ### v0.5
 Added several modules and the testbench code for ModelSim.
 ### v0.6
