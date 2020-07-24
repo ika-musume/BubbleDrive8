@@ -19,3 +19,5 @@ Just got a great logo for BubbleDrive8! Thanks to the courtesy of [@Akamig]( htt
 Start delay implementation
 ### v0.78
 Critical bug fixes
+### v0.79
+State machine improved
