@@ -17,3 +17,5 @@ We can emulate a bubble memory cartridge on a computer! It works!
 Just got a great logo for BubbleDrive8! Thanks to the courtesy of [@Akamig]( https://github.com/Akamig )
 ### v0.73
 Start delay implementation
+### v0.78
+Critical bug fixes
