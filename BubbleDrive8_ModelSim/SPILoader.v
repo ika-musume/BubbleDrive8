@@ -21,8 +21,8 @@ module SPILoader
     output  reg             CS = 1'b1,
     output  wire            MOSI,
     input   wire            MISO,
-    output  reg             WP = 1'b1,
-    output  reg             HOLD = 1'b1,
+    output  reg             WP = 1'bZ,
+    output  reg             HOLD = 1'bZ,
     output  reg             CLK = 1'b1
 );
 
@@ -191,7 +191,7 @@ end
 always @(posedge master_clock) //mode 3
 begin
     case (state)
-        4'b0000: //Standby
+        Standby: //Standby
         begin
             spiInstruction <= {1'b0, 32'h0000_0000};
             CS <= 1'b1;
@@ -202,7 +202,7 @@ begin
             bubble_buffer_write_enable <= 1'b1;
             bubble_buffer_write_clock <= 1'b0;
         end
-        4'b0001: //LoadPageAddress
+        LoadPageAddress: //LoadPageAddress
         begin
             spiInstruction <= {1'b0, 8'b0000_0011, 2'b00, image_number[2:0], bubble_page_input[11:0], 7'b000_0000}; //1 bit buffer + 8 bit instruction + 24 bit address
             CS <= 1'b1;
@@ -213,7 +213,7 @@ begin
             bubble_buffer_write_enable <= 1'b0;
             bubble_buffer_write_clock <= 1'b0;
         end
-        4'b0010: //ChipEnable
+        ChipEnable: //ChipEnable
         begin
             spiInstruction <= spiInstruction;
             CS <= 1'b0;
@@ -224,7 +224,7 @@ begin
             bubble_buffer_write_enable <= 1'b0;
             bubble_buffer_write_clock <= 1'b0;
         end
-        4'b0011: //InstructionShift
+        InstructionShift: //InstructionShift
         begin
             spiInstruction <= spiInstruction << 1;
             CS <= 1'b0;
@@ -235,7 +235,7 @@ begin
             bubble_buffer_write_enable <= 1'b0;
             bubble_buffer_write_clock <= 1'b0;
         end
-        4'b0100: //Wait
+        Wait: //Wait
         begin
             spiInstruction <= spiInstruction;
             CS <= 1'b0;
@@ -246,7 +246,7 @@ begin
             bubble_buffer_write_enable <= 1'b0;
             bubble_buffer_write_clock <= 1'b0;
         end
-        4'b0101: //BufferWrite
+        BufferWrite: //BufferWrite
         begin
             spiInstruction <= {1'b0, 32'h0000_0000};
             CS <= 1'b0;
@@ -257,7 +257,7 @@ begin
             bubble_buffer_write_enable <= 1'b0;
             bubble_buffer_write_clock <= 1'b1;
         end
-        4'b0110: //BubbleOddIn
+        BubbleOddIn: //BubbleOddIn
         begin
             spiInstruction <= {1'b0, 32'h0000_0000};
             CS <= 1'b0;
@@ -268,7 +268,7 @@ begin
             bubble_buffer_write_enable <= 1'b0;
             bubble_buffer_write_clock <= 1'b1;
         end
-        4'b0111: //AddressIncrement
+        AddressIncrement: //AddressIncrement
         begin
             spiInstruction <= {1'b0, 32'h0000_0000};
             CS <= 1'b0;
@@ -286,7 +286,7 @@ begin
             bubble_buffer_write_enable <= 1'b0;
             bubble_buffer_write_clock <= 1'b0;
         end
-        4'b1000: //BubbleEvenIn
+        BubbleEvenIn: //BubbleEvenIn
         begin
             spiInstruction <= {1'b0, 32'h0000_0000};
             CS <= 1'b0;
@@ -297,7 +297,7 @@ begin
             bubble_buffer_write_enable <= 1'b0;
             bubble_buffer_write_clock <= 1'b0;
         end
-        4'b1001: //Quit
+        Quit: //Quit
         begin
             spiInstruction <= {1'b0, 32'h0000_0000};
             CS <= 1'b0;
@@ -308,7 +308,7 @@ begin
             bubble_buffer_write_enable <= 1'b1;
             bubble_buffer_write_clock <= 1'b0;
         end
-        4'b1010: //LoadBootloaderAddress
+        LoadBootloaderAddress: //LoadBootloaderAddress
         begin
             spiInstruction <= {1'b0, 8'b0000_0011, 2'b00, image_number[2:0], 12'h805, 7'b000_0000};
             CS <= 1'b1;
