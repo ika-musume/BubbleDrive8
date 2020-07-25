@@ -16,6 +16,7 @@ reg     [2:0]   image_dip_switch = 3'b111;
 wire            bubble_out_odd;
 wire            bubble_out_even;
 
+reg             i;
 
 BubbleDrive8Top testBubbleDrive8Top
 (
@@ -42,6 +43,28 @@ begin
     #300000 power_good = 1'b0;
 end
 
+always @(posedge temperature_low)
+begin
+    //bootloader
+    #50038 replicator_enable = 1'b0;
+    
+    while(bootloop_enable == 1'b0)
+    begin
+        #687 replicator_enable = 1'b1;
+        #1233 replicator_enable = 1'b0;
+    end
+    #0 replicator_enable = 1'b1;
+
+    //181
+    #1788530 replicator_enable = 1'b0;
+    #683 replicator_enable = 1'b1;
+    //182
+    #749977 replicator_enable = 1'b0;
+    #683 replicator_enable = 1'b1;
+    //183
+    #749977 replicator_enable = 1'b0;
+    #683 replicator_enable = 1'b1;
+end
 
 always @(posedge temperature_low)
 begin
@@ -50,21 +73,17 @@ begin
     #4387745 bubble_shift_enable = 1'b1;
     #423 bootloop_enable = 1'b1;
 
+    
     //181
     #650000 bubble_shift_enable = 1'b0;
-    #1139570 replicator_enable = 1'b0;
-    #683 replicator_enable = 1'b1;
-    #673978 bubble_shift_enable = 1'b1;
+    #1814231 bubble_shift_enable = 1'b1;
     //182
     #75000 bubble_shift_enable = 1'b0;
-    #999 replicator_enable = 1'b0;
-    #684 replicator_enable = 1'b1;
-    #673977 bubble_shift_enable = 1'b1;
+    #675660 bubble_shift_enable = 1'b1;
     //183
     #75000 bubble_shift_enable = 1'b0;
-    #998 replicator_enable = 1'b0;
-    #684 replicator_enable = 1'b1;
-    #673978 bubble_shift_enable = 1'b1;
+    #675660 bubble_shift_enable = 1'b1;
+    /*
     //184
     #75000 bubble_shift_enable = 1'b0;
     #999 replicator_enable = 1'b0;
@@ -335,6 +354,7 @@ begin
     #1000 replicator_enable = 1'b0;
     #682 replicator_enable = 1'b1;
     #673983 bubble_shift_enable = 1'b1;
+    */
 end
 
 endmodule

@@ -71,8 +71,6 @@ reg     [1:0]    bubbleOutMux = 2'b00;
 /*
     ENABLE SIGNAL STATE MACHINE FOR BUBBLE OUT SEQUENCER / FLASH DATA LOADER
 */
-//Signals from TimingGenerator module change at positive edges of 12MHz clock, and 12MHz clock alters at every positive edges of 48MHz master clock.
-//We can capture signals at every negative edge of 48MHz master clock.
 
 /*
 ~functionRepOut     ____|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_______________________|¯|___________________________
@@ -100,7 +98,7 @@ localparam NORMAL_STANDBY = 3'b110;     //C
 reg     [2:0]    previousState = INITIAL_STANDBY;
 
 
-always @(negedge master_clock)
+always @(posedge master_clock)
 begin
     case ({page_select, coil_enable, position_latch})
         BOOTLOADER_ACCESS: //B
@@ -118,14 +116,12 @@ begin
                 previousState <= BOOTLOADER_ACCESS;
             end
         end
-
         3'b001: //X
         begin
             bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
             pageLoadOutEnable <= pageLoadOutEnable;
             previousState <= previousState;
         end
-
         INITIAL_STANDBY: //A
         begin
             if(previousState == PAGE_LATCH) //E->A: GLITCH
@@ -141,37 +137,33 @@ begin
                 previousState <= INITIAL_STANDBY;
             end
         end
-
         3'b011: //X
         begin
             bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
             pageLoadOutEnable <= pageLoadOutEnable;
             previousState <= previousState;
         end
-
         NORMAL_ACCESS: //D 
         begin
             bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
             pageLoadOutEnable <= pageLoadOutEnable;
             previousState <= NORMAL_ACCESS;
         end
-
         PAGE_LATCH: //E
         begin
-            if(previousState == NORMAL_ACCESS) //ONLY D->E ALLOWED
-            begin
-                bootloaderLoadOutEnable <= 1'b1;
-                pageLoadOutEnable <= 1'b0;
-                previousState <= PAGE_LATCH;
-            end
-            else
+            if(previousState == INITIAL_STANDBY || previousState == BOOTLOADER_ACCESS || previousState == NORMAL_STANDBY) //ONLY D->E ALLOWED
             begin
                 bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
                 pageLoadOutEnable <= pageLoadOutEnable;
                 previousState <= previousState;
             end
+            else
+            begin
+                bootloaderLoadOutEnable <= 1'b1;
+                pageLoadOutEnable <= 1'b0;
+                previousState <= PAGE_LATCH;
+            end
         end
-
         NORMAL_STANDBY: //C
         begin
             if(previousState == PAGE_LATCH) //E->C GLITCH
@@ -187,7 +179,6 @@ begin
                 previousState <= NORMAL_STANDBY;
             end
         end
-
         3'b111: //X
         begin
             bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
@@ -258,16 +249,16 @@ reg     [1:0]   bubbleBufferDataOutput;
 wire            bubbleBufferReadClock;
 assign  bubbleBufferReadClock = data_out_strobe & ~bubbleReadClockEnable;
 
-always @ (posedge bubble_buffer_write_clock) //write
+always @(posedge bubble_buffer_write_clock) //write
 begin
     if (bubble_buffer_write_enable == 1'b0)
     begin
         bubbleBuffer[bubble_buffer_write_address] <= bubble_buffer_write_data_input;
     end
 end
-    
-always @ (negedge bubbleBufferReadClock) //read 
-begin        
+
+always @(negedge bubbleBufferReadClock) //read 
+begin   
     bubbleBufferDataOutput <= bubbleBuffer[bubbleBufferReadAddress];
 end
 

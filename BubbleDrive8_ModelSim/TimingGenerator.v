@@ -251,10 +251,10 @@ begin
     begin
         coilRun <= 1'b1;
     end
-	 else
-	 begin
-	     coilRun <= 1'b0;
-	 end
+	else
+	begin
+	    coilRun <= 1'b0;
+	end
 end
 
 //Replicator signal generation
