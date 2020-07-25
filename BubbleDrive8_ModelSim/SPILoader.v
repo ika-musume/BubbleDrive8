@@ -95,6 +95,42 @@ begin
         end
         2'b01: //bootloader
         begin
+            if(spiStateCounter < 13'b1_1111_1111_1111)
+            begin
+                spiStateCounter <= spiStateCounter + 13'd1;
+            end
+            else
+            begin
+                spiStateCounter <= spiStateCounter;
+            end
+        end
+        2'b10: 
+        begin
+            if(spiStateCounter < 13'b1_1111_1111_1111)
+            begin
+                spiStateCounter <= spiStateCounter + 13'd1;
+            end
+            else
+            begin
+                spiStateCounter <= spiStateCounter;
+            end
+        end
+        2'b11: 
+        begin
+            spiStateCounter <= 13'b0;
+        end
+    endcase
+end
+
+always @(posedge master_clock)
+begin
+    case({load_bootloader, load_page})
+        2'b00:
+        begin
+            state <= Standby;
+        end
+        2'b01: //bootloader
+        begin
             if(spiStateCounter == 13'd62)
             begin
                 state <= LoadBootloaderAddress;
@@ -126,15 +162,6 @@ begin
             else
             begin
                 state <= Standby;
-            end
-
-            if(spiStateCounter < 13'b1_1111_1111_1111)
-            begin
-                spiStateCounter <= spiStateCounter + 13'd1;
-            end
-            else
-            begin
-                spiStateCounter <= spiStateCounter;
             end
         end
         2'b10: 
@@ -171,19 +198,10 @@ begin
             begin
                 state <= Standby;
             end
-
-            if(spiStateCounter < 13'b1_1111_1111_1111)
-            begin
-                spiStateCounter <= spiStateCounter + 13'd1;
-            end
-            else
-            begin
-                spiStateCounter <= spiStateCounter;
-            end
         end
         2'b11: 
         begin
-            spiStateCounter <= 13'b0;
+            state <= Standby;
         end
     endcase
 end

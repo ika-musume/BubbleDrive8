@@ -62,7 +62,7 @@ reg     [13:0]   bufferDataOutNoticeCounter = 13'd0;
 reg     [13:0]   bufferDataOutCounter = 13'd0;
 
 reg              bufferReadAddressCountEnable = 1'b1; //active low, address incrementation enable
-reg              bubbleReadClockEnable = 1'b0; //active low, bubble block RAM buffer read clock (negative edge of STROBE)
+reg              bubbleReadClockEnable = 1'b1; //active low, bubble block RAM buffer read clock (negative edge of STROBE)
 
 reg     [1:0]    bubbleOutMux = 2'b00;
 
@@ -73,12 +73,12 @@ reg     [1:0]    bubbleOutMux = 2'b00;
 */
 
 /*
-~functionRepOut     ____|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_______________________|¯|___________________________
+~functionRepOut     ____|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_______________________|¯|_________________________
 
 page_select         ________________________________________|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 coil_enable         ¯¯|_______________________________________|¯¯¯¯¯¯¯¯¯|____________________________________|¯¯
 position_latch      ______________________________________________________________|¯|___________________________
-                      |----(bootloader load out enable)-----|                     |-(page load out enable)-|
+                      |----(bootloader load out enable)-----|                     |--(page load out enable)--|
 ----->TIME          A                    B                   D     C        D      E            D             C           X: POSSIBLE GLITCH
 
 A: INITIAL_STANDBY

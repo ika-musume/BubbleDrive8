@@ -66,9 +66,9 @@ Original pinout below:
 reg             clock12MHz = 1'b1;
 
 //Synchronization registers HI[bubble_shift_enable / replicator_enable / bootloop_enable]LO
-reg     [2:0]   stepOne = 3'b111;
-reg     [2:0]   stepTwo = 3'b111;
-reg     [2:0]   stepThree = 3'b111;
+reg     [2:0]   stepOne = 3'b110;
+reg     [2:0]   stepTwo = 3'b110;
+reg     [2:0]   stepThree = 3'b110;
 reg             bubbleShiftEnableInternal = 1'b1;
 reg             replicatorEnableInternal = 1'b1;
 reg             bootloopEnableInternal = 1'b0;
@@ -83,7 +83,7 @@ reg             detectorStrobe = 1'b0;
 //reg             functionRepEnable = 1'b1;
 reg             functionRepOut = 1'b1;
 //reg             dataInEnable = 1'b1;
-reg             coilRun = 1'b0; //Goes HIGH while driving
+reg             coilRun = 1'b1; //Goes HIGH while driving
 
 
 
