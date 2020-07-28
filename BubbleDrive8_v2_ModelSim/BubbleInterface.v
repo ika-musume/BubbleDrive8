@@ -12,11 +12,11 @@ module BubbleInterface
     input   wire            position_latch, //Current bubble position can be latched when this line has been asserted (active high)
     input   wire            page_select, //Bootloader select, synchronized signal of bootloop_enable (active high)
     input   wire            coil_enable, //Goes low when bubble moves - same as COIL RUN (active low)
+    input   wire            bubble_data_out_clock, //Clock for the BubbleInferface bubble data output logic
 
     //Bubble position to page converter I/O
     output  wire            convert,
     output  wire    [11:0]  bubble_position_output, //12 bit counter
-
 
     //SPI Loader
     input   wire    [10:0]  bubble_buffer_write_address,
@@ -28,25 +28,8 @@ module BubbleInterface
     
     //Bubble data output
     output  reg             bubble_out_odd,
-    output  reg             bubble_out_even,
-
-
-
-    input   wire            bubble_data_out_clock //test
+    output  reg             bubble_out_even
 );
-
-
-
-/*
-    CONSTANTS
-*/
-/*
-                    |-------(26420us)-------|(pos0)|-------(19290us)-------|
-74LS32 pulse   |____|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|____|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|____|        (90 degree)
-*/
-localparam THE_NUMBER_OF_BUBBLE_POSITIONS = 12'd2053; //0000 - 2052: 2053 positions
-localparam BOOTLOADER_OUT_LENGTH = 13'd4571; //total bootloader enable length: 2640 + 2(20us of start pattern) + 1929
-
 
 
 /*
@@ -57,8 +40,8 @@ assign           load_bootloader = bootloaderLoadOutEnable;
 reg              pageLoadOutEnable = 1'b1; //active low,  goes low while page load/out
 assign           load_page = pageLoadOutEnable;
 
-wire             bufferDataOutCounterEnable; //active low, composite signal of above two
-assign           bufferDataOutCounterEnable = bootloaderLoadOutEnable & pageLoadOutEnable;
+wire             bubbleDataOutClockCounterEnable; //active low, composite signal of above two
+assign           bubbleDataOutClockCounterEnable = bootloaderLoadOutEnable & pageLoadOutEnable;
 reg     [13:0]   bufferDataOutCounter = 13'd0;
 
 reg              positionReset = 1'b1;
@@ -189,10 +172,11 @@ end
 /*
     BUBBLE POSITION TO PAGE CONVERTER
 */
-reg     [11:0]   positionCounter = 12'd0;
+localparam THE_NUMBER_OF_BUBBLE_POSITIONS = 12'd2053; //0000 - 2052: 2053 positions
 
-assign convert = position_latch; //only works when bootloader is not selected
+reg     [11:0]   positionCounter = 12'd0;
 assign bubble_position_output = positionCounter;
+assign convert = position_latch; //only works when bootloader is not selected
 
 //position counter
 always @(posedge position_change)
@@ -241,40 +225,19 @@ end
 
 
 
-
-
-
 /*
-    BUBBLE OUT SEQUENCER.
+    BUBBLE OUT SEQUENCER
 */
 
-/*
-Data out bit counter: will delete in the near future
-BOOTLOADER OUT BIT COUNTER
-1 to 4571 pulse (the number of DATA_OUT_STROBE pulse)
-0001 - 2640: HIGH
-2641 - 2642: START PATTERN 0111
-2643 - 4562: BOOTLOADER (!!ERROR MAP LOW: 3971 - 4562 / 592 BITS PER CHANNEL!!) 
-4563 - 4568: LOW (DUMMY DATA)
-4569 - 4571: HIGH (DUMMY BITS: DON'T CARE)
-(ORIGx2) - 1 = NEW
-- 2 = state assign pos
-
-PAGE OUT BIT COUNTER
-1 to 703 (the number of DATA_OUT_STROBE pulse)
-001 - 100: HIGH (DON'T CARE?)
-101 - 612: DATA 1024 BITS
-613 - 703: HIGH (DON'T CARE)
-*/
-always @(negedge data_out_strobe or posedge bufferDataOutCounterEnable)
+always @(negedge data_out_strobe or posedge bubbleDataOutClockCounterEnable)
 begin
-    if(bufferDataOutCounterEnable == 1'b1) //counter stop
+    if(bubbleDataOutClockCounterEnable == 1'b1) //counter stop
     begin
         bufferDataOutCounter <= 13'd0;
     end
     else //count up
     begin
-        if(bufferDataOutCounter < BOOTLOADER_OUT_LENGTH)
+        if(bufferDataOutCounter < 13'd4571)
         begin
             bufferDataOutCounter <= bufferDataOutCounter + 13'd1;
         end
@@ -290,8 +253,27 @@ end
     BUBBLE OUT SEQUENCER STATE MACHINE TEST
 */
 
-localparam PAGE_STARTING_POINT = 14'd201;
+/*
+BOOTLOADER OUT BIT COUNTER
+1 to 4571 pulse (the number of DATA_OUT_STROBE pulse)
+0001 - 2640: HIGH
+2641 - 2642: START PATTERN 0111
+2643 - 4562: BOOTLOADER (!!ERROR MAP LOW: 3971 - 4562 / 592 BITS PER CHANNEL!!) 
+4563 - 4568: LOW (DUMMY DATA)
+4569 - 4571: HIGH (DUMMY BITS: DON'T CARE)
 
+PAGE OUT BIT COUNTER
+1 to 703 (the number of DATA_OUT_STROBE pulse)
+001 - 100: HIGH (DON'T CARE?)
+101 - 612: DATA 1024 BITS
+613 - 703: HIGH (DON'T CARE)
+
+POINT VALUE = ((duration(us) / 10) * 2) - 1
+*/
+localparam PAGE_STARTING_POINT = 14'd201;
+localparam BOOTLOADER_STARTING_POINT = 14'd5285;
+
+//commands
 localparam RESET = 4'b1000;
 localparam ADDRESS_INCREMENT = 4'b1001;
 localparam DATA_OUT = 4'b1010;
@@ -301,9 +283,9 @@ reg     [13:0]  bubbleDataOutClockCounter = 14'd16383;
 reg     [3:0]   bubbleDataOutState = RESET;
 
 //COUNT
-always @(negedge bubble_data_out_clock or posedge bufferDataOutCounterEnable) //bufferDataOutCounterEnable변수명은 나중에 수정
+always @(negedge bubble_data_out_clock or posedge bubbleDataOutClockCounterEnable)
 begin
-    if(bufferDataOutCounterEnable == 1'b1) //counter stop
+    if(bubbleDataOutClockCounterEnable == 1'b1) //counter stop
     begin
         bubbleDataOutClockCounter <= 14'd16383;
     end
@@ -421,7 +403,7 @@ end
 */
 always @(negedge bubble_data_out_clock)
 begin
-    if(bubbleDataOutClockCounter == 14'd5282 || bubbleDataOutClockCounter == 14'd5283)
+    if(bubbleDataOutClockCounter == BOOTLOADER_STARTING_POINT - 14'd3 || bubbleDataOutClockCounter == BOOTLOADER_STARTING_POINT - 14'd2)
     begin
         positionReset <= 1'b1;
     end
@@ -446,22 +428,22 @@ begin
             end
         3'b001: //bootloader enable
             begin
-                if(bubbleDataOutClockCounter == 14'd5281 || bubbleDataOutClockCounter == 14'd5282)
+                if(bubbleDataOutClockCounter == BOOTLOADER_STARTING_POINT - 14'd4 || bubbleDataOutClockCounter == BOOTLOADER_STARTING_POINT - 14'd3)
                 begin
                     bubble_out_odd <= 1'b1;
                     bubble_out_even <= 1'b0;
                 end
-                else if(bubbleDataOutClockCounter == 14'd5283 || bubbleDataOutClockCounter == 14'd5284)
+                else if(bubbleDataOutClockCounter == BOOTLOADER_STARTING_POINT - 14'd2 || bubbleDataOutClockCounter == BOOTLOADER_STARTING_POINT - 14'd1)
                 begin
                     bubble_out_odd <= 1'b0;
                     bubble_out_even <= 1'b0;
                 end
-                else if(bubbleDataOutClockCounter >= 14'd5285 && bubbleDataOutClockCounter <= 14'd9124)
+                else if(bubbleDataOutClockCounter >= BOOTLOADER_STARTING_POINT && bubbleDataOutClockCounter <= BOOTLOADER_STARTING_POINT + 14'd3839)
                 begin
                     bubble_out_odd <= ~bubbleBufferDataOutput[1];
                     bubble_out_even <= ~bubbleBufferDataOutput[0];
                 end
-                else if(bubbleDataOutClockCounter >= 14'd9125 && bubbleDataOutClockCounter <= 14'd9136)
+                else if(bubbleDataOutClockCounter >= BOOTLOADER_STARTING_POINT + 14'd3840 && bubbleDataOutClockCounter <= BOOTLOADER_STARTING_POINT + 14'd3851)
                 begin
                     bubble_out_odd <= 1'b0;
                     bubble_out_even <= 1'b0;
