@@ -9,7 +9,6 @@ module BubbleInterface
     //Timing signals from TimingGenerator module
     input   wire            position_change, //0 degree, bubble position change notification (active high)
     input   wire            data_out_strobe, //Starts at 180 degree, ends at 240 degree, can put bubble data at a falling edge (active high)
-    input   wire            data_out_notice, //Same as replicator clamp (active high)
     input   wire            position_latch, //Current bubble position can be latched when this line has been asserted (active high)
     input   wire            page_select, //Bootloader select, synchronized signal of bootloop_enable (active high)
     input   wire            coil_enable, //Goes low when bubble moves - same as COIL RUN (active low)
@@ -46,9 +45,7 @@ module BubbleInterface
 74LS32 pulse   |____|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|____|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|____|        (90 degree)
 */
 localparam THE_NUMBER_OF_BUBBLE_POSITIONS = 12'd2053; //0000 - 2052: 2053 positions
-localparam INITIAL_POSITION_VALUE = 12'd1464; //(initial value) + (pre-position 0 length) - 2053 = 0
 localparam BOOTLOADER_OUT_LENGTH = 13'd4571; //total bootloader enable length: 2640 + 2(20us of start pattern) + 1929
-localparam PAGE_OUT_LENGTH = 11'd703; //1 to 703
 
 
 
@@ -62,13 +59,10 @@ assign           load_page = pageLoadOutEnable;
 
 wire             bufferDataOutCounterEnable; //active low, composite signal of above two
 assign           bufferDataOutCounterEnable = bootloaderLoadOutEnable & pageLoadOutEnable;
-//reg     [13:0]   bufferDataOutNoticeCounter = 13'd0;
-//reg     [13:0]   bufferDataOutCounter = 13'd0;
+reg     [13:0]   bufferDataOutCounter = 13'd0;
 
-//reg              bufferReadAddressCountEnable = 1'b1; //active low, address incrementation enable
-//reg              bubbleReadClockEnable = 1'b1; //active low, bubble block RAM buffer read clock (negative edge of STROBE)
+reg              positionReset = 1'b1;
 
-//reg     [1:0]    bubbleOutMux = 2'b00;
 
 
 
@@ -192,36 +186,10 @@ begin
 end
 
 
-
-/*
-    ALTERNATIVE ASYNCHRONOUS ENABLE SIGNAL GENERATOR - DO NOT USE
-
-always @(posedge page_select or negedge coil_enable)
-begin
-    case({page_select, coil_enable})
-        2'b00:  bootloaderLoadOutEnable <= 1'b0;
-        2'b01:  bootloaderLoadOutEnable <= 1'b1;
-        2'b10:  bootloaderLoadOutEnable <= 1'b1;
-        2'b11:  bootloaderLoadOutEnable <= 1'b1;
-    endcase
-end
-always @(posedge position_latch or posedge coil_enable)
-begin
-    case({position_latch, coil_enable})
-        2'b00:  pageLoadOutEnable <= 1'b1;
-        2'b01:  pageLoadOutEnable <= 1'b1;
-        2'b10:  pageLoadOutEnable <= 1'b0;
-        2'b11:  pageLoadOutEnable <= 1'b1;
-    endcase
-end
-*/
-
-
-
 /*
     BUBBLE POSITION TO PAGE CONVERTER
 */
-reg     [11:0]   positionCounter = INITIAL_POSITION_VALUE;
+reg     [11:0]   positionCounter = 12'd0;
 
 assign convert = position_latch; //only works when bootloader is not selected
 assign bubble_position_output = positionCounter;
@@ -229,9 +197,16 @@ assign bubble_position_output = positionCounter;
 //position counter
 always @(posedge position_change)
 begin
-    if(positionCounter < THE_NUMBER_OF_BUBBLE_POSITIONS - 12'd1)
+    if(positionReset == 1'b0)
     begin
-        positionCounter <= positionCounter + 12'd1;
+        if(positionCounter < THE_NUMBER_OF_BUBBLE_POSITIONS - 12'd1)
+        begin
+            positionCounter <= positionCounter + 12'd1;
+        end
+        else
+        begin
+            positionCounter <= 12'd0;
+        end
     end
     else
     begin
@@ -270,31 +245,27 @@ end
 
 
 /*
-    BUBBLE OUT SEQUENCER
-
-//Data out notice counter
-always @(posedge data_out_notice or posedge bufferDataOutCounterEnable)
-begin
-    if(bufferDataOutCounterEnable == 1'b1) //counter stop
-    begin
-        bufferDataOutNoticeCounter <= 13'd0;
-    end
-    else //count up
-    begin
-        if(bufferDataOutNoticeCounter < BOOTLOADER_OUT_LENGTH)
-        begin
-            bufferDataOutNoticeCounter <= bufferDataOutNoticeCounter + 13'd1;
-        end
-        else
-        begin
-            bufferDataOutNoticeCounter <= bufferDataOutNoticeCounter;
-        end
-    end
-end
+    BUBBLE OUT SEQUENCER.
 */
 
 /*
-//Data out bit counter
+Data out bit counter: will delete in the near future
+BOOTLOADER OUT BIT COUNTER
+1 to 4571 pulse (the number of DATA_OUT_STROBE pulse)
+0001 - 2640: HIGH
+2641 - 2642: START PATTERN 0111
+2643 - 4562: BOOTLOADER (!!ERROR MAP LOW: 3971 - 4562 / 592 BITS PER CHANNEL!!) 
+4563 - 4568: LOW (DUMMY DATA)
+4569 - 4571: HIGH (DUMMY BITS: DON'T CARE)
+(ORIGx2) - 1 = NEW
+- 2 = state assign pos
+
+PAGE OUT BIT COUNTER
+1 to 703 (the number of DATA_OUT_STROBE pulse)
+001 - 100: HIGH (DON'T CARE?)
+101 - 612: DATA 1024 BITS
+613 - 703: HIGH (DON'T CARE)
+*/
 always @(negedge data_out_strobe or posedge bufferDataOutCounterEnable)
 begin
     if(bufferDataOutCounterEnable == 1'b1) //counter stop
@@ -313,174 +284,13 @@ begin
         end
     end
 end
-*/
-
-/*
-//Address counter
-always @(posedge data_out_strobe or posedge bufferReadAddressCountEnable)
-begin
-    if(bufferReadAddressCountEnable == 1'b1) //counter stop
-    begin
-        bubbleBufferReadAddress <= 11'b111_1111_1111;
-    end
-    else
-    begin
-        if(bubbleBufferReadAddress < 11'b111_1111_1111)
-        begin
-            bubbleBufferReadAddress <= bubbleBufferReadAddress + 11'b1;
-        end
-        else
-        begin
-            bubbleBufferReadAddress <= 11'b0;
-        end
-    end
-end
-
-
-BOOTLOADER OUT BIT COUNTER
-1 to 4571 pulse (the number of DATA_OUT_STROBE pulse)
-0001 - 2640: HIGH
-2641 - 2642: START PATTERN 0111
-2643 - 4562: BOOTLOADER (!!ERROR MAP LOW: 3971 - 4562 / 592 BITS PER CHANNEL!!) 
-4563 - 4568: LOW (DUMMY DATA)
-4569 - 4571: HIGH (DUMMY BITS: DON'T CARE)
-(ORIGx2) - 1 = NEW
-- 2 = state assign pos
-
-PAGE OUT BIT COUNTER
-1 to 703 (the number of DATA_OUT_STROBE pulse)
-001 - 100: HIGH (DON'T CARE?)
-101 - 612: DATA 1024 BITS
-613 - 703: HIGH (DON'T CARE)
-
-
-//Controls address count enable, block RAM buffer read clock enable signals
-always @(*)
-begin
-    case ({bootloaderLoadOutEnable, pageLoadOutEnable})
-        2'b00:
-            begin
-                bufferReadAddressCountEnable <= 1'b1;
-                bubbleReadClockEnable <= 1'b1;
-            end
-        2'b01: //bootloader enable
-            begin
-                if(bufferDataOutNoticeCounter >= 13'd2643 && bufferDataOutNoticeCounter <= 13'd4562)
-                begin
-                    bufferReadAddressCountEnable <= 1'b0;
-                    bubbleReadClockEnable <= 1'b0;
-                end
-                else
-                begin
-                    bufferReadAddressCountEnable <= 1'b1;
-                    bubbleReadClockEnable <= 1'b1;
-                end
-            end
-        2'b10:
-            begin
-                if(bufferDataOutNoticeCounter >= 13'd101 && bufferDataOutNoticeCounter <= 13'd612)
-                begin
-                    bufferReadAddressCountEnable <= 1'b0;
-                    bubbleReadClockEnable <= 1'b0;
-                end
-                else
-                begin
-                    bufferReadAddressCountEnable <= 1'b1;
-                    bubbleReadClockEnable <= 1'b1;
-                end
-            end
-        2'b11:
-            begin
-                bufferReadAddressCountEnable <= 1'b1;
-                bubbleReadClockEnable <= 1'b1;
-            end
-    endcase
-end
-
-//Controls two-bit-width bubble data output
-always @(*)
-begin
-    case ({bootloaderLoadOutEnable, pageLoadOutEnable})
-        2'b00:
-            begin
-                bubbleOutMux[1] <= 1'b0;
-                bubbleOutMux[0] <= 1'b0;
-            end
-        2'b01: //bootloader enable
-            begin
-                if(bufferDataOutCounter == 13'd2641)
-                begin     
-                    bubbleOutMux[1] <= 1'b0;
-                    bubbleOutMux[0] <= 1'b1;
-                end
-                else if(bufferDataOutCounter == 13'd2642)
-                begin
-                    bubbleOutMux[1] <= 1'b1;
-                    bubbleOutMux[0] <= 1'b1;
-                end
-                else if(bufferDataOutCounter >= 13'd2643 && bufferDataOutCounter <= 13'd4562)
-                begin
-                    bubbleOutMux[1] <= bubbleBufferDataOutput[1];
-                    bubbleOutMux[0] <= bubbleBufferDataOutput[0];
-                end
-                else if(bufferDataOutCounter >= 13'd4563 && bufferDataOutCounter <= 13'd4568)
-                begin
-                    bubbleOutMux[1] <= 1'b1;
-                    bubbleOutMux[0] <= 1'b1;
-                end
-                else
-                begin                      
-                    bubbleOutMux[1] <= 1'b0;
-                    bubbleOutMux[0] <= 1'b0;
-                end
-            end
-        2'b10:
-            begin
-                if(bufferDataOutCounter >= 13'd101 && bufferDataOutCounter <= 13'd612)
-                begin
-                    bubbleOutMux[1] <= bubbleBufferDataOutput[1];
-                    bubbleOutMux[0] <= bubbleBufferDataOutput[0];
-                end
-                else
-                begin
-                    bubbleOutMux[1] <= 1'b0;
-                    bubbleOutMux[0] <= 1'b0;
-                end
-            end
-        2'b11:
-            begin
-                bubbleOutMux[1] <= 1'b0;
-                bubbleOutMux[0] <= 1'b0;
-            end
-    endcase
-end
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 /*
     BUBBLE OUT SEQUENCER STATE MACHINE TEST
 */
+
+localparam PAGE_STARTING_POINT = 14'd201;
 
 localparam RESET = 4'b1000;
 localparam ADDRESS_INCREMENT = 4'b1001;
@@ -534,19 +344,19 @@ begin
             end
         2'b10:
             begin
-                if(bubbleDataOutClockCounter == 14'd197)
+                if(bubbleDataOutClockCounter == PAGE_STARTING_POINT - 14'd4)
                 begin
                     bubbleDataOutState <= ADDRESS_INCREMENT;
                 end
-                else if(bubbleDataOutClockCounter == 14'd198)
+                else if(bubbleDataOutClockCounter == PAGE_STARTING_POINT - 14'd3)
                 begin
                     bubbleDataOutState <= DATA_OUT;
                 end
-                else if(bubbleDataOutClockCounter == 14'd199) 
+                else if(bubbleDataOutClockCounter == PAGE_STARTING_POINT - 14'd2) 
                 begin
                     bubbleDataOutState <= WAIT;
                 end
-                else if(bubbleDataOutClockCounter >= 14'd200 && bubbleDataOutClockCounter <= 14'd1223)
+                else if(bubbleDataOutClockCounter >= PAGE_STARTING_POINT - 14'd1 && bubbleDataOutClockCounter <= PAGE_STARTING_POINT + 14'd1020)
                 begin
                     case(bubbleDataOutClockCounter[0])
                         1'b0: bubbleDataOutState <= ADDRESS_INCREMENT;
@@ -564,12 +374,6 @@ begin
             end
     endcase
 end
-
-/*
-localparam RESET = 4'b1000;
-localparam ADDRESS_INCREMENT = 4'b1001;
-localparam DATA_OUT = 4'b1010;
-*/
 
 //EXECUTE
 always @(negedge bubble_data_out_clock)
@@ -613,6 +417,23 @@ end
 
 
 /*
+    POSITION INITIALIZER
+*/
+always @(negedge bubble_data_out_clock)
+begin
+    if(bubbleDataOutClockCounter == 14'd5282 || bubbleDataOutClockCounter == 14'd5283)
+    begin
+        positionReset <= 1'b1;
+    end
+    else
+    begin
+        positionReset <= 1'b0;
+    end
+end
+
+
+
+/*
     OUTPUT DATA MULTIPLEXER
 */
 always @(*)
@@ -621,7 +442,7 @@ begin
         3'b000:
             begin
                 bubble_out_odd <= 1'b1;
-                bubble_out_even <= 1'b1;    
+                bubble_out_even <= 1'b1; 
             end
         3'b001: //bootloader enable
             begin
@@ -638,56 +459,56 @@ begin
                 else if(bubbleDataOutClockCounter >= 14'd5285 && bubbleDataOutClockCounter <= 14'd9124)
                 begin
                     bubble_out_odd <= ~bubbleBufferDataOutput[1];
-                    bubble_out_even <= ~bubbleBufferDataOutput[0];    
+                    bubble_out_even <= ~bubbleBufferDataOutput[0];
                 end
                 else if(bubbleDataOutClockCounter >= 14'd9125 && bubbleDataOutClockCounter <= 14'd9136)
                 begin
                     bubble_out_odd <= 1'b0;
-                    bubble_out_even <= 1'b0; 
+                    bubble_out_even <= 1'b0;
                 end
                 else
                 begin
                     bubble_out_odd <= 1'b1;
-                    bubble_out_even <= 1'b1;   
+                    bubble_out_even <= 1'b1; 
                 end
             end
         3'b010: //page enable
             begin
-                if(bubbleDataOutClockCounter >= 14'd201 && bubbleDataOutClockCounter <= 14'd1225)
+                if(bubbleDataOutClockCounter >= PAGE_STARTING_POINT && bubbleDataOutClockCounter <= PAGE_STARTING_POINT + 14'd1023)
                 begin
                     bubble_out_odd <= ~bubbleBufferDataOutput[1];
-                    bubble_out_even <= ~bubbleBufferDataOutput[0];    
+                    bubble_out_even <= ~bubbleBufferDataOutput[0];
                 end
                 else
                 begin
                     bubble_out_odd <= 1'b1;
-                    bubble_out_even <= 1'b1;   
+                    bubble_out_even <= 1'b1;
                 end
             end
         3'b011:
             begin
                 bubble_out_odd <= 1'b1;
-                bubble_out_even <= 1'b1;   
+                bubble_out_even <= 1'b1;
             end
         3'b100:
             begin
                 bubble_out_odd <= 1'b0;
-                bubble_out_even <= 1'b0;   
+                bubble_out_even <= 1'b0;
             end
         3'b101:
             begin
                 bubble_out_odd <= 1'b0;
-                bubble_out_even <= 1'b0;   
+                bubble_out_even <= 1'b0;
             end
         3'b110:
             begin
                 bubble_out_odd <= 1'b0;
-                bubble_out_even <= 1'b0;   
+                bubble_out_even <= 1'b0;
             end
         3'b111:
             begin
                 bubble_out_odd <= 1'b0;
-                bubble_out_even <= 1'b0;   
+                bubble_out_even <= 1'b0;
             end
     endcase
 end
