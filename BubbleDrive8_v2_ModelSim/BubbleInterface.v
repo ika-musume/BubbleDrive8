@@ -169,34 +169,7 @@ begin
 end
 
 
-/*
-    BUBBLE POSITION TO PAGE CONVERTER
-*/
-localparam THE_NUMBER_OF_BUBBLE_POSITIONS = 12'd2053; //0000 - 2052: 2053 positions
 
-reg     [11:0]   positionCounter = 12'd0;
-assign bubble_position_output = positionCounter;
-assign convert = position_latch; //only works when bootloader is not selected
-
-//position counter
-always @(posedge position_change)
-begin
-    if(positionReset == 1'b0)
-    begin
-        if(positionCounter < THE_NUMBER_OF_BUBBLE_POSITIONS - 12'd1)
-        begin
-            positionCounter <= positionCounter + 12'd1;
-        end
-        else
-        begin
-            positionCounter <= 12'd0;
-        end
-    end
-    else
-    begin
-        positionCounter <= 12'd0;
-    end
-end
 
 
 
@@ -312,7 +285,19 @@ begin
             end
         2'b01: //bootloader enable
             begin
-                if(bubbleDataOutClockCounter >= 14'd5282 && bubbleDataOutClockCounter <= 14'd9121)
+                if(bubbleDataOutClockCounter == BOOTLOADER_STARTING_POINT - 14'd4)
+                begin
+                    bubbleDataOutState <= ADDRESS_INCREMENT;
+                end
+                else if(bubbleDataOutClockCounter == BOOTLOADER_STARTING_POINT - 14'd3)
+                begin
+                    bubbleDataOutState <= DATA_OUT;
+                end
+                else if(bubbleDataOutClockCounter == BOOTLOADER_STARTING_POINT - 14'd2) 
+                begin
+                    bubbleDataOutState <= WAIT;
+                end
+                else if(bubbleDataOutClockCounter >= BOOTLOADER_STARTING_POINT - 14'd1 && bubbleDataOutClockCounter <= BOOTLOADER_STARTING_POINT + 14'd3836)
                 begin
                     case(bubbleDataOutClockCounter[0])
                         1'b0: bubbleDataOutState <= ADDRESS_INCREMENT;
@@ -394,6 +379,37 @@ begin
             bubbleBufferReadAddress <= 11'b111_1111_1111;
         end
     endcase
+end
+
+
+
+/*
+    BUBBLE POSITION TO PAGE CONVERTER
+*/
+localparam THE_NUMBER_OF_BUBBLE_POSITIONS = 12'd2053; //0000 - 2052: 2053 positions
+
+reg     [11:0]   positionCounter = 12'd0;
+assign bubble_position_output = positionCounter;
+assign convert = position_latch; //only works when bootloader is not selected
+
+//position counter
+always @(posedge position_change)
+begin
+    if(positionReset == 1'b0)
+    begin
+        if(positionCounter < THE_NUMBER_OF_BUBBLE_POSITIONS - 12'd1)
+        begin
+            positionCounter <= positionCounter + 12'd1;
+        end
+        else
+        begin
+            positionCounter <= 12'd0;
+        end
+    end
+    else
+    begin
+        positionCounter <= 12'd0;
+    end
 end
 
 
