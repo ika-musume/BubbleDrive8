@@ -21,3 +21,5 @@ Start delay implementation
 Critical bug fixes
 ### v0.79
 State machine improved
+### v0.83
+Design finalized
