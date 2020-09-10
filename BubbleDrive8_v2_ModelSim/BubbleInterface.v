@@ -27,8 +27,8 @@ module BubbleInterface
     output  wire            load_bootloader,
     
     //Bubble data output
-    output  reg             bubble_out_odd,
-    output  reg             bubble_out_even
+    output  reg             bubble_out_odd = 1'b1,
+    output  reg             bubble_out_even = 1'b1
 );
 
 
@@ -249,11 +249,15 @@ localparam BOOTLOADER_STARTING_POINT = 14'd5285;
 //commands
 localparam RESET = 4'b1000;
 localparam ADDRESS_INCREMENT = 4'b1001;
-localparam DATA_OUT = 4'b1010;
-localparam WAIT = 4'b1011;
+localparam FETCH = 4'b1010;
+localparam DATA_OUT = 4'b1011;
+localparam DATA_01 = 4'b1100;
+localparam DATA_11 = 4'b1101;
+localparam WAIT = 4'b1110;
 
 reg     [13:0]  bubbleDataOutClockCounter = 14'd16383;
 reg     [3:0]   bubbleDataOutState = RESET;
+reg     [3:0]   bubbleDataFetchState = RESET;
 
 //COUNT
 always @(negedge bubble_data_out_clock or posedge bubbleDataOutClockCounterEnable)
@@ -281,31 +285,54 @@ begin
     case ({bootloaderLoadOutEnable, pageLoadOutEnable})
         2'b00:
             begin
+                bubbleDataFetchState <= RESET;
                 bubbleDataOutState <= RESET;
             end
         2'b01: //bootloader enable
             begin
-                if(bubbleDataOutClockCounter == BOOTLOADER_STARTING_POINT - 14'd4)
+                if(bubbleDataOutClockCounter == BOOTLOADER_STARTING_POINT - 14'd6)
                 begin
-                    bubbleDataOutState <= ADDRESS_INCREMENT;
+                    bubbleDataFetchState <= RESET;
+                    bubbleDataOutState <= DATA_01;
+                end
+                else if(bubbleDataOutClockCounter == BOOTLOADER_STARTING_POINT - 14'd5)
+                begin
+                    bubbleDataFetchState <= RESET;
+                    bubbleDataOutState <= DATA_01;
+                end
+                else if(bubbleDataOutClockCounter == BOOTLOADER_STARTING_POINT - 14'd4)
+                begin
+                    bubbleDataFetchState <= ADDRESS_INCREMENT;
+                    bubbleDataOutState <= DATA_11;
                 end
                 else if(bubbleDataOutClockCounter == BOOTLOADER_STARTING_POINT - 14'd3)
                 begin
-                    bubbleDataOutState <= DATA_OUT;
+                    bubbleDataFetchState <= FETCH;
+                    bubbleDataOutState <= DATA_11;
                 end
-                else if(bubbleDataOutClockCounter == BOOTLOADER_STARTING_POINT - 14'd2) 
-                begin
-                    bubbleDataOutState <= WAIT;
-                end
-                else if(bubbleDataOutClockCounter >= BOOTLOADER_STARTING_POINT - 14'd1 && bubbleDataOutClockCounter <= BOOTLOADER_STARTING_POINT + 14'd3836)
+                else if(bubbleDataOutClockCounter >= BOOTLOADER_STARTING_POINT - 14'd2 && bubbleDataOutClockCounter <= BOOTLOADER_STARTING_POINT + 14'd2541)
                 begin
                     case(bubbleDataOutClockCounter[0])
-                        1'b0: bubbleDataOutState <= ADDRESS_INCREMENT;
-                        1'b1: bubbleDataOutState <= DATA_OUT;
+                        1'b0: 
+                        begin
+                            bubbleDataFetchState <= FETCH;
+                            bubbleDataOutState <= WAIT;
+                        end
+                        1'b1: 
+                        begin
+                            bubbleDataFetchState <= ADDRESS_INCREMENT;
+                            bubbleDataOutState <= DATA_OUT;
+                        end
                     endcase
+                end
+                else if(bubbleDataOutClockCounter >= BOOTLOADER_STARTING_POINT + 14'd2542 && bubbleDataOutClockCounter <= BOOTLOADER_STARTING_POINT + 14'd3849)
+                begin
+                    bubbleDataFetchState <= RESET;
+                    bubbleDataOutState <= DATA_11;
                 end
                 else
                 begin
+                    bubbleDataFetchState <= RESET;
                     bubbleDataOutState <= RESET;
                 end
             end
@@ -313,39 +340,49 @@ begin
             begin
                 if(bubbleDataOutClockCounter == PAGE_STARTING_POINT - 14'd4)
                 begin
-                    bubbleDataOutState <= ADDRESS_INCREMENT;
+                    bubbleDataFetchState <= ADDRESS_INCREMENT;
+                    bubbleDataOutState <= RESET;
                 end
-                else if(bubbleDataOutClockCounter == PAGE_STARTING_POINT - 14'd3)
+                else if(bubbleDataOutClockCounter == PAGE_STARTING_POINT - 14'd3) 
                 begin
-                    bubbleDataOutState <= DATA_OUT;
+                    bubbleDataFetchState <= FETCH;
+                    bubbleDataOutState <= RESET;
                 end
-                else if(bubbleDataOutClockCounter == PAGE_STARTING_POINT - 14'd2) 
-                begin
-                    bubbleDataOutState <= WAIT;
-                end
-                else if(bubbleDataOutClockCounter >= PAGE_STARTING_POINT - 14'd1 && bubbleDataOutClockCounter <= PAGE_STARTING_POINT + 14'd1020)
+                else if(bubbleDataOutClockCounter >= PAGE_STARTING_POINT - 14'd2 && bubbleDataOutClockCounter <= PAGE_STARTING_POINT + 14'd1021)
                 begin
                     case(bubbleDataOutClockCounter[0])
-                        1'b0: bubbleDataOutState <= ADDRESS_INCREMENT;
-                        1'b1: bubbleDataOutState <= DATA_OUT;
+                        1'b0: 
+                        begin
+                            bubbleDataFetchState <= FETCH;
+                            bubbleDataOutState <= WAIT;
+                        end
+                        1'b1: 
+                        begin
+                            bubbleDataFetchState <= ADDRESS_INCREMENT;
+                            bubbleDataOutState <= DATA_OUT;
+                        end
                     endcase
                 end
                 else
                 begin
+                    bubbleDataFetchState <= RESET;
                     bubbleDataOutState <= RESET;
                 end
             end
         2'b11:
             begin
+                bubbleDataFetchState <= RESET;
                 bubbleDataOutState <= RESET;
             end
     endcase
 end
 
+
 //EXECUTE
+//data fetch
 always @(negedge bubble_data_out_clock)
 begin
-    case(bubbleDataOutState)
+    case(bubbleDataFetchState)
         RESET:
         begin
             bubbleBufferReadClock <= 1'b1;
@@ -363,7 +400,7 @@ begin
                 bubbleBufferReadAddress <= 11'b0;
             end
         end
-        DATA_OUT:
+        FETCH:
         begin
             bubbleBufferReadClock <= 1'b0;
             bubbleBufferReadAddress <= bubbleBufferReadAddress;
@@ -375,13 +412,48 @@ begin
         end
         default:
         begin
-            bubbleBufferReadClock <= 1'b1;
-            bubbleBufferReadAddress <= 11'b111_1111_1111;
+            bubbleBufferReadClock <= bubbleBufferReadClock;
+            bubbleBufferReadAddress <= bubbleBufferReadAddress;
         end
     endcase
 end
 
-
+//data out
+always @(negedge bubble_data_out_clock)
+begin
+    case(bubbleDataOutState)
+        RESET:
+        begin
+            bubble_out_odd <= 1'b1;
+            bubble_out_even <= 1'b1;
+        end
+        DATA_OUT:
+        begin
+            bubble_out_odd <= ~bubbleBufferDataOutput[1];
+            bubble_out_even <= ~bubbleBufferDataOutput[0];
+        end
+        DATA_01:
+        begin
+            bubble_out_odd <= 1'b1;
+            bubble_out_even <= 1'b0;
+        end
+        DATA_11:
+        begin
+            bubble_out_odd <= 1'b0;
+            bubble_out_even <= 1'b0;
+        end
+        WAIT:
+        begin
+            bubble_out_odd <= bubble_out_odd;
+            bubble_out_even <= bubble_out_even;
+        end
+        default:
+        begin
+            bubble_out_odd <= bubble_out_odd;
+            bubble_out_even <= bubble_out_even;
+        end
+    endcase
+end
 
 /*
     BUBBLE POSITION TO PAGE CONVERTER
@@ -427,87 +499,5 @@ begin
     begin
         positionReset <= 1'b0;
     end
-end
-
-
-
-/*
-    OUTPUT DATA MULTIPLEXER
-*/
-always @(*)
-begin
-    case ({bubble_module_enable, bootloaderLoadOutEnable, pageLoadOutEnable})
-        3'b000:
-            begin
-                bubble_out_odd <= 1'b1;
-                bubble_out_even <= 1'b1; 
-            end
-        3'b001: //bootloader enable
-            begin
-                if(bubbleDataOutClockCounter == BOOTLOADER_STARTING_POINT - 14'd4 || bubbleDataOutClockCounter == BOOTLOADER_STARTING_POINT - 14'd3)
-                begin
-                    bubble_out_odd <= 1'b1;
-                    bubble_out_even <= 1'b0;
-                end
-                else if(bubbleDataOutClockCounter == BOOTLOADER_STARTING_POINT - 14'd2 || bubbleDataOutClockCounter == BOOTLOADER_STARTING_POINT - 14'd1)
-                begin
-                    bubble_out_odd <= 1'b0;
-                    bubble_out_even <= 1'b0;
-                end
-                else if(bubbleDataOutClockCounter >= BOOTLOADER_STARTING_POINT && bubbleDataOutClockCounter <= BOOTLOADER_STARTING_POINT + 14'd3839)
-                begin
-                    bubble_out_odd <= ~bubbleBufferDataOutput[1];
-                    bubble_out_even <= ~bubbleBufferDataOutput[0];
-                end
-                else if(bubbleDataOutClockCounter >= BOOTLOADER_STARTING_POINT + 14'd3840 && bubbleDataOutClockCounter <= BOOTLOADER_STARTING_POINT + 14'd3851)
-                begin
-                    bubble_out_odd <= 1'b0;
-                    bubble_out_even <= 1'b0;
-                end
-                else
-                begin
-                    bubble_out_odd <= 1'b1;
-                    bubble_out_even <= 1'b1; 
-                end
-            end
-        3'b010: //page enable
-            begin
-                if(bubbleDataOutClockCounter >= PAGE_STARTING_POINT && bubbleDataOutClockCounter <= PAGE_STARTING_POINT + 14'd1023)
-                begin
-                    bubble_out_odd <= ~bubbleBufferDataOutput[1];
-                    bubble_out_even <= ~bubbleBufferDataOutput[0];
-                end
-                else
-                begin
-                    bubble_out_odd <= 1'b1;
-                    bubble_out_even <= 1'b1;
-                end
-            end
-        3'b011:
-            begin
-                bubble_out_odd <= 1'b1;
-                bubble_out_even <= 1'b1;
-            end
-        3'b100:
-            begin
-                bubble_out_odd <= 1'b0;
-                bubble_out_even <= 1'b0;
-            end
-        3'b101:
-            begin
-                bubble_out_odd <= 1'b0;
-                bubble_out_even <= 1'b0;
-            end
-        3'b110:
-            begin
-                bubble_out_odd <= 1'b0;
-                bubble_out_even <= 1'b0;
-            end
-        3'b111:
-            begin
-                bubble_out_odd <= 1'b0;
-                bubble_out_even <= 1'b0;
-            end
-    endcase
 end
 endmodule
