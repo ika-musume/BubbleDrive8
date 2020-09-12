@@ -26,7 +26,6 @@ module TimingGenerator
     
     //Emulator signal outputs
     output  reg             position_change, //0 degree, bubble position change notification (active high)
-    output  wire            data_out_strobe, //Starts at 180 degree, ends at 240 degree, can put bubble data at a falling edge (active high)
     output  wire            position_latch, //Current bubble position can be latched when this line has been asserted (active high)
     output  wire            page_select, //Program page select, synchronized signal of bootloop_enable (active high)
     output  wire            coil_enable, //Goes high when bubble moves - same as COIL RUN (active low)

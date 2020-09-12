@@ -8,7 +8,6 @@ module BubbleInterface
 
     //Timing signals from TimingGenerator module
     input   wire            position_change, //0 degree, bubble position change notification (active high)
-    input   wire            data_out_strobe, //Starts at 180 degree, ends at 240 degree, can put bubble data at a falling edge (active high)
     input   wire            position_latch, //Current bubble position can be latched when this line has been asserted (active high)
     input   wire            page_select, //Bootloader select, synchronized signal of bootloop_enable (active high)
     input   wire            coil_enable, //Goes low when bubble moves - same as COIL RUN (active low)
@@ -40,9 +39,8 @@ assign           load_bootloader = bootloaderLoadOutEnable;
 reg              pageLoadOutEnable = 1'b1; //active low,  goes low while page load/out
 assign           load_page = pageLoadOutEnable;
 
-wire             bubbleDataOutClockCounterEnable; //active low, composite signal of above two
-assign           bubbleDataOutClockCounterEnable = bootloaderLoadOutEnable & pageLoadOutEnable;
-reg     [13:0]   bufferDataOutCounter = 13'd0;
+wire             bubbleDataOutputClockCounterEnable; //active low, composite signal of above two
+assign           bubbleDataOutputClockCounterEnable = bootloaderLoadOutEnable & pageLoadOutEnable;
 
 reg              positionReset = 1'b1;
 
@@ -171,8 +169,6 @@ end
 
 
 
-
-
 /*
     BUBBLE OUTPUT BLOCK RAM BUFFER
 */
@@ -193,32 +189,6 @@ end
 always @(negedge bubbleBufferReadClock) //read 
 begin   
     bubbleBufferDataOutput <= bubbleBuffer[bubbleBufferReadAddress];
-end
-
-
-
-
-/*
-    BUBBLE OUT SEQUENCER
-*/
-
-always @(negedge data_out_strobe or posedge bubbleDataOutClockCounterEnable)
-begin
-    if(bubbleDataOutClockCounterEnable == 1'b1) //counter stop
-    begin
-        bufferDataOutCounter <= 13'd0;
-    end
-    else //count up
-    begin
-        if(bufferDataOutCounter < 13'd4571)
-        begin
-            bufferDataOutCounter <= bufferDataOutCounter + 13'd1;
-        end
-        else
-        begin
-            bufferDataOutCounter <= bufferDataOutCounter;
-        end
-    end
 end
 
 
@@ -255,26 +225,26 @@ localparam DATA_01 = 4'b1100;
 localparam DATA_11 = 4'b1101;
 localparam WAIT = 4'b1110;
 
-reg     [13:0]  bubbleDataOutClockCounter = 14'd16383;
-reg     [3:0]   bubbleDataOutState = RESET;
+reg     [13:0]  bubbleDataOutputClockCounter = 14'd16383;
+reg     [3:0]   bubbleDataOutputState = RESET;
 reg     [3:0]   bubbleDataFetchState = RESET;
 
 //COUNT
-always @(negedge bubble_data_out_clock or posedge bubbleDataOutClockCounterEnable)
+always @(negedge bubble_data_out_clock or posedge bubbleDataOutputClockCounterEnable)
 begin
-    if(bubbleDataOutClockCounterEnable == 1'b1) //counter stop
+    if(bubbleDataOutputClockCounterEnable == 1'b1) //counter stop
     begin
-        bubbleDataOutClockCounter <= 14'd16383;
+        bubbleDataOutputClockCounter <= 14'd16383;
     end
     else //count up
     begin
-        if(bubbleDataOutClockCounter < 14'd16383)
+        if(bubbleDataOutputClockCounter < 14'd16383)
         begin
-            bubbleDataOutClockCounter <= bubbleDataOutClockCounter + 14'd1;
+            bubbleDataOutputClockCounter <= bubbleDataOutputClockCounter + 14'd1;
         end
         else
         begin
-            bubbleDataOutClockCounter <= 14'd0;
+            bubbleDataOutputClockCounter <= 14'd0;
         end
     end
 end
@@ -286,93 +256,93 @@ begin
         2'b00:
             begin
                 bubbleDataFetchState <= RESET;
-                bubbleDataOutState <= RESET;
+                bubbleDataOutputState <= RESET;
             end
         2'b01: //bootloader enable
             begin
-                if(bubbleDataOutClockCounter == BOOTLOADER_STARTING_POINT - 14'd6)
+                if(bubbleDataOutputClockCounter == BOOTLOADER_STARTING_POINT - 14'd6)
                 begin
                     bubbleDataFetchState <= RESET;
-                    bubbleDataOutState <= DATA_01;
+                    bubbleDataOutputState <= DATA_01;
                 end
-                else if(bubbleDataOutClockCounter == BOOTLOADER_STARTING_POINT - 14'd5)
+                else if(bubbleDataOutputClockCounter == BOOTLOADER_STARTING_POINT - 14'd5)
                 begin
                     bubbleDataFetchState <= RESET;
-                    bubbleDataOutState <= DATA_01;
+                    bubbleDataOutputState <= DATA_01;
                 end
-                else if(bubbleDataOutClockCounter == BOOTLOADER_STARTING_POINT - 14'd4)
+                else if(bubbleDataOutputClockCounter == BOOTLOADER_STARTING_POINT - 14'd4)
                 begin
                     bubbleDataFetchState <= ADDRESS_INCREMENT;
-                    bubbleDataOutState <= DATA_11;
+                    bubbleDataOutputState <= DATA_11;
                 end
-                else if(bubbleDataOutClockCounter == BOOTLOADER_STARTING_POINT - 14'd3)
+                else if(bubbleDataOutputClockCounter == BOOTLOADER_STARTING_POINT - 14'd3)
                 begin
                     bubbleDataFetchState <= FETCH;
-                    bubbleDataOutState <= DATA_11;
+                    bubbleDataOutputState <= DATA_11;
                 end
-                else if(bubbleDataOutClockCounter >= BOOTLOADER_STARTING_POINT - 14'd2 && bubbleDataOutClockCounter <= BOOTLOADER_STARTING_POINT + 14'd2541)
+                else if(bubbleDataOutputClockCounter >= BOOTLOADER_STARTING_POINT - 14'd2 && bubbleDataOutputClockCounter <= BOOTLOADER_STARTING_POINT + 14'd2541)
                 begin
-                    case(bubbleDataOutClockCounter[0])
+                    case(bubbleDataOutputClockCounter[0])
                         1'b0: 
                         begin
                             bubbleDataFetchState <= FETCH;
-                            bubbleDataOutState <= WAIT;
+                            bubbleDataOutputState <= WAIT;
                         end
                         1'b1: 
                         begin
                             bubbleDataFetchState <= ADDRESS_INCREMENT;
-                            bubbleDataOutState <= DATA_OUT;
+                            bubbleDataOutputState <= DATA_OUT;
                         end
                     endcase
                 end
-                else if(bubbleDataOutClockCounter >= BOOTLOADER_STARTING_POINT + 14'd2542 && bubbleDataOutClockCounter <= BOOTLOADER_STARTING_POINT + 14'd3849)
+                else if(bubbleDataOutputClockCounter >= BOOTLOADER_STARTING_POINT + 14'd2542 && bubbleDataOutputClockCounter <= BOOTLOADER_STARTING_POINT + 14'd3849)
                 begin
                     bubbleDataFetchState <= RESET;
-                    bubbleDataOutState <= DATA_11;
+                    bubbleDataOutputState <= DATA_11;
                 end
                 else
                 begin
                     bubbleDataFetchState <= RESET;
-                    bubbleDataOutState <= RESET;
+                    bubbleDataOutputState <= RESET;
                 end
             end
         2'b10:
             begin
-                if(bubbleDataOutClockCounter == PAGE_STARTING_POINT - 14'd4)
+                if(bubbleDataOutputClockCounter == PAGE_STARTING_POINT - 14'd4)
                 begin
                     bubbleDataFetchState <= ADDRESS_INCREMENT;
-                    bubbleDataOutState <= RESET;
+                    bubbleDataOutputState <= RESET;
                 end
-                else if(bubbleDataOutClockCounter == PAGE_STARTING_POINT - 14'd3) 
+                else if(bubbleDataOutputClockCounter == PAGE_STARTING_POINT - 14'd3) 
                 begin
                     bubbleDataFetchState <= FETCH;
-                    bubbleDataOutState <= RESET;
+                    bubbleDataOutputState <= RESET;
                 end
-                else if(bubbleDataOutClockCounter >= PAGE_STARTING_POINT - 14'd2 && bubbleDataOutClockCounter <= PAGE_STARTING_POINT + 14'd1021)
+                else if(bubbleDataOutputClockCounter >= PAGE_STARTING_POINT - 14'd2 && bubbleDataOutputClockCounter <= PAGE_STARTING_POINT + 14'd1021)
                 begin
-                    case(bubbleDataOutClockCounter[0])
+                    case(bubbleDataOutputClockCounter[0])
                         1'b0: 
                         begin
                             bubbleDataFetchState <= FETCH;
-                            bubbleDataOutState <= WAIT;
+                            bubbleDataOutputState <= WAIT;
                         end
                         1'b1: 
                         begin
                             bubbleDataFetchState <= ADDRESS_INCREMENT;
-                            bubbleDataOutState <= DATA_OUT;
+                            bubbleDataOutputState <= DATA_OUT;
                         end
                     endcase
                 end
                 else
                 begin
                     bubbleDataFetchState <= RESET;
-                    bubbleDataOutState <= RESET;
+                    bubbleDataOutputState <= RESET;
                 end
             end
         2'b11:
             begin
                 bubbleDataFetchState <= RESET;
-                bubbleDataOutState <= RESET;
+                bubbleDataOutputState <= RESET;
             end
     endcase
 end
@@ -421,7 +391,7 @@ end
 //data out
 always @(negedge bubble_data_out_clock)
 begin
-    case(bubbleDataOutState)
+    case(bubbleDataOutputState)
         RESET:
         begin
             bubble_out_odd <= 1'b1;
@@ -491,7 +461,7 @@ end
 */
 always @(negedge bubble_data_out_clock)
 begin
-    if(bubbleDataOutClockCounter == BOOTLOADER_STARTING_POINT - 14'd3 || bubbleDataOutClockCounter == BOOTLOADER_STARTING_POINT - 14'd2)
+    if(bubbleDataOutputClockCounter == BOOTLOADER_STARTING_POINT - 14'd3 || bubbleDataOutputClockCounter == BOOTLOADER_STARTING_POINT - 14'd2)
     begin
         positionReset <= 1'b1;
     end
