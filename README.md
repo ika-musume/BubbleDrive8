@@ -23,3 +23,5 @@ Critical bug fixes
 State machine improved
 ### v0.83
 Design finalized
+### v0.85
+Minor updates
