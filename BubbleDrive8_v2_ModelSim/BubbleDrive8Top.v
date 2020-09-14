@@ -34,7 +34,7 @@ wire            position_change;
 wire            position_latch;
 wire            page_select;
 wire            coil_enable;
-wire            bubble_module_enable;
+wire            bubble_data_output_clock;
 
 //To PositionPageConverter
 wire            convert;
@@ -52,30 +52,24 @@ wire    [10:0]  bubble_buffer_write_address;
 wire            bubble_buffer_write_enable;
 wire            bubble_buffer_write_clock;
 
-
-//test
-wire            bubble_data_out_clock;
-
-
-ManagementModule        ManagementModule        (.master_clock(master_clock), .power_good(power_good), .temperature_low(temperature_low), .bubble_module_enable(bubble_module_enable), .image_number(image_number), .image_dip_switch(image_dip_switch));
+ManagementModule        ManagementModule        (.master_clock(master_clock), .power_good(power_good), .temperature_low(temperature_low), .image_number(image_number), .image_dip_switch(image_dip_switch));
 
 
 TimingGenerator         TimingGenerator_0       (.master_clock(master_clock), .clock_out(clock_out), .bubble_module_enable(bubble_module_enable),
                                                 .bubble_shift_enable(bubble_shift_enable), .replicator_enable(replicator_enable), .bootloop_enable(bootloop_enable),
                                                 .position_change(position_change), .position_latch(position_latch), .page_select(page_select), .coil_enable(coil_enable),
                                                 
-                                                .bubble_data_out_clock(bubble_data_out_clock)); //test
+                                                .bubble_data_output_clock(bubble_data_output_clock)); //test
 
-BubbleInterface         BubbleInterface_0       (.master_clock(master_clock), .bubble_module_enable(bubble_module_enable),
+BubbleInterface         BubbleInterface_0       (.master_clock(master_clock),
                                                 .position_change(position_change), .position_latch(position_latch), .page_select(page_select), .coil_enable(coil_enable),
                                                 .convert(convert), .bubble_position_output(bubble_position_wire),
+                                                .bubble_data_output_clock(bubble_data_output_clock),
 
                                                 .bubble_buffer_write_address(bubble_buffer_write_address), .bubble_buffer_write_data_input(bubble_buffer_write_data_wire),
                                                 .bubble_buffer_write_enable(bubble_buffer_write_enable), .bubble_buffer_write_clock(bubble_buffer_write_clock), .load_page(load_page), .load_bootloader(load_bootloader),
 
-                                                .bubble_out_odd(bubble_out_odd), .bubble_out_even(bubble_out_even),
-                                                
-                                                .bubble_data_out_clock(bubble_data_out_clock)); //test
+                                                .bubble_out_odd(bubble_out_odd), .bubble_out_even(bubble_out_even)); //test
 
 PositionPageConverter   PositionPageConverter_0 (.convert(convert), .bubble_position_input(bubble_position_wire), .current_page_output(bubble_page_wire));
 

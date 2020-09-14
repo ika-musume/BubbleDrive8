@@ -1,17 +1,22 @@
 module BubbleInterface
+/*
+
+    BubbleDrive_v2 BubbleInterface.v
+
+    This module is the heart of BubbleDrive8. 
+
+*/
+
 (
     //Master clock
     input   wire            master_clock, //48MHz master clock
-
-    //Data from management module
-    input   wire            bubble_module_enable, //active low
 
     //Timing signals from TimingGenerator module
     input   wire            position_change, //0 degree, bubble position change notification (active high)
     input   wire            position_latch, //Current bubble position can be latched when this line has been asserted (active high)
     input   wire            page_select, //Bootloader select, synchronized signal of bootloop_enable (active high)
     input   wire            coil_enable, //Goes low when bubble moves - same as COIL RUN (active low)
-    input   wire            bubble_data_out_clock, //Clock for the BubbleInferface bubble data output logic
+    input   wire            bubble_data_output_clock, //Clock for the BubbleInferface bubble data output logic
 
     //Bubble position to page converter I/O
     output  wire            convert,
@@ -26,9 +31,10 @@ module BubbleInterface
     output  wire            load_bootloader,
     
     //Bubble data output
-    output  reg             bubble_out_odd = 1'b1,
-    output  reg             bubble_out_even = 1'b1
+    output  reg             bubble_out_odd = 1'b0,
+    output  reg             bubble_out_even = 1'b0
 );
+
 
 
 /*
@@ -43,7 +49,6 @@ wire             bubbleDataOutputClockCounterEnable; //active low, composite sig
 assign           bubbleDataOutputClockCounterEnable = bootloaderLoadOutEnable & pageLoadOutEnable;
 
 reg              positionReset = 1'b1;
-
 
 
 
@@ -168,7 +173,6 @@ end
 
 
 
-
 /*
     BUBBLE OUTPUT BLOCK RAM BUFFER
 */
@@ -176,7 +180,6 @@ reg     [1:0]   bubbleBuffer[2047:0];
 reg     [10:0]  bubbleBufferReadAddress = 11'b111_1111_1111;
 reg     [1:0]   bubbleBufferDataOutput;
 reg             bubbleBufferReadClock = 1'b0;
-//assign  bubbleBufferReadClock = data_out_strobe & ~bubbleReadClockEnable;
 
 always @(posedge bubble_buffer_write_clock) //write
 begin
@@ -190,6 +193,7 @@ always @(negedge bubbleBufferReadClock) //read
 begin   
     bubbleBufferDataOutput <= bubbleBuffer[bubbleBufferReadAddress];
 end
+
 
 
 /*
@@ -213,6 +217,7 @@ PAGE OUT BIT COUNTER
 
 POINT VALUE = ((duration(us) / 10) * 2) - 1
 */
+
 localparam PAGE_STARTING_POINT = 14'd201;
 localparam BOOTLOADER_STARTING_POINT = 14'd5285;
 
@@ -229,8 +234,8 @@ reg     [13:0]  bubbleDataOutputClockCounter = 14'd16383;
 reg     [3:0]   bubbleDataOutputState = RESET;
 reg     [3:0]   bubbleDataFetchState = RESET;
 
-//COUNT
-always @(negedge bubble_data_out_clock or posedge bubbleDataOutputClockCounterEnable)
+//clock counter
+always @(negedge bubble_data_output_clock or posedge bubbleDataOutputClockCounterEnable)
 begin
     if(bubbleDataOutputClockCounterEnable == 1'b1) //counter stop
     begin
@@ -249,8 +254,8 @@ begin
     end
 end
 
-//DETECT
-always @(negedge bubble_data_out_clock)
+//sequencer
+always @(negedge bubble_data_output_clock)
 begin
     case ({bootloaderLoadOutEnable, pageLoadOutEnable})
         2'b00:
@@ -347,10 +352,9 @@ begin
     endcase
 end
 
-
-//EXECUTE
+//command executer
 //data fetch
-always @(negedge bubble_data_out_clock)
+always @(negedge bubble_data_output_clock)
 begin
     case(bubbleDataFetchState)
         RESET:
@@ -388,8 +392,8 @@ begin
     endcase
 end
 
-//data out
-always @(negedge bubble_data_out_clock)
+//data output
+always @(negedge bubble_data_output_clock)
 begin
     case(bubbleDataOutputState)
         RESET:
@@ -425,6 +429,8 @@ begin
     endcase
 end
 
+
+
 /*
     BUBBLE POSITION TO PAGE CONVERTER
 */
@@ -459,7 +465,7 @@ end
 /*
     POSITION INITIALIZER
 */
-always @(negedge bubble_data_out_clock)
+always @(negedge bubble_data_output_clock)
 begin
     if(bubbleDataOutputClockCounter == BOOTLOADER_STARTING_POINT - 14'd3 || bubbleDataOutputClockCounter == BOOTLOADER_STARTING_POINT - 14'd2)
     begin

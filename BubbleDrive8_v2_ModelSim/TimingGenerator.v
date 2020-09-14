@@ -1,11 +1,11 @@
 module TimingGenerator
 /*
 
-    BubbleDrive_v2
-    
-    TimingGenerator.v
+    BubbleDrive_v2 TimingGenerator.v
 
-    This Verilog model partially emulates MB14056's timing signal generation future, but I generated several new signals for BubbleDrive8
+    This Verilog model partially emulates MB14056's timing signal generation feature. 
+    I generated several new signals and the clock for FSMs in BubbleInterface.v and convenience.
+    For low-level emulation of MB14506, please refer to TimingGenerator.v of BubbleDrive8.
 
 */
 
@@ -29,7 +29,7 @@ module TimingGenerator
     output  wire            position_latch, //Current bubble position can be latched when this line has been asserted (active high)
     output  wire            page_select, //Program page select, synchronized signal of bootloop_enable (active high)
     output  wire            coil_enable, //Goes high when bubble moves - same as COIL RUN (active low)
-    output  reg             bubble_data_out_clock = 1'b0 //Clock for the BubbleInferface bubble data output logic
+    output  reg             bubble_data_output_clock = 1'b0 //Clock for the BubbleInferface bubble data output logic
 );
 
 
@@ -48,11 +48,10 @@ reg             bubbleShiftEnableInternal = 1'b1;
 reg             replicatorEnableInternal = 1'b1;
 reg             bootloopEnableInternal = 1'b0;
 
-//State counters
-reg     [7:0]   mainStateCounter = 8'd0;
+//Counter
+reg     [7:0]   mainCounter = 8'd0;
 
 //Function signals
-reg             detectorStrobe = 1'b0;
 reg             functionRepOut = 1'b1;
 reg             coilRun = 1'b1; //Goes HIGH while driving
 
@@ -76,7 +75,6 @@ begin
     stepOne[2] <= bubble_module_enable | bubble_shift_enable;
     stepOne[1] <= bubble_module_enable | replicator_enable;
     stepOne[0] <= ~bubble_module_enable & bootloop_enable;
-
     stepTwo <= stepOne;
     stepThree <= stepTwo;
 end
@@ -95,6 +93,7 @@ end
 */
 reg     [1:0]   divide4 = 2'd0;
 assign clock12MHz = divide4[1];
+
 reg     [2:0]   divide12 = 3'd0;
 
 always @(posedge master_clock)
@@ -124,57 +123,57 @@ end
 
 
 /*
-    MAIN SEQUENCER
+    TIMING SIGNAL GENERATOR
 */
 //Because of the 12MHz synchronizer, there's a delay of 3 clock cycles on three internal signal BS, REPEN, and BOOTEN. 
-//I subtracted 3 from the reg mainStateCounter for timing compensation.
+//I subtracted 3 from the reg mainCounter for timing compensation.
 
+//main counter
 always @(posedge clock12MHz)
 begin
     if(bubbleShiftEnableInternal == 1'b1) //STOP
     begin
         if(coilRun == 1'b0) //COIL STOP
         begin
-            mainStateCounter <= 8'd0;
+            mainCounter <= 8'd0;
         end
         else //WHILE RUNNING
         begin
-            if(mainStateCounter >= 8'd18 && mainStateCounter <= 8'd44) //-X vector
+            if(mainCounter >= 8'd18 && mainCounter <= 8'd44) //-X vector
             begin
-                mainStateCounter <= mainStateCounter + 8'd1;
+                mainCounter <= mainCounter + 8'd1;
             end
-            else if(mainStateCounter == 8'd45) //Just before -Y vector starts
+            else if(mainCounter == 8'd45) //Just before -Y vector starts
             begin
-                mainStateCounter <= 8'd166;
+                mainCounter <= 8'd166;
             end
-            else if(mainStateCounter >= 8'd46 && mainStateCounter <= 8'd168)
+            else if(mainCounter >= 8'd46 && mainCounter <= 8'd168)
             begin
-                mainStateCounter <= mainStateCounter + 8'd1;
+                mainCounter <= mainCounter + 8'd1;
             end
             else
             begin
-                mainStateCounter <= 8'd0;
+                mainCounter <= 8'd0;
             end
         end
     end
     else //SHIFTING
     begin
-        if(mainStateCounter == 8'd139) //After a full rotation
+        if(mainCounter == 8'd139) //After a full rotation
         begin
-            mainStateCounter <= 8'd20; //Loop
+            mainCounter <= 8'd20; //Loop
         end
         else
         begin
-            mainStateCounter <= mainStateCounter + 8'd1;
+            mainCounter <= mainCounter + 8'd1;
         end
     end
 end
 
-
 //position_change
-always @(mainStateCounter)
+always @(mainCounter)
 begin
-    if(mainStateCounter == 8'd138 || mainStateCounter == 8'd139)
+    if(mainCounter == 8'd138 || mainCounter == 8'd139)
     begin
         position_change <= 1'b1;
     end
@@ -185,9 +184,9 @@ begin
 end
 
 //coil_enable
-always @(mainStateCounter)
+always @(mainCounter)
 begin
-    if(mainStateCounter >= 8'd18 && mainStateCounter <= 8'd168)
+    if(mainCounter >= 8'd18 && mainCounter <= 8'd168)
     begin
         coilRun <= 1'b1;
     end
@@ -198,7 +197,7 @@ begin
 end
 
 //functionRepOut
-always @(mainStateCounter or replicatorEnableInternal)
+always @(mainCounter or replicatorEnableInternal)
 begin
     if(replicatorEnableInternal == 1'b1)
     begin
@@ -206,11 +205,11 @@ begin
     end
     else
     begin
-        if(mainStateCounter >= 8'd21 && mainStateCounter <= 8'd23)
+        if(mainCounter >= 8'd21 && mainCounter <= 8'd23)
         begin
             functionRepOut <= 1'b0;
         end
-        else if(mainStateCounter >= 8'd141 && mainStateCounter <= 8'd143)
+        else if(mainCounter >= 8'd141 && mainCounter <= 8'd143)
         begin
             functionRepOut <= 1'b0;
         end
@@ -221,33 +220,20 @@ begin
     end
 end
 
-//bubble_data_out_clock
-always @(mainStateCounter)
+//bubble_data_output_clock
+always @(mainCounter)
 begin
-    if(mainStateCounter >= 8'd24 && mainStateCounter <= 8'd33)
+    if(mainCounter >= 8'd24 && mainCounter <= 8'd33)
     begin
-        bubble_data_out_clock <= 1'b1;
+        bubble_data_output_clock <= 1'b1;
     end
-    else if(mainStateCounter >= 8'd84 && mainStateCounter <= 8'd93)
+    else if(mainCounter >= 8'd84 && mainCounter <= 8'd93)
     begin
-        bubble_data_out_clock <= 1'b1;
+        bubble_data_output_clock <= 1'b1;
     end
     else
     begin
-        bubble_data_out_clock <= 1'b0;
-    end
-end
-
-//will delete in the near future
-always @(mainStateCounter)
-begin
-    if(mainStateCounter >= 8'd78 && mainStateCounter <= 8'd93)
-    begin
-        detectorStrobe <= 1'b1;
-    end
-    else
-    begin
-        detectorStrobe <= 1'b0;
+        bubble_data_output_clock <= 1'b0;
     end
 end
 endmodule

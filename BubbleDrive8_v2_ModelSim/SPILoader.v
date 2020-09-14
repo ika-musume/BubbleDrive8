@@ -44,11 +44,6 @@ XAAA/AAAA = 7 bits of address of a page(128 bytes)
 0x808 - bootloader
 */
 
-reg    [32:0]  spiInstruction = {1'b0, 32'h0000_0000}; //33 bit register: 1 bit MOSI + 8 bit instruction + 24 bit address
-assign MOSI = spiInstruction[32];
-
-reg     [12:0]  spiStateCounter = 13'b0; 
-
 localparam Standby = 4'b0000;
 localparam LoadPageAddress = 4'b0001;
 localparam ChipEnable = 4'b0010;
@@ -61,7 +56,12 @@ localparam BubbleEvenIn = 4'b1000;
 localparam Quit = 4'b1001;
 localparam LoadBootloaderAddress = 4'b1010;
 
-reg     [3:0]   state = Standby;
+reg    [32:0]  spiInstruction = {1'b0, 32'h0000_0000}; //33 bit register: 1 bit MOSI + 8 bit instruction + 24 bit address
+assign MOSI = spiInstruction[32];
+
+reg     [12:0]  spiStateCounter = 13'b0; 
+
+reg     [3:0]   spiState = Standby;
 
 /*
 13 bit counter for SPI I/O
@@ -127,88 +127,88 @@ begin
     case({load_bootloader, load_page})
         2'b00:
         begin
-            state <= Standby;
+            spiState <= Standby;
         end
         2'b01: //bootloader
         begin
             if(spiStateCounter == 13'd62)
             begin
-                state <= LoadBootloaderAddress;
+                spiState <= LoadBootloaderAddress;
             end
             else if(spiStateCounter == 13'd63)
             begin
-                state <= ChipEnable;
+                spiState <= ChipEnable;
             end
             else if(spiStateCounter >= 13'd64 && spiStateCounter <= 13'd127)
             begin
                 case(spiStateCounter[0])
-                    1'b0: state <= InstructionShift;
-                    1'b1: state <= Wait;
+                    1'b0: spiState <= InstructionShift;
+                    1'b1: spiState <= Wait;
                 endcase
             end
             else if(spiStateCounter >= 13'd128 && spiStateCounter <= 13'd7815)
             begin
                 case(spiStateCounter[1:0])
-                    2'b00: state <= BufferWrite;
-                    2'b01: state <= BubbleOddIn;
-                    2'b10: state <= AddressIncrement;
-                    2'b11: state <= BubbleEvenIn;
+                    2'b00: spiState <= BufferWrite;
+                    2'b01: spiState <= BubbleOddIn;
+                    2'b10: spiState <= AddressIncrement;
+                    2'b11: spiState <= BubbleEvenIn;
                 endcase
             end
             else if(spiStateCounter == 13'd7816)
             begin
-                state <= Quit;
+                spiState <= Quit;
             end
             else
             begin
-                state <= Standby;
+                spiState <= Standby;
             end
         end
         2'b10: 
         begin
             if(spiStateCounter == 13'd62)
             begin
-                state <= LoadPageAddress;
+                spiState <= LoadPageAddress;
             end
             else if(spiStateCounter == 13'd63)
             begin
-                state <= ChipEnable;
+                spiState <= ChipEnable;
             end
             else if(spiStateCounter >= 13'd64 && spiStateCounter <= 13'd127)
             begin
                 case(spiStateCounter[0])
-                    1'b0: state <= InstructionShift;
-                    1'b1: state <= Wait;
+                    1'b0: spiState <= InstructionShift;
+                    1'b1: spiState <= Wait;
                 endcase
             end
             else if(spiStateCounter >= 13'd128 && spiStateCounter <= 13'd2183)
             begin
                 case(spiStateCounter[1:0])
-                    2'b00: state <= BufferWrite;
-                    2'b01: state <= BubbleOddIn;
-                    2'b10: state <= AddressIncrement;
-                    2'b11: state <= BubbleEvenIn;
+                    2'b00: spiState <= BufferWrite;
+                    2'b01: spiState <= BubbleOddIn;
+                    2'b10: spiState <= AddressIncrement;
+                    2'b11: spiState <= BubbleEvenIn;
                 endcase
             end
             else if(spiStateCounter == 13'd2184)
             begin
-                state <= Quit;
+                spiState <= Quit;
             end
             else
             begin
-                state <= Standby;
+                spiState <= Standby;
             end
         end
         2'b11: 
         begin
-            state <= Standby;
+            spiState <= Standby;
         end
     endcase
 end
 
 always @(posedge master_clock) //mode 3
 begin
-    case (state)
+    case (spiState)
         Standby: //Standby
         begin
             spiInstruction <= {1'b0, 32'h0000_0000};
