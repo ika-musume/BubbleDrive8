@@ -60,7 +60,6 @@ reg             coilRun = 1'b1; //Goes HIGH while driving
 /*
     SIGNAL ASSIGNMENTS
 */
-assign data_out_strobe = detectorStrobe;
 assign position_latch = ~functionRepOut & bootloopEnableInternal; 
 assign page_select = bootloopEnableInternal;
 assign coil_enable = ~coilRun;
