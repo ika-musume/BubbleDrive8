@@ -15,7 +15,7 @@ module BubbleInterface
     input   wire            position_change, //0 degree, bubble position change notification (active high)
     input   wire            position_latch, //Current bubble position can be latched when this line has been asserted (active high)
     input   wire            page_select, //Bootloader select, synchronized signal of bootloop_enable (active high)
-    input   wire            coil_enable, //Goes low when bubble moves - same as COIL RUN (active low)
+    input   wire            bubble_access, //Goes high when bubble moves - same as COIL RUN (active high)
     input   wire            bubble_data_output_clock, //Clock for the BubbleInferface bubble data output logic
 
     //Bubble position to page converter I/O
@@ -60,7 +60,7 @@ reg              positionReset = 1'b1;
 ~functionRepOut     ____|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_______________________|¯|_________________________
 
 page_select         ________________________________________|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-coil_enable         ¯¯|_______________________________________|¯¯¯¯¯¯¯¯¯|____________________________________|¯¯
+bubble_access       __|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|_________|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|__
 position_latch      ______________________________________________________________|¯|___________________________
                       |----(bootloader load out enable)-----|                     |--(page load out enable)--|
 ----->TIME          A                    B                   D     C        D      E            D             C           X: POSSIBLE GLITCH
@@ -73,38 +73,19 @@ E: PAGE_LATCH
 X: POSSIBLE GLITCH - HOLD PREVIOUS STATE
 */
 
-localparam BOOTLOADER_ACCESS = 3'b000;  //B
-localparam INITIAL_STANDBY = 3'b010;    //A
-localparam NORMAL_ACCESS = 3'b100;      //D
-localparam PAGE_LATCH = 3'b101;         //E
-localparam NORMAL_STANDBY = 3'b110;     //C
+
+localparam INITIAL_STANDBY = 3'b000;    //A
+localparam BOOTLOADER_ACCESS = 3'b010;  //B
+localparam NORMAL_STANDBY = 3'b100;     //C
+localparam NORMAL_ACCESS = 3'b110;      //D
+localparam PAGE_LATCH = 3'b111;         //E
+
 
 reg     [2:0]    bubbleAccessState = INITIAL_STANDBY;
 
 always @(posedge master_clock)
 begin
-    case ({page_select, coil_enable, position_latch})
-        BOOTLOADER_ACCESS: //B
-        begin
-            if(bubbleAccessState == NORMAL_ACCESS || bubbleAccessState == PAGE_LATCH) //D or E->B: GLITCH
-            begin
-                bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
-                pageLoadOutEnable <= pageLoadOutEnable;
-                bubbleAccessState <= bubbleAccessState;
-            end
-            else
-            begin
-                bootloaderLoadOutEnable <= 1'b0;
-                pageLoadOutEnable <= 1'b1;
-                bubbleAccessState <= BOOTLOADER_ACCESS;
-            end
-        end
-        3'b001: //X
-        begin
-            bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
-            pageLoadOutEnable <= pageLoadOutEnable;
-            bubbleAccessState <= bubbleAccessState;
-        end
+    case ({page_select, bubble_access, position_latch})
         INITIAL_STANDBY: //A
         begin
             if(bubbleAccessState == PAGE_LATCH) //E->A: GLITCH
@@ -120,7 +101,49 @@ begin
                 bubbleAccessState <= INITIAL_STANDBY;
             end
         end
+        3'b001: //X
+        begin
+            bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
+            pageLoadOutEnable <= pageLoadOutEnable;
+            bubbleAccessState <= bubbleAccessState;
+        end
+        BOOTLOADER_ACCESS: //B
+        begin
+            if(bubbleAccessState == NORMAL_ACCESS || bubbleAccessState == PAGE_LATCH) //D or E->B: GLITCH
+            begin
+                bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
+                pageLoadOutEnable <= pageLoadOutEnable;
+                bubbleAccessState <= bubbleAccessState;
+            end
+            else
+            begin
+                bootloaderLoadOutEnable <= 1'b0;
+                pageLoadOutEnable <= 1'b1;
+                bubbleAccessState <= BOOTLOADER_ACCESS;
+            end
+        end
         3'b011: //X
+        begin
+            bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
+            pageLoadOutEnable <= pageLoadOutEnable;
+            bubbleAccessState <= bubbleAccessState;
+        end
+        NORMAL_STANDBY: //C
+        begin
+            if(bubbleAccessState == PAGE_LATCH) //E->C GLITCH
+            begin
+                bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
+                pageLoadOutEnable <= pageLoadOutEnable;
+                bubbleAccessState <= bubbleAccessState;
+            end
+            else
+            begin
+                bootloaderLoadOutEnable <= 1'b1;
+                pageLoadOutEnable <= 1'b1;
+                bubbleAccessState <= NORMAL_STANDBY;
+            end
+        end
+        3'b101: //X
         begin
             bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
             pageLoadOutEnable <= pageLoadOutEnable;
@@ -146,27 +169,6 @@ begin
                 pageLoadOutEnable <= 1'b0;
                 bubbleAccessState <= PAGE_LATCH;
             end
-        end
-        NORMAL_STANDBY: //C
-        begin
-            if(bubbleAccessState == PAGE_LATCH) //E->C GLITCH
-            begin
-                bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
-                pageLoadOutEnable <= pageLoadOutEnable;
-                bubbleAccessState <= bubbleAccessState;
-            end
-            else
-            begin
-                bootloaderLoadOutEnable <= 1'b1;
-                pageLoadOutEnable <= 1'b1;
-                bubbleAccessState <= NORMAL_STANDBY;
-            end
-        end
-        3'b111: //X
-        begin
-            bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
-            pageLoadOutEnable <= pageLoadOutEnable;
-            bubbleAccessState <= bubbleAccessState;
         end
     endcase
 end

@@ -28,7 +28,7 @@ module TimingGenerator
     output  reg             position_change, //0 degree, bubble position change notification (active high)
     output  wire            position_latch, //Current bubble position can be latched when this line has been asserted (active high)
     output  wire            page_select, //Program page select, synchronized signal of bootloop_enable (active high)
-    output  wire            coil_enable, //Goes high when bubble moves - same as COIL RUN (active low)
+    output  wire            bubble_access, //Goes high when bubble moves - same as COIL RUN (active high)
     output  reg             bubble_data_output_clock = 1'b0 //Clock for the BubbleInferface bubble data output logic
 );
 
@@ -62,7 +62,7 @@ reg             coilRun = 1'b1; //Goes HIGH while driving
 */
 assign position_latch = ~functionRepOut & bootloopEnableInternal; 
 assign page_select = bootloopEnableInternal;
-assign coil_enable = ~coilRun;
+assign bubble_access = coilRun;
  
 
 
@@ -182,7 +182,7 @@ begin
 	end
 end
 
-//coil_enable
+//bubble_access
 always @(mainCounter)
 begin
     if(mainCounter >= 8'd18 && mainCounter <= 8'd168)

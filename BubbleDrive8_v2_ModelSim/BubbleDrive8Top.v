@@ -33,7 +33,7 @@ module BubbleDrive8Top
 wire            position_change;
 wire            position_latch;
 wire            page_select;
-wire            coil_enable;
+wire            bubble_access;
 wire            bubble_data_output_clock;
 
 //To PositionPageConverter
@@ -57,12 +57,12 @@ ManagementModule        ManagementModule        (.master_clock(master_clock), .p
 
 TimingGenerator         TimingGenerator_0       (.master_clock(master_clock), .clock_out(clock_out), .bubble_module_enable(bubble_module_enable),
                                                 .bubble_shift_enable(bubble_shift_enable), .replicator_enable(replicator_enable), .bootloop_enable(bootloop_enable),
-                                                .position_change(position_change), .position_latch(position_latch), .page_select(page_select), .coil_enable(coil_enable),
+                                                .position_change(position_change), .position_latch(position_latch), .page_select(page_select), .bubble_access(bubble_access),
                                                 
                                                 .bubble_data_output_clock(bubble_data_output_clock)); //test
 
 BubbleInterface         BubbleInterface_0       (.master_clock(master_clock),
-                                                .position_change(position_change), .position_latch(position_latch), .page_select(page_select), .coil_enable(coil_enable),
+                                                .position_change(position_change), .position_latch(position_latch), .page_select(page_select), .bubble_access(bubble_access),
                                                 .convert(convert), .bubble_position_output(bubble_position_wire),
                                                 .bubble_data_output_clock(bubble_data_output_clock),
 
