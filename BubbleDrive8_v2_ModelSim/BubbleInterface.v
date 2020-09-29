@@ -57,7 +57,7 @@ reg              positionReset = 1'b1;
 */
 
 /*
-~functionRepOut     ____|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_______________________|¯|_________________________
+~functionRepOut     ____|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_______________________|¯|___________________________
 
 page_select         ________________________________________|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 bubble_access       __|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|_________|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|__
@@ -68,7 +68,7 @@ position_latch      ____________________________________________________________
 A: INITIAL_STANDBY
 B: BOOTLOADER_ACCESS
 C: NORMAL_STANDBY
-D: NORMAL_ACCESS
+D: PAGE_ACCESS
 E: PAGE_LATCH
 X: POSSIBLE GLITCH - HOLD PREVIOUS STATE
 */
@@ -77,7 +77,7 @@ X: POSSIBLE GLITCH - HOLD PREVIOUS STATE
 localparam INITIAL_STANDBY = 3'b000;    //A
 localparam BOOTLOADER_ACCESS = 3'b010;  //B
 localparam NORMAL_STANDBY = 3'b100;     //C
-localparam NORMAL_ACCESS = 3'b110;      //D
+localparam PAGE_ACCESS = 3'b110;      //D
 localparam PAGE_LATCH = 3'b111;         //E
 
 
@@ -109,7 +109,7 @@ begin
         end
         BOOTLOADER_ACCESS: //B
         begin
-            if(bubbleAccessState == NORMAL_ACCESS || bubbleAccessState == PAGE_LATCH) //D or E->B: GLITCH
+            if(bubbleAccessState == PAGE_ACCESS || bubbleAccessState == PAGE_LATCH) //D or E->B: GLITCH
             begin
                 bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
                 pageLoadOutEnable <= pageLoadOutEnable;
@@ -149,11 +149,11 @@ begin
             pageLoadOutEnable <= pageLoadOutEnable;
             bubbleAccessState <= bubbleAccessState;
         end
-        NORMAL_ACCESS: //D 
+        PAGE_ACCESS: //D 
         begin
             bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
             pageLoadOutEnable <= pageLoadOutEnable;
-            bubbleAccessState <= NORMAL_ACCESS;
+            bubbleAccessState <= PAGE_ACCESS;
         end
         PAGE_LATCH: //E
         begin
