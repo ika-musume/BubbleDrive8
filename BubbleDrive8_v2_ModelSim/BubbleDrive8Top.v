@@ -35,6 +35,7 @@ wire            position_latch;
 wire            page_select;
 wire            bubble_access;
 wire            bubble_data_output_clock;
+wire            bubble_module_enable;
 
 //To PositionPageConverter
 wire            convert;
@@ -52,7 +53,7 @@ wire    [10:0]  bubble_buffer_write_address;
 wire            bubble_buffer_write_enable;
 wire            bubble_buffer_write_clock;
 
-ManagementModule        ManagementModule        (.master_clock(master_clock), .power_good(power_good), .temperature_low(temperature_low), .image_number(image_number), .image_dip_switch(image_dip_switch));
+ManagementModule        ManagementModule        (.master_clock(master_clock), .power_good(power_good), .temperature_low(temperature_low), .bubble_module_enable(bubble_module_enable), .image_number(image_number), .image_dip_switch(image_dip_switch));
 
 
 TimingGenerator         TimingGenerator_0       (.master_clock(master_clock), .clock_out(clock_out), .bubble_module_enable(bubble_module_enable),

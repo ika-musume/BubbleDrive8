@@ -8,8 +8,11 @@ module ManagementModule
     output  reg             temperature_low = 1'b0, //This is the READY signal
 
     //Data from/to SPILoader
-    output  wire     [2:0]   image_number, //management module latches them at the very initial time of total boot process
+    output  wire    [2:0]   image_number, //management module latches them at the very initial time of total boot process
     
+    //Data to BubbleInterface
+    output  reg             bubble_module_enable = 1'b1, //active low
+
     //On-board components
     //input   wire    [11:0]  bubble_page_input, //PPPP/PPPP/PPPP
     input   wire    [2:0]   image_dip_switch
@@ -80,19 +83,23 @@ begin
     if(clockCounter[12:10] == 3'd0) //NOT_READY
     begin
         temperature_low <= 1'b0;
+        bubble_module_enable <= 1'b1;
     end
     else if(clockCounter[12:10] == 3'd1)  //LATCH_IMAGE_NUMBER
     begin
         temperature_low <= 1'b0;
+        bubble_module_enable <= 1'b1;
         imageNumberLatch <= ~image_dip_switch;
     end
     else if(clockCounter[12:10] == 3'd2) //RUN
     begin
         temperature_low <= 1'b1;
+        bubble_module_enable <= 1'b0;
     end
     else
     begin
         temperature_low <= 1'b1;
+        bubble_module_enable <= 1'b0;
     end
 end
 endmodule

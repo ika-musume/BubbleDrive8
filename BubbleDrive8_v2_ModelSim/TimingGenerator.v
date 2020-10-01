@@ -204,10 +204,16 @@ begin
     end
     else
     begin
-        if(mainCounter >= 8'd141 && mainCounter <= 8'd143)
+        if(mainCounter >= 8'd21 && mainCounter <= 8'd23)
         begin
             functionRepOut <= 1'b0;
         end
+        /*
+        else if(mainCounter >= 8'd141 && mainCounter <= 8'd143)
+        begin
+            functionRepOut <= 1'b0;
+        end
+        */
         else
         begin
             functionRepOut <= 1'b1;
