@@ -5,7 +5,7 @@
 This is a Konami Bubble System Bubble Memory Cartridge FBM-#101 Emulator for Altera EP4CE6E22C FPGA. 
 
 ## Changelog
-### v0.5
+### v0.5 - Jul. 17, 2020
 Added several modules and the testbench code for ModelSim.
 ### v0.6
 Added BubbleCalc, a bubble page-position correspondence table generator for Verilog HDL and SPILoader.v(not tested)
@@ -23,5 +23,5 @@ Critical bug fixes
 State machine improved
 ### v0.83
 Design finalized
-### v0.85
+### v0.85 - Oct. 1, 2020
 Minor updates
