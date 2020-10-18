@@ -3,7 +3,7 @@
 # BubbleDrive8
 * Role: 2Mbit bubble memory cartridge hardware emulator
 * Purpose: Replacing a notoriously fragile original bubble memory cart</p>
-* Original parts number: FBM-#101
+* Original part number: FBM-#101
 * Used on: Konami Bubble System
 * Manufacturer: Fujitsu
 
