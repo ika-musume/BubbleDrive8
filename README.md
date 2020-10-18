@@ -1,8 +1,11 @@
 <p align=center><img alt="BubbleDrive8" src="./BubbleDrive8%20Logo.svg"></p>
 
 # BubbleDrive8
-## What's this?
-This is a Konami Bubble System Bubble Memory Cartridge FBM-#101 Emulator for Altera EP4CE6E22C FPGA. 
+* Role: 2Mbit bubble memory cartridge hardware emulator
+* Purpose: Replacing a notoriously fragile original bubble memory cart</p>
+* Original parts number: FBM-#101
+* Used on: Konami Bubble System
+* Manufacturer: Fujitsu
 
 ## Changelog
 ### v0.5 - Jul. 17, 2020
