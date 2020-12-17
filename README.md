@@ -28,3 +28,5 @@ State machine improved
 Design finalized
 ### v0.85 - Oct. 1, 2020
 Minor updates
+### v0.86 - Dec. 17, 2020
+Added bubble memory signal capture file(sigrok)
