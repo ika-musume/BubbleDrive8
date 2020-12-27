@@ -224,11 +224,11 @@ end
 //bubble_data_output_clock
 always @(mainCounter)
 begin
-    if(mainCounter >= 8'd24 && mainCounter <= 8'd33)
+    if(mainCounter >= 8'd20 && mainCounter <= 8'd33)
     begin
         bubble_data_output_clock <= 1'b1;
     end
-    else if(mainCounter >= 8'd84 && mainCounter <= 8'd93)
+    else if(mainCounter >= 8'd80 && mainCounter <= 8'd93)
     begin
         bubble_data_output_clock <= 1'b1;
     end

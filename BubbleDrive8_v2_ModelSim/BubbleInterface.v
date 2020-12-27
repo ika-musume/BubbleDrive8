@@ -63,7 +63,7 @@ page_select         ________________________________________|¯¯¯¯¯¯¯¯¯�
 bubble_access       __|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|_________|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|__
 position_latch      ______________________________________________________________|¯|___________________________
                       |----(bootloader load out enable)-----|                     |--(page load out enable)--|
------>TIME          A                    B                   D     C        D      E            D             C           X: POSSIBLE GLITCH
+----->TIME          A                    B                         C        D      E            D             C           X: POSSIBLE GLITCH
 
 A: INITIAL_STANDBY
 B: BOOTLOADER_ACCESS
@@ -151,9 +151,18 @@ begin
         end
         PAGE_ACCESS: //D 
         begin
-            bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
-            pageLoadOutEnable <= pageLoadOutEnable;
-            bubbleAccessState <= PAGE_ACCESS;
+            if(bubbleAccessState == BOOTLOADER_ACCESS) //B->D: GLITCH
+            begin
+                bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
+                pageLoadOutEnable <= pageLoadOutEnable;
+                bubbleAccessState <= bubbleAccessState;
+            end
+            else
+            begin
+                bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
+                pageLoadOutEnable <= pageLoadOutEnable;
+                bubbleAccessState <= PAGE_ACCESS;
+            end
         end
         PAGE_LATCH: //E
         begin
@@ -237,7 +246,7 @@ reg     [3:0]   bubbleDataOutputState = RESET;
 reg     [3:0]   bubbleDataFetchState = RESET;
 
 //clock counter
-always @(negedge bubble_data_output_clock or posedge bubbleDataOutputClockCounterEnable)
+always @(posedge bubble_data_output_clock or posedge bubbleDataOutputClockCounterEnable)
 begin
     if(bubbleDataOutputClockCounterEnable == 1'b1) //counter stop
     begin
@@ -257,7 +266,7 @@ begin
 end
 
 //sequencer
-always @(negedge bubble_data_output_clock)
+always @(posedge bubble_data_output_clock)
 begin
     case ({bootloaderLoadOutEnable, pageLoadOutEnable})
         2'b00:
@@ -356,7 +365,7 @@ end
 
 //command executer
 //data fetch
-always @(negedge bubble_data_output_clock)
+always @(posedge bubble_data_output_clock)
 begin
     case(bubbleDataFetchState)
         RESET:
@@ -395,7 +404,7 @@ begin
 end
 
 //data output
-always @(negedge bubble_data_output_clock)
+always @(posedge bubble_data_output_clock)
 begin
     case(bubbleDataOutputState)
         RESET:
