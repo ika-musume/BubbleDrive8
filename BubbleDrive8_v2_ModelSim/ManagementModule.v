@@ -61,7 +61,7 @@ end
 */
 always @(posedge master_clock)
 begin
-    if(powerGoodInternal == 1'b1)
+    if(powerGoodInternal == 1'b0)
     begin
         clockCounter <= 32'd0;    
     end

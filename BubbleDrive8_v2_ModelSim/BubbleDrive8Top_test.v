@@ -8,7 +8,7 @@ reg             bubble_shift_enable = 1'b1;
 reg             replicator_enable = 1'b1;
 reg             bootloop_enable = 1'b0;
 
-reg             power_good = 1'b1;
+reg             power_good = 1'b0;
 wire            temperature_low;
 
 reg     [2:0]   image_dip_switch = 3'b111;
@@ -40,7 +40,7 @@ always #1 master_clock = ~master_clock;
 
 initial
 begin
-    #300000 power_good = 1'b0;
+    #300000 power_good = 1'b1;
 end
 
 always @(posedge temperature_low)

@@ -12,15 +12,14 @@ module BubbleInterface
     input   wire            master_clock, //48MHz master clock
 
     //Timing signals from TimingGenerator module
-    input   wire            position_change, //0 degree, bubble position change notification (active high)
-    input   wire            position_latch, //Current bubble position can be latched when this line has been asserted (active high)
-    input   wire            page_select, //Bootloader select, synchronized signal of bootloop_enable (active high)
-    input   wire            bubble_access, //Goes high when bubble moves - same as COIL RUN (active high)
-    input   wire            bubble_data_output_clock, //Clock for the BubbleInferface bubble data output logic
+    input   wire            position_increase_tick, //0 degree, bubble position change notification (active low)
+    input   wire            position_convert, //Current bubble position can be converted into page number when this line has been asserted (active low)
+    input   wire            bootloader_enable, //Bootloader select, synchronized signal of bootloop_enable (active low)
+    input   wire            bubble_access_enable, //Goes high when bubble moves - same as COIL RUN (active low)
+    input   wire            data_output_tick, //Clock for the BubbleInferface bubble data output logic (active low)
 
     //Bubble position to page converter I/O
-    output  wire            convert,
-    output  wire    [11:0]  bubble_position_output, //12 bit counter
+    output  wire    [11:0]  current_position, //12 bit counter
 
     //SPI Loader
     input   wire    [10:0]  bubble_buffer_write_address,
@@ -53,26 +52,140 @@ reg              positionReset = 1'b1;
 
 
 /*
+    BUBBLE OUTPUT BLOCK RAM BUFFER
+*/
+reg     [1:0]   bubbleBuffer[2047:0];
+reg     [10:0]  bubbleBufferReadAddress = 11'b111_1111_1111;
+reg     [1:0]   bubbleBufferDataOutput;
+reg             bubbleBufferReadClock = 1'b0;
+
+always @(posedge bubble_buffer_write_clock) //write
+begin
+    if (bubble_buffer_write_enable == 1'b0)
+    begin
+        bubbleBuffer[bubble_buffer_write_address] <= bubble_buffer_write_data_input;
+    end
+end
+
+always @(negedge bubbleBufferReadClock) //read 
+begin   
+    bubbleBufferDataOutput <= bubbleBuffer[bubbleBufferReadAddress];
+end
+
+
+
+/*
     ENABLE SIGNAL STATE MACHINE FOR BUBBLE OUT SEQUENCER / FLASH DATA LOADER
 */
 
 /*
-~functionRepOut     ____|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_______________________|¯|___________________________
+functionRepOut        ¯¯¯¯¯¯¯¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|_|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 
-page_select         ________________________________________|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-bubble_access       __|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|_________|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|__
-position_latch      ______________________________________________________________|¯|___________________________
-                      |----(bootloader load out enable)-----|                     |--(page load out enable)--|
------>TIME          A                    B                         C        D      E            D             C           X: POSSIBLE GLITCH
+bootloader_enable     ________________________________________|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+bubble_access_enable  ¯¯|_______________________________________|¯¯¯¯¯¯¯¯¯|____________________________________|¯¯
+position_convert      ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|_|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+                        |-----(bootloader load out enable)------|                   |--(page load out enable)--|
+----->TIME            A |                  B                    |      C    (HOLD)  |D          (HOLD)         | C 
 
-A: INITIAL_STANDBY
-B: BOOTLOADER_ACCESS
-C: NORMAL_STANDBY
-D: PAGE_ACCESS
-E: PAGE_LATCH
-X: POSSIBLE GLITCH - HOLD PREVIOUS STATE
+A: RESET
+B: LOAD_BOOTLOADER
+C: STANDBY
+D: LOAD_PAGE
 */
 
+localparam RST = 2'b00;    //A
+localparam LDBOOT = 2'b01; //B
+localparam LDPAGE = 2'b10; //D
+localparam STBY = 2'b11;   //C
+
+reg     [1:0]    bubbleAccessState = RST;
+
+always @(posedge master_clock)
+begin
+    case ({bootloader_enable, bubble_access_enable, position_convert})
+        3'b000: //GLITCH
+        begin
+            bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
+            pageLoadOutEnable <= pageLoadOutEnable;
+            bubbleAccessState <= bubbleAccessState;
+        end
+        3'b001: //LDBOOT
+        begin
+            if(bubbleAccessState == RST)
+            begin
+                bootloaderLoadOutEnable <= 1'b0;
+                pageLoadOutEnable <= 1'b1;
+                bubbleAccessState <= LDBOOT;
+            end
+            else
+            begin
+                bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
+                pageLoadOutEnable <= pageLoadOutEnable;
+                bubbleAccessState <= bubbleAccessState;
+            end
+        end
+        3'b010: //GLITCH
+        begin
+            bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
+            pageLoadOutEnable <= pageLoadOutEnable;
+            bubbleAccessState <= bubbleAccessState;
+        end
+        3'b011: //RST
+        begin
+            bootloaderLoadOutEnable <= 1'b1;
+            pageLoadOutEnable <= 1'b1;
+            bubbleAccessState <= RST;
+        end
+        3'b100: //LDPAGE
+        begin
+            if(bubbleAccessState == STBY)
+            begin
+                bootloaderLoadOutEnable <= 1'b1;
+                pageLoadOutEnable <= 1'b0;
+                bubbleAccessState <= LDPAGE;
+            end
+            else
+            begin
+                bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
+                pageLoadOutEnable <= pageLoadOutEnable;
+                bubbleAccessState <= bubbleAccessState;
+            end
+        end
+        3'b101: //HOLD
+        begin
+            bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
+            pageLoadOutEnable <= pageLoadOutEnable;
+            bubbleAccessState <= bubbleAccessState;
+        end
+        3'b110: //GLITCH 
+        begin
+            bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
+            pageLoadOutEnable <= pageLoadOutEnable;
+            bubbleAccessState <= bubbleAccessState;
+        end
+        3'b111: //STBY
+        begin
+            if(bubbleAccessState == LDBOOT || bubbleAccessState == LDPAGE)
+            begin
+                bootloaderLoadOutEnable <= 1'b1;
+                pageLoadOutEnable <= 1'b1;
+                bubbleAccessState <= STBY;
+            end
+            else
+            begin
+                bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
+                pageLoadOutEnable <= pageLoadOutEnable;
+                bubbleAccessState <= bubbleAccessState;
+            end
+        end
+    endcase
+end
+
+
+
+
+
+/*****************
 
 localparam INITIAL_STANDBY = 3'b000;    //A
 localparam BOOTLOADER_ACCESS = 3'b010;  //B
@@ -85,7 +198,7 @@ reg     [2:0]    bubbleAccessState = INITIAL_STANDBY;
 
 always @(posedge master_clock)
 begin
-    case ({page_select, bubble_access, position_latch})
+    case ({bootloader_enable, bubble_access_enable, position_convert})
         INITIAL_STANDBY: //A
         begin
             if(bubbleAccessState == PAGE_LATCH) //E->A: GLITCH
@@ -182,28 +295,10 @@ begin
     endcase
 end
 
-
-
-/*
-    BUBBLE OUTPUT BLOCK RAM BUFFER
 */
-reg     [1:0]   bubbleBuffer[2047:0];
-reg     [10:0]  bubbleBufferReadAddress = 11'b111_1111_1111;
-reg     [1:0]   bubbleBufferDataOutput;
-reg             bubbleBufferReadClock = 1'b0;
 
-always @(posedge bubble_buffer_write_clock) //write
-begin
-    if (bubble_buffer_write_enable == 1'b0)
-    begin
-        bubbleBuffer[bubble_buffer_write_address] <= bubble_buffer_write_data_input;
-    end
-end
 
-always @(negedge bubbleBufferReadClock) //read 
-begin   
-    bubbleBufferDataOutput <= bubbleBuffer[bubbleBufferReadAddress];
-end
+
 
 
 
@@ -246,7 +341,7 @@ reg     [3:0]   bubbleDataOutputState = RESET;
 reg     [3:0]   bubbleDataFetchState = RESET;
 
 //clock counter
-always @(posedge bubble_data_output_clock or posedge bubbleDataOutputClockCounterEnable)
+always @(negedge data_output_tick or posedge bubbleDataOutputClockCounterEnable)
 begin
     if(bubbleDataOutputClockCounterEnable == 1'b1) //counter stop
     begin
@@ -266,7 +361,7 @@ begin
 end
 
 //sequencer
-always @(posedge bubble_data_output_clock)
+always @(negedge data_output_tick)
 begin
     case ({bootloaderLoadOutEnable, pageLoadOutEnable})
         2'b00:
@@ -365,7 +460,7 @@ end
 
 //command executer
 //data fetch
-always @(posedge bubble_data_output_clock)
+always @(negedge data_output_tick)
 begin
     case(bubbleDataFetchState)
         RESET:
@@ -404,7 +499,7 @@ begin
 end
 
 //data output
-always @(posedge bubble_data_output_clock)
+always @(negedge data_output_tick)
 begin
     case(bubbleDataOutputState)
         RESET:
@@ -445,18 +540,17 @@ end
 /*
     BUBBLE POSITION TO PAGE CONVERTER
 */
-localparam THE_NUMBER_OF_BUBBLE_POSITIONS = 12'd2053; //0000 - 2052: 2053 positions
+localparam TOTAL_POSITIONS = 12'd2053; //0000 - 2052: 2053 positions
 
 reg     [11:0]   positionCounter = 12'd0;
-assign bubble_position_output = positionCounter;
-assign convert = position_latch; //only works when bootloader is not selected
+assign current_position = positionCounter;
 
 //position counter
-always @(posedge position_change)
+always @(negedge position_increase_tick)
 begin
     if(positionReset == 1'b0)
     begin
-        if(positionCounter < THE_NUMBER_OF_BUBBLE_POSITIONS - 12'd1)
+        if(positionCounter < TOTAL_POSITIONS - 12'd1)
         begin
             positionCounter <= positionCounter + 12'd1;
         end
@@ -476,7 +570,7 @@ end
 /*
     POSITION INITIALIZER
 */
-always @(negedge bubble_data_output_clock)
+always @(negedge data_output_tick)
 begin
     if(bubbleDataOutputClockCounter == BOOTLOADER_STARTING_POINT - 14'd3 || bubbleDataOutputClockCounter == BOOTLOADER_STARTING_POINT - 14'd2)
     begin

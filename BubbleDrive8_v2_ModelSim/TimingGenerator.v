@@ -25,11 +25,11 @@ module TimingGenerator
     input   wire            bootloop_enable,
     
     //Emulator signal outputs
-    output  reg             position_change, //0 degree, bubble position change notification (active high)
-    output  wire            position_latch, //Current bubble position can be latched when this line has been asserted (active high)
-    output  wire            page_select, //Program page select, synchronized signal of bootloop_enable (active high)
-    output  wire            bubble_access, //Goes high when bubble moves - same as COIL RUN (active high)
-    output  reg             bubble_data_output_clock = 1'b0 //Clock for the BubbleInferface bubble data output logic
+    output  reg             position_increase_tick, //0 degree, bubble position change notification (active low)
+    output  wire            position_convert, //Current bubble position can be converted into page number when this line has been asserted (active low)
+    output  wire            bootloader_enable, //Program page select, synchronized signal of bootloop_enable (active low)
+    output  wire            bubble_access_enable, //Goes high when bubble moves - same as COIL RUN (active low)
+    output  reg             data_output_tick = 1'b1 //Clock for the BubbleInferface bubble data output logic (active low)
 );
 
 
@@ -53,16 +53,16 @@ reg     [7:0]   mainCounter = 8'd0;
 
 //Function signals
 reg             functionRepOut = 1'b1;
-reg             coilRun = 1'b1; //Goes HIGH while driving
+reg             coilRun = 1'b0; //Goes HIGH while driving
 
 
 
 /*
     SIGNAL ASSIGNMENTS
 */
-assign position_latch = ~functionRepOut & bootloopEnableInternal; 
-assign page_select = bootloopEnableInternal;
-assign bubble_access = coilRun;
+assign position_convert = functionRepOut | ~bootloopEnableInternal; 
+assign bootloader_enable = bootloopEnableInternal;
+assign bubble_access_enable = ~coilRun;
  
 
 
@@ -169,20 +169,20 @@ begin
     end
 end
 
-//position_change
+//position_increase_tick
 always @(mainCounter)
 begin
     if(mainCounter == 8'd138 || mainCounter == 8'd139)
     begin
-        position_change <= 1'b1;
+        position_increase_tick <= 1'b0;
     end
 	else
 	begin
-	    position_change <= 1'b0;
+	    position_increase_tick <= 1'b1;
 	end
 end
 
-//bubble_access
+//bubble_access_enable
 always @(mainCounter)
 begin
     if(mainCounter >= 8'd18 && mainCounter <= 8'd168)
@@ -208,12 +208,6 @@ begin
         begin
             functionRepOut <= 1'b0;
         end
-        /*
-        else if(mainCounter >= 8'd141 && mainCounter <= 8'd143)
-        begin
-            functionRepOut <= 1'b0;
-        end
-        */
         else
         begin
             functionRepOut <= 1'b1;
@@ -221,20 +215,20 @@ begin
     end
 end
 
-//bubble_data_output_clock
+//data_output_tick
 always @(mainCounter)
 begin
     if(mainCounter >= 8'd20 && mainCounter <= 8'd33)
     begin
-        bubble_data_output_clock <= 1'b1;
+        data_output_tick <= 1'b0;
     end
     else if(mainCounter >= 8'd80 && mainCounter <= 8'd93)
     begin
-        bubble_data_output_clock <= 1'b1;
+        data_output_tick <= 1'b0;
     end
     else
     begin
-        bubble_data_output_clock <= 1'b0;
+        data_output_tick <= 1'b1;
     end
 end
 endmodule

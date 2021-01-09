@@ -32,3 +32,5 @@ Minor updates
 Added bubble memory signal capture file(sigrok)
 ### v0.87 - Dec. 27, 2020
 Updated TimingGenerator.v and BubbleInterface.v for better emulation. Changed bubble memory signal capture file.
+### v0.88 - Jan. 9, 2021
+Changed several signals to active low, changed obscure signal names. State machine improved.
