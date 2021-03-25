@@ -20,14 +20,14 @@ module TimingGenerator
     input   wire            nBOOTEN,
     
     //Emulator signal outputs
-    output  wire    [2:0]   ACCST,
-    output  wire    [1:0]   BOUTTICKS,
-    output  reg             nBACT = 1'b1
+    output  wire    [2:0]   ACCTYPE,        //access type
+    output  wire    [12:0]  BOUTBITNUM,     //bubble output bit number
+    output  wire    [1:0]   BOUTTICKS,      //bubble output asynchronous control ticks
+    output  wire    [11:0]  ABSPOS,         //absolute position number
+    output  reg             nMACT = 1'b1    //magnatic field activated
 );
 
 localparam INITIAL_ABS_POSITION = 12'd2051; //0-2052
-
-
 
 /*
     GLOBAL NET/REGS
@@ -89,111 +89,118 @@ end
 /*
 nREPEN            ¯¯¯¯¯¯¯¯¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|_|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 
-nBOOTEN_intl      ______________________________________________|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 nBSS_intl         ¯¯¯¯¯|_|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|_|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+nBOOTEN_intl      ______________________________________________|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 nBSEN_intl        ¯¯¯¯¯¯¯¯|____________________________________|¯¯¯¯¯¯¯¯¯|___________________________________|¯¯¯¯¯
-
 nREPEN_intl       ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|_|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-                              |----(bootloader load out enable)--   --|               |(page load out enable)|
------>TIME        A    |B |C                                   |A     |B |E           |D                     |A 
+                          |----(bootloader load out enable)----|                      |(page load out enable)|
+----->TIME        A    |B |C                                   |A     |B |E           |D(HOLD)               |A 
 A: RESET
 B: STANDBY
 C: LOAD_BOOTLOADER
 D: LOAD_PAGE
 */
 
+//[magnetic field activation/data transfer/mode]
 localparam RST = 3'b000;    //A
 localparam STBY = 3'b001;   //B
-localparam BOOT = 3'b100;   //C
-localparam USER = 3'b101;   //D
-localparam IDLE = 3'b110;   //E
+localparam BOOT = 3'b110;   //C
+localparam USER = 3'b111;   //D
+localparam IDLE = 3'b100;   //E
 
-reg access_state = 3'b000;
-assign ACCST = access_state;
+reg access_type = RST;
+assign ACCTYPE = access_type;
 
 always @(posedge MCLK)
 begin
-    case ({nBOOTEN_intl, nBSS_intl, nBSEN_intl})
-        3'b000: //GLITCH
+    case ({nBOOTEN_intl, nBSS_intl, nBSEN_intl, nREPEN_intl})
+        4'b1011: //RST
         begin
-            access_state <= access_state;
-        end
-        3'b001: //STANDBY
-        begin
-            if(access_state == RST)
+            if(access_type == STBY)
             begin
-                access_state <= STBY;
+                access_type <= STBY;
             end
             else
             begin
-                access_state <= access_state;
+                access_type <= RST;
             end
         end
-        3'b010: //BOOT
+
+        4'b0011: //bootloader standby
         begin
-            if(access_state == STBY)
+            if(access_type == RST)
             begin
-                access_state <= BOOT;
+                access_type <= STBY;
             end
             else
             begin
-                access_state <= access_state;
+                access_type <= access_type;
             end
         end
-        3'b011: //RESET
+
+        4'b1001: //bootloader access
         begin
-            if(access_state == IDLE || naccess_state == BOOT || access_state == USER)
+            if(access_type == STBY || access_type == BOOT)
             begin
-                access_state <= RST;
+                access_type <= BOOT;
             end
             else
             begin
-                access_state <= access_state;
+                access_type <= access_type;
             end
         end
-        3'b100: //GLITCH
+
+        4'b1111: //normal reset
         begin
-            access_state <= access_state;
-        end
-        3'b101: //STANDBY
-        begin
-            if(access_state == RST)
+            if(access_type == STBY)
             begin
-                access_state <= STBY;
+                access_type <= STBY;
             end
             else
             begin
-                access_state <= access_state;
+                access_type <= RST;
             end
         end
-        3'b110: //IDLE
+
+        4'b0111: //user page standby
         begin
-            if(access_state == STBY)
+            if(access_type == RST)
             begin
-                access_state <= IDLE;
+                access_type <= STBY;
             end
             else
             begin
-                if(nREPEN_intl == 1'b0)
-                begin
-                    access_state <= USER;
-                end
-                else
-                begin
-                    access_state <= access_state;
-                end
+                access_type <= access_type;
             end
         end
-        3'b111: //RESET
+
+        4'b1101: //idle
         begin
-            if(access_state == IDLE || access_state == BOOT || access_state == USER)
+            if(access_type == STBY)
             begin
-                access_state <= RST;
+                access_type <= IDLE;
             end
             else
             begin
-                access_state <= access_state;
+                access_type <= access_type;
             end
+        end
+
+        4'b1100: //bubble replication
+        begin
+            if(access_type == IDLE)
+            begin
+                access_type <= USER;
+            end
+            else
+            begin
+                access_type <= access_type;
+            end
+        end
+
+        default:
+        begin
+            access_type <= access_type;
         end
     endcase
 end
@@ -207,134 +214,66 @@ end
 //48MHz 1 bubble cycle = 480clks
 //48MHz 4클럭 또는 12MHz 1클럭 씹힘
 
-reg     [9:0]   MCLK_counter = 10'd0; //카운터는 세기 쉽게 1부터 시작 0아님!!
-reg     [1:0]   bubble_half_cycle_counter = 2'd3;
-reg     [11:0]  absolute_position_number = INITIAL_ABS_POSITION;
-assign BOUTTICKS = bubble_half_cycle_counter;
+reg     [9:0]   MCLK_counter = 10'd0; //마스터 카운터는 세기 쉽게 1부터 시작 0아님!!
 
+reg     [11:0]  absolute_position_number = INITIAL_ABS_POSITION;
+assign ABSPOS = absolute_position_number;
+
+reg     [9:0]   bout_invalid_half_cycle_counter = 10'd1023;
+reg     [14:0]  bout_valid_half_cycle_counter = 15'd32767;
+assign BOUTBITNUM = bout_valid_half_cycle_counter[14:2];
+assign BOUTTICKS = bubble_invalid_half_cycle_counter[1:0] & bubble_valid_half_cycle_counter[1:0];
+
+
+//master clock counters
 always @(posedge MCLK)
 begin
     //시작
     if(MCLK_counter == 10'd0)
     begin
-        if(access_state[2] == 1'b1)
+        if(access_type[2] == 1'b0)
         begin
             MCLK_counter <= 10'd0;
-
-            nBACT <= 1'b1;
-
-            bubble_half_cycle_counter <= 2'd3;
-
-            absolute_position_number <= absolute_position_number;
         end
         else
         begin
             MCLK_counter <= MCLK_counter + 1'd1;
-
-            nBACT <= 1'b1;
-
-            bubble_half_cycle_counter <= 2'd3;
-
-            absolute_position_number <= absolute_position_number;
-        end
-    end
-
-    //반클럭+1클럭 씹고 23번째 pos엣지에서 버블 돌리기 시작
-    else if(MCLK_counter == 10'd88) 
-    begin
-        MCLK_counter <= MCLK_counter + 1'd1;
-
-        nBACT <= 1'b0;
-
-        if(bubble_half_cycle_counter == 2'd3)
-        begin
-            bubble_half_cycle_counter <= 2'd0;
-        end
-        else
-        begin
-            bubble_half_cycle_counter <= bubble_half_cycle_counter + 1'd1;
         end
     end
 
     //53번째 pos엣지에서 -X방향
     else if(MCLK_counter == 10'd208)
     begin
-        if(access_state[2] == 1'b0) //bubble rotation ends
+        if(access_type[2] == 1'b0) //bubble rotation ends
         begin
             MCLK_counter <= 10'd0;
-
-            nBACT <= 1'b1;
-
-            bubble_half_cycle_counter <= 2'd3;
         end
         else
         begin
-            MCLK_counter <= MCLK_counter + 1'd1;
-
-            nBACT <= nBACT;
-
-            if(bubble_half_cycle_counter == 2'd3)
-            begin
-                bubble_half_cycle_counter <= 2'd0;
-            end
-            else
-            begin
-                bubble_half_cycle_counter <= bubble_half_cycle_counter + 1'd1;
-            end
+            MCLK_counter <= MCLK_counter + 10'd1;
         end
     end
-
-    //83번째 pos엣지에서 half disk -Y방향 위치 (여기서 버블 출력)
-    else if(MCLK_counter == 10'd328) 
-    begin
-        MCLK_counter <= MCLK_counter + 1'd1;
-
-        nBACT <= nBACT;
-
-        if(bubble_half_cycle_counter == 2'd3)
-        begin
-            bubble_half_cycle_counter <= 2'd0;
-        end
-        else
-        begin
-            bubble_half_cycle_counter <= bubble_half_cycle_counter + 1'd1;
-        end
-    end   
-
-    //113번째 pos엣지에서 +X
-    else if(MCLK_counter == 10'd468) 
-    begin
-        MCLK_counter <= MCLK_counter + 1'd1;     
-
-        nBACT <= nBACT;
-        
-        if(bubble_half_cycle_counter == 2'd3)
-        begin
-            bubble_half_cycle_counter <= 2'd0;
-        end
-        else
-        begin
-            bubble_half_cycle_counter <= bubble_half_cycle_counter + 1'd1;
-        end
-    end   
 
     //143번째 pos엣지에서 half disk +Y방향 위치
     else if(MCLK_counter == 10'd568) 
     begin
-        MCLK_counter <= 10'd89;
+       MCLK_counter <= 10'd89; 
+    end
 
-        nBACT <= nBACT;
+    else
+    begin
+        MCLK_counter <= MCLK_counter + 10'd1;
+    end
+end
 
-        if(bubble_half_cycle_counter == 2'd3)
-        begin
-            bubble_half_cycle_counter <= 2'd0;
-        end
-        else
-        begin
-            bubble_half_cycle_counter <= bubble_half_cycle_counter + 1'd1;
-        end
 
-        if(absolute_position_number < 12'd2052)
+//absolute position counter
+always @(posedge MCLK)
+begin
+    //143번째 pos엣지에서 half disk +Y방향 위치
+    if(MCLK_counter == 10'd568) 
+    begin
+        if(absolute_position_number < 12'd2051)
         begin
             absolute_position_number <= absolute_position_number + 12'd1;
         end
@@ -347,13 +286,80 @@ begin
     //나머지
     else
     begin
-        MCLK_counter <= MCLK_counter + 1'd1;
-
-        nBACT <= nBACT;
-
-        bubble_half_cycle_counter <= bubble_half_cycle_counter;
-
         absolute_position_number <= absolute_position_number;
+    end
+end
+
+//half cycle counter
+always @(posedge MCLK)
+begin
+    //리셋상태
+    if(MCLK_counter == 10'd0)
+    begin
+        bout_invalid_half_cycle_counter = 10'd1023;
+        bout_valid_half_cycle_counter = 15'd32767;
+    end
+
+    //버블 시작, -X, -Y, +X, +Y에서 한번씩 체크
+    else if(MCLK_counter == 10'd88 || MCLK_counter == 10'd208 || MCLK_counter == 10'd328 || MCLK_counter == 10'd448 || MCLK_counter == 10'd568) 
+    begin
+        //실제 액세스 안 하면 리셋상태
+        if(access_type[1] == 1'b0)
+        begin
+            bout_invalid_half_cycle_counter = 10'd1023;
+            bout_valid_half_cycle_counter = 15'd32767;
+        end
+
+        //싸이클 카운팅은 실제 액세스시에만 유효
+        else
+        begin
+            if(bout_invalid_half_cycle_counter < 10'd391) //부트로더, 페이지 모두 98싸이클 무효
+            begin
+                bout_invalid_half_cycle_counter <= bout_invalid_half_cycle_counter + 10'd1;
+                bout_valid_half_cycle_counter <= 15'd32767;
+            end
+            else //99번째 싸이클부터
+            begin
+                if(access_type == 3'b110)) //부트로더
+                begin
+                    if(bout_valid_half_cycle_counter < 15'd16423) //부트로더는 2053*2*4-1 카운트
+                    begin
+                        bout_invalid_half_cycle_counter <= bout_invalid_half_cycle_counter;
+                        bout_valid_half_cycle_counter <= bout_valid_half_cycle_counter + 15'd1;
+                    end
+                    else
+                    begin
+                        bout_invalid_half_cycle_counter <= bout_invalid_half_cycle_counter;
+                        bout_valid_half_cycle_counter <= bout_valid_half_cycle_counter;
+                    end
+                end
+                else if(access_type == 3'b111) //페이지
+                begin
+                    if(bout_valid_half_cycle_counter < 15'd2335) //페이지는 584*4-1 카운트
+                    begin
+                        bout_invalid_half_cycle_counter <= bout_invalid_half_cycle_counter;
+                        bout_valid_half_cycle_counter <= bout_valid_half_cycle_counter + 15'd1;
+                    end
+                    else
+                    begin
+                        bout_invalid_half_cycle_counter <= bout_invalid_half_cycle_counter;
+                        bout_valid_half_cycle_counter <= bout_valid_half_cycle_counter;
+                    end
+                end
+                else //가능성 없음
+                begin
+                    bout_invalid_half_cycle_counter = 10'd1023;
+                    bout_valid_half_cycle_counter = 15'd32767;
+                end
+            end
+        end
+    end
+
+    //나머지 때에는 값 유지
+    else
+    begin
+        bout_invalid_half_cycle_counter <= bout_invalid_half_cycle_counter;
+        bout_valid_half_cycle_counter <= bout_valid_half_cycle_counter;
     end
 end
 
