@@ -21,10 +21,9 @@ module TimingGenerator
     
     //Emulator signal outputs
     output  wire    [2:0]   ACCTYPE,        //access type
-    output  wire    [12:0]  BOUTBITNUM,     //bubble output bit number
+    output  wire    [12:0]  BOUTCYCLENUM,   //bubble output cycle number
     output  wire    [1:0]   BOUTTICKS,      //bubble output asynchronous control ticks
-    output  wire    [11:0]  ABSPOS,         //absolute position number
-    output  reg             nMACT = 1'b1    //magnatic field activated
+    output  wire    [11:0]  ABSPOS          //absolute position number
 );
 
 localparam INITIAL_ABS_POSITION = 12'd2051; //0-2052
@@ -114,7 +113,7 @@ assign ACCTYPE = access_type;
 always @(posedge MCLK)
 begin
     case ({nBOOTEN_intl, nBSS_intl, nBSEN_intl, nREPEN_intl})
-        4'b1011: //RST
+        4'b1011: //시작시 리셋상태 혹은 부트로더 액세스 후 잠깐
         begin
             if(access_type == STBY)
             begin
@@ -126,7 +125,7 @@ begin
             end
         end
 
-        4'b0011: //bootloader standby
+        4'b0011: //부트로더 스탠바이
         begin
             if(access_type == RST)
             begin
@@ -138,7 +137,7 @@ begin
             end
         end
 
-        4'b1001: //bootloader access
+        4'b1001: //부트로더 액세스 시
         begin
             if(access_type == STBY || access_type == BOOT)
             begin
@@ -150,7 +149,7 @@ begin
             end
         end
 
-        4'b1111: //normal reset
+        4'b1111: //평상시 리셋
         begin
             if(access_type == STBY)
             begin
@@ -162,7 +161,7 @@ begin
             end
         end
 
-        4'b0111: //user page standby
+        4'b0111: //페이지 스탠바이
         begin
             if(access_type == RST)
             begin
@@ -174,7 +173,7 @@ begin
             end
         end
 
-        4'b1101: //idle
+        4'b1101: //페이지 seek 혹은 페이지 로딩
         begin
             if(access_type == STBY)
             begin
@@ -186,7 +185,7 @@ begin
             end
         end
 
-        4'b1100: //bubble replication
+        4'b1100: //리플리케이션
         begin
             if(access_type == IDLE)
             begin
@@ -221,7 +220,7 @@ assign ABSPOS = absolute_position_number;
 
 reg     [9:0]   bout_invalid_half_cycle_counter = 10'd1023;
 reg     [14:0]  bout_valid_half_cycle_counter = 15'd32767;
-assign BOUTBITNUM = bout_valid_half_cycle_counter[14:2];
+assign BOUTCYCLENUM = bout_valid_half_cycle_counter[14:2];
 assign BOUTTICKS = bubble_invalid_half_cycle_counter[1:0] & bubble_valid_half_cycle_counter[1:0];
 
 
@@ -313,7 +312,7 @@ begin
         //싸이클 카운팅은 실제 액세스시에만 유효
         else
         begin
-            if(bout_invalid_half_cycle_counter < 10'd391) //부트로더, 페이지 모두 98싸이클 무효
+            if(bout_invalid_half_cycle_counter < 10'd391) //부트로더, 페이지 모두 첫 98싸이클 무효
             begin
                 bout_invalid_half_cycle_counter <= bout_invalid_half_cycle_counter + 10'd1;
                 bout_valid_half_cycle_counter <= 15'd32767;
@@ -325,12 +324,12 @@ begin
                     if(bout_valid_half_cycle_counter < 15'd16423) //부트로더는 2053*2*4-1 카운트
                     begin
                         bout_invalid_half_cycle_counter <= bout_invalid_half_cycle_counter;
-                        bout_valid_half_cycle_counter <= bout_valid_half_cycle_counter + 15'd1;
+                        bout_valid_half_cycle_counter <= bout_valid_half_cycle_counter + 15'd1; //+1
                     end
                     else
                     begin
                         bout_invalid_half_cycle_counter <= bout_invalid_half_cycle_counter;
-                        bout_valid_half_cycle_counter <= bout_valid_half_cycle_counter;
+                        bout_valid_half_cycle_counter <= 15'd0; //bootloop는 계속 루프
                     end
                 end
                 else if(access_type == 3'b111) //페이지
@@ -342,7 +341,14 @@ begin
                     end
                     else
                     begin
-                        bout_invalid_half_cycle_counter <= bout_invalid_half_cycle_counter;
+                        if(bout_invalid_half_cycle_counter < 10'd1023)//584비트 전송 후에는 invalid +1
+                        begin
+                            bout_invalid_half_cycle_counter <= bout_invalid_half_cycle_counter + 10'd1; 
+                        end
+                        else
+                        begin
+                            bout_invalid_half_cycle_counter <= 10'd0;
+                        end
                         bout_valid_half_cycle_counter <= bout_valid_half_cycle_counter;
                     end
                 end
