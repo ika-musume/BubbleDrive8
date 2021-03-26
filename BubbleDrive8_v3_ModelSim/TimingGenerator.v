@@ -221,7 +221,7 @@ assign ABSPOS = absolute_position_number;
 reg     [9:0]   bout_invalid_half_cycle_counter = 10'd1023;
 reg     [14:0]  bout_valid_half_cycle_counter = 15'd32767;
 assign BOUTCYCLENUM = bout_valid_half_cycle_counter[14:2];
-assign BOUTTICKS = bubble_invalid_half_cycle_counter[1:0] & bubble_valid_half_cycle_counter[1:0];
+assign BOUTTICKS = bout_invalid_half_cycle_counter[1:0] & bout_valid_half_cycle_counter[1:0];
 
 
 //master clock counters
