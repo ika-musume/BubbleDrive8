@@ -26,7 +26,7 @@ module TimingGenerator
     output  wire    [11:0]  ABSPOS          //absolute position number
 );
 
-localparam INITIAL_ABS_POSITION = 12'd1954; //0-2052
+localparam INITIAL_ABS_POSITION = 12'd1955; //0-2052
 
 
 
