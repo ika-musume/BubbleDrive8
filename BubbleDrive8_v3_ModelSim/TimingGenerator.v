@@ -343,10 +343,17 @@ begin
                 end
                 else if(access_type == 3'b111) //페이지
                 begin
-                    if(bout_valid_half_cycle_counter < 15'd2335) //페이지는 584*4-1 카운트
+                    if(bout_valid_half_cycle_counter == 15'd32767 || bout_valid_half_cycle_counter < 15'd2335) //페이지는 584*4-1 카운트
                     begin
                         bout_invalid_half_cycle_counter <= bout_invalid_half_cycle_counter;
-                        bout_valid_half_cycle_counter <= bout_valid_half_cycle_counter + 15'd1;
+                        if(bout_valid_half_cycle_counter < 15'd32767)
+                        begin
+                            bout_valid_half_cycle_counter <= bout_valid_half_cycle_counter + 15'd1;
+                        end
+                        else
+                        begin
+                            bout_valid_half_cycle_counter <= 15'd0;
+                        end
                     end
                     else
                     begin
