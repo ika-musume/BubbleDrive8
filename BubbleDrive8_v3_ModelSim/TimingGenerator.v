@@ -28,6 +28,8 @@ module TimingGenerator
 
 localparam INITIAL_ABS_POSITION = 12'd2051; //0-2052
 
+
+
 /*
     GLOBAL NET/REGS
 */
@@ -107,7 +109,7 @@ localparam BOOT = 3'b110;   //C
 localparam USER = 3'b111;   //D
 localparam IDLE = 3'b100;   //E
 
-reg access_type = RST;
+reg     [2:0]   access_type = RST;
 assign ACCTYPE = access_type;
 
 always @(posedge MCLK)
@@ -236,7 +238,7 @@ begin
         end
         else
         begin
-            MCLK_counter <= MCLK_counter + 1'd1;
+            MCLK_counter <= MCLK_counter + 10'd1;
         end
     end
 
@@ -312,14 +314,21 @@ begin
         //싸이클 카운팅은 실제 액세스시에만 유효
         else
         begin
-            if(bout_invalid_half_cycle_counter < 10'd391) //부트로더, 페이지 모두 첫 98싸이클 무효
+            if(bout_invalid_half_cycle_counter == 10'd1023 || bout_invalid_half_cycle_counter < 10'd391) //부트로더, 페이지 모두 첫 98싸이클 무효
             begin
-                bout_invalid_half_cycle_counter <= bout_invalid_half_cycle_counter + 10'd1;
+                if(bout_invalid_half_cycle_counter < 10'd1023)
+                begin
+                    bout_invalid_half_cycle_counter <= bout_invalid_half_cycle_counter + 10'd1;
+                end
+                else
+                begin
+                    bout_invalid_half_cycle_counter <= 10'd0;
+                end
                 bout_valid_half_cycle_counter <= 15'd32767;
             end
             else //99번째 싸이클부터
             begin
-                if(access_type == 3'b110)) //부트로더
+                if(access_type == 3'b110) //부트로더
                 begin
                     if(bout_valid_half_cycle_counter < 15'd16423) //부트로더는 2053*2*4-1 카운트
                     begin
