@@ -26,7 +26,7 @@ module TimingGenerator
     output  wire    [11:0]  ABSPOS          //absolute position number
 );
 
-localparam INITIAL_ABS_POSITION = 12'd2051; //0-2052
+localparam INITIAL_ABS_POSITION = 12'd1954; //0-2052
 
 
 
@@ -114,7 +114,7 @@ assign ACCTYPE = access_type;
 
 always @(posedge MCLK)
 begin
-    case ({nBOOTEN_intl, nBSS_intl, nBSEN_intl, nREPEN_intl})
+    case ({nBSS_intl, nBOOTEN_intl, nBSEN_intl, nREPEN_intl})
         4'b1011: //시작시 리셋상태 혹은 부트로더 액세스 후 잠깐
         begin
             if(access_type == STBY)
@@ -141,7 +141,7 @@ begin
 
         4'b1001: //부트로더 액세스 시
         begin
-            if(access_type == STBY || access_type == BOOT)
+            if(access_type == STBY || access_type == BOOT || access_type == RST)
             begin
                 access_type <= BOOT;
             end
@@ -177,7 +177,7 @@ begin
 
         4'b1101: //페이지 seek 혹은 페이지 로딩
         begin
-            if(access_type == STBY)
+            if(access_type == STBY || access_type == RST)
             begin
                 access_type <= IDLE;
             end
@@ -365,7 +365,7 @@ begin
                         begin
                             bout_invalid_half_cycle_counter <= 10'd0;
                         end
-                        bout_valid_half_cycle_counter <= bout_valid_half_cycle_counter;
+                        bout_valid_half_cycle_counter <= 15'd32763;
                     end
                 end
                 else //가능성 없음
