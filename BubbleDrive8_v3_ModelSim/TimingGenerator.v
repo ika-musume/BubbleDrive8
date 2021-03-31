@@ -274,7 +274,7 @@ begin
     //143번째 pos엣지에서 half disk +Y방향 위치
     if(MCLK_counter == 10'd568) 
     begin
-        if(absolute_position_number < 12'd2051)
+        if(absolute_position_number < 12'd2052)
         begin
             absolute_position_number <= absolute_position_number + 12'd1;
         end
