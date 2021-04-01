@@ -1,7 +1,7 @@
 module PositionPageConverter 
 (
     input   wire            nCONV,
-    input   wire    [11:0]  POS,
+    input   wire    [11:0]  ABSPOS,
     output  reg     [11:0]  PAGE = 12'd4095
 );
 
