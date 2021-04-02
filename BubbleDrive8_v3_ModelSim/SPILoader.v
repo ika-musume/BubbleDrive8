@@ -15,9 +15,9 @@ module SPILoader
     input   wire    [11:0]  ABSPOS,         //absolute position number
 
     //
-    output  reg     [14:0]  BUFWADDR,      //bubble buffer write address
-    output  reg             BUFWCLK,       //bubble buffer write clk
-    output  reg             BUFWDATA,      //bubble buffer write data
+    output  reg     [14:0]  BUFWADDR = 14'd0,      //bubble buffer write address
+    output  reg             BUFWCLK = 1'b0,       //bubble buffer write clk
+    output  reg             BUFWDATA = 1'b0,      //bubble buffer write data
 
     //W25Q32
     output  reg             nCS = 1'b1,
@@ -64,7 +64,7 @@ end
 
 wire    [11:0]  current_position;
 assign          current_position = ABSPOS + 12'd1;
-reg     [11:0]  bubble_page = 12'd0;
+wire    [11:0]  bubble_page;
 reg             convert = 1'b1;
 
 PositionPageConverter Main (.nCONV(convert), .ABSPOS(current_position), .PAGE(bubble_page));
@@ -109,6 +109,14 @@ begin
             case(spi_counter[3:0])
                 4'd0:
                 begin
+                    nCS <= 1'b1; CLK = 1'b1;
+                    case(ACCTYPE[1])
+                        1'b0: spi_counter <= spi_counter + 6'd1;
+                        1'b1: spi_counter <= spi_counter;
+                    endcase
+                end
+                4'd1:
+                begin
                     nCS <= 1'b1; CLK = 1'b1; 
                     BUFWADDR <= {1'b0, 13'd0, 1'b0}; BUFWCLK <= 1'b0;
                     map_addr <= 12'd0; map_write_enable <= 1'b1; map_table_clk <= 1'b0;
@@ -116,7 +124,7 @@ begin
                     convert <= 1'b1;
 
                     case(ACCTYPE[1])
-                        1'b0: spi_counter <= 6'b00_0000;
+                        1'b0: spi_counter <= spi_counter;
                         1'b1: spi_counter <= 6'b01_0000;
                     endcase
                 end
@@ -147,26 +155,26 @@ begin
                     nCS <= 1'b0; 
                     spi_counter <= spi_counter + 6'd1; 
                 end
-                4'd3: //negedge 마스터가 명령 쉬프트
-                begin 
-                    CLK = 1'b0; 
-                    spi_instruction <= spi_instruction << 1; 
-                    spi_counter <= spi_counter + 6'd1; 
-                end
-                4'd4: //posedge 슬레이브에 입력
-                begin 
-                    CLK = 1'b1; 
-                    general_counter <= general_counter + 12'd1; 
-                    spi_counter <= spi_counter + 6'd1; 
-                end
-                4'd5: //루프
+                4'd3: //루프
                 begin
                     case({general_counter[5], ACCTYPE[0]})
-                        2'b00: spi_counter <= spi_counter - 6'd2;
-                        2'b01: spi_counter <= spi_counter - 6'd2;
+                        2'b00: spi_counter <= spi_counter + 6'd1;
+                        2'b01: spi_counter <= spi_counter + 6'd1;
                         2'b10: spi_counter <= 6'b10_0000;
                         2'b11: spi_counter <= 6'b11_0000;
                     endcase
+                end
+                4'd4: //negedge 마스터가 명령 쉬프트
+                begin 
+                    CLK = 1'b0; 
+                    spi_instruction <= spi_instruction << 1; 
+                    general_counter <= general_counter + 12'd1; 
+                    spi_counter <= spi_counter + 6'd1; 
+                end
+                4'd5: //posedge 슬레이브에 입력
+                begin 
+                    CLK = 1'b1; 
+                    spi_counter <= spi_counter - 6'd2; 
                 end
             endcase
         end
@@ -273,7 +281,7 @@ begin
                 //6비트 쉬프트 로딩
                 4'd1: //초반 6비트 쉬프트를 했나 안했나 체크
                 begin
-                    if(general_counter < 6)
+                    if(general_counter < 12'd6)
                     begin
                         spi_counter <= spi_counter + 6'd1;
                     end
@@ -313,7 +321,7 @@ begin
                 //페이지 로딩
                 4'd6: //페이지 다 로딩했나 체크
                 begin
-                    if(general_counter < 518)
+                    if(general_counter < 12'd1030)
                     begin
                         spi_counter <= spi_counter + 6'd1;
                     end
