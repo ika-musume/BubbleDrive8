@@ -15,9 +15,9 @@ module BubbleInterface
     input   wire    [11:0]  ABSPOS,         //absolute position number
 
 
-    input   wire    [14:0]  BUFWRADDR,      //bubble buffer write address
-    input   wire            BUFWRCLK,       //bubble buffer write clk
-    input   wire            BUFWRDATA,      //bubble buffer write data
+    input   wire    [14:0]  BUFWADDR,      //bubble buffer write address
+    input   wire            BUFWCLK,       //bubble buffer write clk
+    input   wire            BUFWDATA,      //bubble buffer write data
 
     output  wire            D0,
     output  wire            D1
@@ -82,40 +82,40 @@ begin
     case(4BITMODE)
         1'b0: //2BITMODE
         begin
-            case(BUFWRADDR[0])
+            case(BUFWADDR[0])
                 1'b0:
                 begin
-                    buffer_write_address <= BUFWRADDR[13:1];
+                    buffer_write_address <= BUFWADDR[13:1];
                     buffer_write_en <= 4'b1110;
                 end
                 1'b1:
                 begin
-                    buffer_write_address <= BUFWRADDR[13:1];
+                    buffer_write_address <= BUFWADDR[13:1];
                     buffer_write_en <= 4'b1101;
                 end
             endcase
         end
         1'b1: //4BITMODE: no game released
         begin
-            case(BUFWRADDR[1:0])
+            case(BUFWADDR[1:0])
                 2'b00:
                 begin
-                    buffer_write_address <= BUFWRADDR[14:2];
+                    buffer_write_address <= BUFWADDR[14:2];
                     buffer_write_en <= 4'b1110;
                 end
                 2'b01:
                 begin
-                    buffer_write_address <= BUFWRADDR[14:2];
+                    buffer_write_address <= BUFWADDR[14:2];
                     buffer_write_en <= 4'b1101;
                 end
                 2'b10:
                 begin
-                    buffer_write_address <= BUFWRADDR[14:2];
+                    buffer_write_address <= BUFWADDR[14:2];
                     buffer_write_en <= 4'b1011;
                 end
                 2'b11:
                 begin
-                    buffer_write_address <= BUFWRADDR[14:2];
+                    buffer_write_address <= BUFWADDR[14:2];
                     buffer_write_en <= 4'b0111;
                 end
             endcase
@@ -134,11 +134,11 @@ reg             D0_buffer[8191:0];
 reg             D0_buffer_read_data;
 assign          D0 = D0_buffer_read_data;
 
-always @(posedge BUFWRCLK) //write
+always @(posedge BUFWCLK) //write
 begin
     if (buffer_write_en[0] == 1'b0)
     begin
-        D0_buffer[BUFWRADDR] <= BUFWRDATA
+        D0_buffer[BUFWADDR] <= BUFWDATA
     end
 end
 
@@ -152,11 +152,11 @@ reg             D1_buffer[8191:0];
 reg             D1_buffer_read_data;
 assign          D1 = D1_buffer_read_data;
 
-always @(posedge BUFWRCLK) //write
+always @(posedge BUFWCLK) //write
 begin
     if (buffer_write_en[1] == 1'b0)
     begin
-        D1_buffer[BUFWRADDR] <= BUFWRDATA
+        D1_buffer[BUFWADDR] <= BUFWDATA
     end
 end
 

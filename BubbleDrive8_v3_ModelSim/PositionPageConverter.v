@@ -7,7 +7,7 @@ module PositionPageConverter
 
     always @ (negedge nCONV)
     begin
-        case (POS)
+        case (ABSPOS)
             12'd0: PAGE <= 12'd1862;
             12'd1: PAGE <= 12'd331;
             12'd2: PAGE <= 12'd853;
