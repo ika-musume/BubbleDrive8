@@ -42,20 +42,24 @@ assign nHOLD = 1'bZ;
 reg             map_table[4095:0];
 reg             map_data_in;
 reg             map_data_out;
-reg    [11:0]   map_addr = 12'd0; 
+reg     [11:0]  map_addr = 12'd0; 
 reg             map_write_enable = 1'b1;
-reg             map_table_clk = 1'b0;
+reg             map_write_clk = 1'b0;
+reg             map_read_clk = 1'b0;
 
 
-always @(posedge map_table_clk)
+always @(posedge map_write_clk)
 begin
     if(map_write_enable == 1'b0)
     begin
         map_table[{map_addr[11:4], ~map_addr[3:0]}] <= map_data_in; //see bubsys85.net
-    end
-    map_data_out <= map_table[map_addr];
+    end    
 end
 
+always @(posedge map_read_clk)
+begin
+    map_data_out <= map_table[map_addr];
+end
 
 
 /*
@@ -119,7 +123,7 @@ begin
                 begin
                     nCS <= 1'b1; CLK = 1'b1; 
                     BUFWADDR <= {1'b0, 13'd0, 1'b0}; BUFWCLK <= 1'b0;
-                    map_addr <= 12'd0; map_write_enable <= 1'b1; map_table_clk <= 1'b0;
+                    map_addr <= 12'd0; map_write_enable <= 1'b1; map_write_clk <= 1'b0; map_read_clk <= 1'b0;
                     general_counter <= 12'd0; 
                     convert <= 1'b1;
 
@@ -255,13 +259,13 @@ begin
                 4'd10: //버퍼와 에러맵테이블에 데이터 쓰기
                 begin
                     BUFWCLK <= 1'b1;
-                    map_table_clk <= 1'b1;
+                    map_write_clk <= 1'b1;
                     spi_counter <= spi_counter + 6'd1;
                 end
                 4'd11: //클럭 원위치, 어드레스랑 카운터 증가 후 되돌아가기
                 begin
                     BUFWCLK <= 1'b0; BUFWADDR <= BUFWADDR + 15'd1;
-                    map_table_clk <= 1'b0; map_addr <= map_addr + 12'd1;
+                    map_write_clk <= 1'b0; map_addr <= map_addr + 12'd1;
                     general_counter <= general_counter + 12'd1;
                     spi_counter <= spi_counter - 6'd4;
                 end
@@ -292,12 +296,12 @@ begin
                 end
                 4'd2: //에러맵 테이블 읽기
                 begin
-                    map_table_clk <= 1'b1;
+                    map_read_clk <= 1'b1;
                     spi_counter <= spi_counter + 6'd1;
                 end
                 4'd3: //불량/정상시 동작 구분, 에러맵 어드레스 증가
                 begin
-                    map_table_clk <= 1'b0; map_addr <= map_addr + 12'd1;
+                    map_read_clk <= 1'b0; map_addr <= map_addr + 12'd1;
                     case(map_data_out)
                         1'b0: BUFWDATA <= 1'b0; //불량 루프면 데이터 0쓰기 준비
                         1'b1: BUFWDATA <= 1'b1; //정상 루프면 데이터 1쓰기 준비, 카운터 증가
@@ -338,12 +342,12 @@ begin
                 4'd8: //SPI 클럭 올리기와 에러맵 읽기
                 begin
                     CLK <= 1'b1;
-                    map_table_clk <= 1'b1;
+                    map_read_clk <= 1'b1;
                     spi_counter <= spi_counter + 6'd1;
                 end
                 4'd9: //에러맵 어드레스 증가, 뭐 쓸지 결정
                 begin
-                    map_table_clk <= 1'b0; map_addr <= map_addr + 12'd1;
+                    map_read_clk <= 1'b0; map_addr <= map_addr + 12'd1;
                     case(map_data_out)
                         1'b0: BUFWDATA <= 1'b0; //불량 루프면 데이터 0쓰기 준비
                         1'b1: BUFWDATA <= MISO; //정상 루프면 데이터 그대로 쓰기 준비

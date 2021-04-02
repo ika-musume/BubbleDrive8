@@ -49,7 +49,7 @@ begin
     #60000 access_type = 3'b000;
     #100 access_type = 3'b001;
     #100 access_type = 3'b111;
-    #10000 access_type = 3'b000;
+    #20000 access_type = 3'b000;
 end
 
 endmodule
