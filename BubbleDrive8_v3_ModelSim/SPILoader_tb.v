@@ -27,9 +27,9 @@ SPILoader Main
     .ACCTYPE(access_type),
     .ABSPOS(absolute_position),
 
-    .BUFWADDR(write_addr),
-    .BUFWDATA(write_data),
-    .BUFWCLK(write_clock),
+    .OUTBUFWADDR(write_addr),
+    .OUTBUFWDATA(write_data),
+    .OUTBUFWCLK(write_clock),
 
     .nCS(nCS),
     .MOSI(MOSI),

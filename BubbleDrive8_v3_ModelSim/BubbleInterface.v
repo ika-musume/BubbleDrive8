@@ -7,23 +7,23 @@ module BubbleInterface
     //48MHz input clock
     input   wire            MCLK,
 
-
     //Emulator signal outputs
     input   wire    [2:0]   ACCTYPE,        //access type
     input   wire    [12:0]  BOUTCYCLENUM,   //bubble output cycle number
     input   wire    [1:0]   BOUTTICKS,      //bubble output asynchronous control ticks
     input   wire    [11:0]  ABSPOS,         //absolute position number
 
-
+    //Bubble out buffer interface
     input   wire    [14:0]  OUTBUFWADDR,      //bubble outbuffer write address
     input   wire            OUTBUFWCLK,       //bubble outbuffer write clk
     input   wire            OUTBUFWDATA,      //bubble outbuffer write data
 
+    //Bubble data out
     output  wire            DOUT0,
     output  wire            DOUT1
 );
 
-localparam 4BITMODE = 1'b0; //4bit mode off
+localparam BITWIDTH4 = 1'b0; //4bit mode off
 
 /*
     OUTBUFFER READ ADDRESS DECODER
@@ -48,7 +48,7 @@ localparam 4BITMODE = 1'b0; //4bit mode off
 localparam BOOT = 3'b110;   //C
 localparam USER = 3'b111;   //D
 
-reg     [12:0]  outbuffer_read_address = 13'b1_1111_1111_1111
+reg     [12:0]  outbuffer_read_address = 13'b1_1111_1111_1111;
 
 always @(*)
 begin
@@ -79,7 +79,7 @@ reg     [12:0]  outbuffer_write_address;
 
 always @(*)
 begin
-    case(4BITMODE)
+    case(BITWIDTH4)
         1'b0: //2BITMODE
         begin
             case(OUTBUFWADDR[0])
@@ -132,13 +132,13 @@ end
 //DOUT0
 reg             D0_outbuffer[8191:0];
 reg             D0_outbuffer_read_data;
-assign          DOUT0 = D0_outbuffer_read_data;
+assign          DOUT0 = ~D0_outbuffer_read_data;
 
 always @(posedge OUTBUFWCLK) //write
 begin
     if (outbuffer_write_en[0] == 1'b0)
     begin
-        D0_outbuffer[OUTBUFWADDR] <= OUTBUFWDATA
+        D0_outbuffer[outbuffer_write_address] <= OUTBUFWDATA;
     end
 end
 
@@ -147,22 +147,32 @@ begin
     D0_outbuffer_read_data <= D0_outbuffer[outbuffer_read_address];
 end
 
+initial
+begin
+    $readmemb("D0_outbuffer.txt", D0_outbuffer);
+end
+
 //DOUT1
 reg             D1_outbuffer[8191:0];
 reg             D1_outbuffer_read_data;
-assign          DOUT1 = D1_outbuffer_read_data;
+assign          DOUT1 = ~D1_outbuffer_read_data;
 
 always @(posedge OUTBUFWCLK) //write
 begin
     if (outbuffer_write_en[1] == 1'b0)
     begin
-        D1_outbuffer[OUTBUFWADDR] <= OUTBUFWDATA
+        D1_outbuffer[outbuffer_write_address] <= OUTBUFWDATA;
     end
 end
 
 always @(posedge BOUTTICKS[1]) //read 
 begin   
     D1_outbuffer_read_data <= D1_outbuffer[outbuffer_read_address];
+end
+
+initial
+begin
+    $readmemb("D1_outbuffer.txt", D1_outbuffer);
 end
 
 endmodule

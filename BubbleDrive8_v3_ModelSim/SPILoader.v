@@ -14,7 +14,7 @@ module SPILoader
     input   wire    [2:0]   ACCTYPE,        //access type
     input   wire    [11:0]  ABSPOS,         //absolute position number
 
-    //
+    //Bubble out buffer interface
     output  reg     [14:0]  OUTBUFWADDR = 14'd0,      //bubble buffer write address
     output  reg             OUTBUFWCLK = 1'b0,       //bubble buffer write clk
     output  reg             OUTBUFWDATA = 1'b0,      //bubble buffer write data
@@ -30,10 +30,6 @@ module SPILoader
 
 assign nWP = 1'bZ;
 assign nHOLD = 1'bZ;
-
-
-
-
 
 /*
     BAD LOOP MASKING TABLE
@@ -60,6 +56,7 @@ always @(posedge map_read_clk)
 begin
     map_data_out <= map_table[map_addr];
 end
+
 
 
 /*
