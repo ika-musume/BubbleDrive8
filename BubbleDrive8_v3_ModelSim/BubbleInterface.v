@@ -15,22 +15,22 @@ module BubbleInterface
     input   wire    [11:0]  ABSPOS,         //absolute position number
 
 
-    input   wire    [14:0]  BUFWADDR,      //bubble buffer write address
-    input   wire            BUFWCLK,       //bubble buffer write clk
-    input   wire            BUFWDATA,      //bubble buffer write data
+    input   wire    [14:0]  OUTBUFWADDR,      //bubble outbuffer write address
+    input   wire            OUTBUFWCLK,       //bubble outbuffer write clk
+    input   wire            OUTBUFWDATA,      //bubble outbuffer write data
 
-    output  wire            D0,
-    output  wire            D1
+    output  wire            DOUT0,
+    output  wire            DOUT1
 );
 
 localparam 4BITMODE = 1'b0; //4bit mode off
 
 /*
-    BUFFER READ ADDRESS DECODER
+    OUTBUFFER READ ADDRESS DECODER
 */
 
 /*
-    Block RAM Buffer Address [D1/D0]
+    Block RAM Buffer Address [DOUT1/DOUT0]
     13bit address
     0000-1986 : 11 = filler
     1987-2050 : X0 = 64 of ZEROs on EVEN channel
@@ -48,22 +48,22 @@ localparam 4BITMODE = 1'b0; //4bit mode off
 localparam BOOT = 3'b110;   //C
 localparam USER = 3'b111;   //D
 
-reg     [12:0]  buffer_read_address = 13'b1_1111_1111_1111
+reg     [12:0]  outbuffer_read_address = 13'b1_1111_1111_1111
 
 always @(*)
 begin
     case (ACCTYPE)
         BOOT:
         begin
-            buffer_read_address <= BOUTCYCLENUM;
+            outbuffer_read_address <= BOUTCYCLENUM;
         end
         USER:
         begin
-            buffer_read_address <= {3'b111, BOUTCYCLENUM[9:0]};
+            outbuffer_read_address <= {3'b111, BOUTCYCLENUM[9:0]};
         end
         default:
         begin
-            buffer_read_address <= 13'b1_1111_1111_1111;
+            outbuffer_read_address <= 13'b1_1111_1111_1111;
         end
     endcase
 end
@@ -71,52 +71,52 @@ end
 
 
 /*
-    BUFFER WRITE ADDRESS DECODER
+    OUTBUFFER WRITE ADDRESS DECODER
 */
 
-reg     [3:0]   buffer_write_en = 4'b1111; //D3 D2 D1 D0
-reg     [12:0]  buffer_write_address;
+reg     [3:0]   outbuffer_write_en = 4'b1111; //D3 D2 DOUT1 DOUT0
+reg     [12:0]  outbuffer_write_address;
 
 always @(*)
 begin
     case(4BITMODE)
         1'b0: //2BITMODE
         begin
-            case(BUFWADDR[0])
+            case(OUTBUFWADDR[0])
                 1'b0:
                 begin
-                    buffer_write_address <= BUFWADDR[13:1];
-                    buffer_write_en <= 4'b1110;
+                    outbuffer_write_address <= OUTBUFWADDR[13:1];
+                    outbuffer_write_en <= 4'b1110;
                 end
                 1'b1:
                 begin
-                    buffer_write_address <= BUFWADDR[13:1];
-                    buffer_write_en <= 4'b1101;
+                    outbuffer_write_address <= OUTBUFWADDR[13:1];
+                    outbuffer_write_en <= 4'b1101;
                 end
             endcase
         end
         1'b1: //4BITMODE: no game released
         begin
-            case(BUFWADDR[1:0])
+            case(OUTBUFWADDR[1:0])
                 2'b00:
                 begin
-                    buffer_write_address <= BUFWADDR[14:2];
-                    buffer_write_en <= 4'b1110;
+                    outbuffer_write_address <= OUTBUFWADDR[14:2];
+                    outbuffer_write_en <= 4'b1110;
                 end
                 2'b01:
                 begin
-                    buffer_write_address <= BUFWADDR[14:2];
-                    buffer_write_en <= 4'b1101;
+                    outbuffer_write_address <= OUTBUFWADDR[14:2];
+                    outbuffer_write_en <= 4'b1101;
                 end
                 2'b10:
                 begin
-                    buffer_write_address <= BUFWADDR[14:2];
-                    buffer_write_en <= 4'b1011;
+                    outbuffer_write_address <= OUTBUFWADDR[14:2];
+                    outbuffer_write_en <= 4'b1011;
                 end
                 2'b11:
                 begin
-                    buffer_write_address <= BUFWADDR[14:2];
-                    buffer_write_en <= 4'b0111;
+                    outbuffer_write_address <= OUTBUFWADDR[14:2];
+                    outbuffer_write_en <= 4'b0111;
                 end
             endcase
         end
@@ -126,43 +126,43 @@ end
 
 
 /*
-    BUFFER
+    OUTBUFFER
 */
 
-//D0
-reg             D0_buffer[8191:0];
-reg             D0_buffer_read_data;
-assign          D0 = D0_buffer_read_data;
+//DOUT0
+reg             D0_outbuffer[8191:0];
+reg             D0_outbuffer_read_data;
+assign          DOUT0 = D0_outbuffer_read_data;
 
-always @(posedge BUFWCLK) //write
+always @(posedge OUTBUFWCLK) //write
 begin
-    if (buffer_write_en[0] == 1'b0)
+    if (outbuffer_write_en[0] == 1'b0)
     begin
-        D0_buffer[BUFWADDR] <= BUFWDATA
+        D0_outbuffer[OUTBUFWADDR] <= OUTBUFWDATA
     end
 end
 
 always @(posedge BOUTTICKS[1]) //read 
 begin   
-    D0_buffer_read_data <= D0_buffer[buffer_read_address];
+    D0_outbuffer_read_data <= D0_outbuffer[outbuffer_read_address];
 end
 
-//D1
-reg             D1_buffer[8191:0];
-reg             D1_buffer_read_data;
-assign          D1 = D1_buffer_read_data;
+//DOUT1
+reg             D1_outbuffer[8191:0];
+reg             D1_outbuffer_read_data;
+assign          DOUT1 = D1_outbuffer_read_data;
 
-always @(posedge BUFWCLK) //write
+always @(posedge OUTBUFWCLK) //write
 begin
-    if (buffer_write_en[1] == 1'b0)
+    if (outbuffer_write_en[1] == 1'b0)
     begin
-        D1_buffer[BUFWADDR] <= BUFWDATA
+        D1_outbuffer[OUTBUFWADDR] <= OUTBUFWDATA
     end
 end
 
 always @(posedge BOUTTICKS[1]) //read 
 begin   
-    D1_buffer_read_data <= D1_buffer[buffer_read_address];
+    D1_outbuffer_read_data <= D1_outbuffer[outbuffer_read_address];
 end
 
 endmodule

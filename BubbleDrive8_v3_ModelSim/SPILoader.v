@@ -15,9 +15,9 @@ module SPILoader
     input   wire    [11:0]  ABSPOS,         //absolute position number
 
     //
-    output  reg     [14:0]  BUFWADDR = 14'd0,      //bubble buffer write address
-    output  reg             BUFWCLK = 1'b0,       //bubble buffer write clk
-    output  reg             BUFWDATA = 1'b0,      //bubble buffer write data
+    output  reg     [14:0]  OUTBUFWADDR = 14'd0,      //bubble buffer write address
+    output  reg             OUTBUFWCLK = 1'b0,       //bubble buffer write clk
+    output  reg             OUTBUFWDATA = 1'b0,      //bubble buffer write data
 
     //W25Q32
     output  reg             nCS = 1'b1,
@@ -122,7 +122,7 @@ begin
                 4'd1:
                 begin
                     nCS <= 1'b1; CLK = 1'b1; 
-                    BUFWADDR <= {1'b0, 13'd0, 1'b0}; BUFWCLK <= 1'b0;
+                    OUTBUFWADDR <= {1'b0, 13'd0, 1'b0}; OUTBUFWCLK <= 1'b0;
                     map_addr <= 12'd0; map_write_enable <= 1'b1; map_write_clk <= 1'b0; map_read_clk <= 1'b0;
                     general_counter <= 12'd0; 
                     convert <= 1'b1;
@@ -188,7 +188,7 @@ begin
             case(spi_counter[3:0])
                 4'b0: //셋업
                 begin
-                    BUFWADDR <= {1'b0, 13'd2053, 1'b0}; //부트로더 시작 주소로 변경
+                    OUTBUFWADDR <= {1'b0, 13'd2053, 1'b0}; //부트로더 시작 주소로 변경
                     general_counter <= 12'd0;
                     spi_counter <= spi_counter + 6'd1;
                 end
@@ -211,17 +211,17 @@ begin
                 4'd3: //SPI 데이터 샘플링
                 begin
                     CLK <= 1'b1;
-                    BUFWDATA <= MISO;
+                    OUTBUFWDATA <= MISO;
                     spi_counter <= spi_counter + 6'd1;
                 end
                 4'd4: //버퍼에 부트로더 쓰기 
                 begin
-                    BUFWCLK <= 1'b1;
+                    OUTBUFWCLK <= 1'b1;
                     spi_counter <= spi_counter + 6'd1;
                 end
                 4'd5: //클럭 원위치, 어드레스랑 카운터 증가 후 되돌아가기
                 begin
-                    BUFWCLK <= 1'b0; BUFWADDR <= BUFWADDR + 15'd1;
+                    OUTBUFWCLK <= 1'b0; OUTBUFWADDR <= OUTBUFWADDR + 15'd1;
                     general_counter <= general_counter + 12'd1;
                     spi_counter <= spi_counter - 6'd4;
                 end
@@ -252,19 +252,19 @@ begin
                 4'd9: //데이터 샘플링
                 begin
                     CLK <= 1'b1;
-                    BUFWDATA <= MISO;
+                    OUTBUFWDATA <= MISO;
                     map_data_in <= MISO;
                     spi_counter <= spi_counter + 6'd1;
                 end
                 4'd10: //버퍼와 에러맵테이블에 데이터 쓰기
                 begin
-                    BUFWCLK <= 1'b1;
+                    OUTBUFWCLK <= 1'b1;
                     map_write_clk <= 1'b1;
                     spi_counter <= spi_counter + 6'd1;
                 end
                 4'd11: //클럭 원위치, 어드레스랑 카운터 증가 후 되돌아가기
                 begin
-                    BUFWCLK <= 1'b0; BUFWADDR <= BUFWADDR + 15'd1;
+                    OUTBUFWCLK <= 1'b0; OUTBUFWADDR <= OUTBUFWADDR + 15'd1;
                     map_write_clk <= 1'b0; map_addr <= map_addr + 12'd1;
                     general_counter <= general_counter + 12'd1;
                     spi_counter <= spi_counter - 6'd4;
@@ -277,7 +277,7 @@ begin
             case(spi_counter[3:0])
                 4'd0: //셋업
                 begin
-                    BUFWADDR <= {1'b0, 13'd7168, 1'b0}; //페이지 데이터 시작시점
+                    OUTBUFWADDR <= {1'b0, 13'd7168, 1'b0}; //페이지 데이터 시작시점
                     general_counter <= 12'd0;
                     spi_counter <= spi_counter + 6'd1;
                 end
@@ -303,19 +303,19 @@ begin
                 begin
                     map_read_clk <= 1'b0; map_addr <= map_addr + 12'd1;
                     case(map_data_out)
-                        1'b0: BUFWDATA <= 1'b0; //불량 루프면 데이터 0쓰기 준비
-                        1'b1: BUFWDATA <= 1'b1; //정상 루프면 데이터 1쓰기 준비, 카운터 증가
+                        1'b0: OUTBUFWDATA <= 1'b0; //불량 루프면 데이터 0쓰기 준비
+                        1'b1: OUTBUFWDATA <= 1'b1; //정상 루프면 데이터 1쓰기 준비, 카운터 증가
                     endcase
                     spi_counter <= spi_counter + 6'd1;
                 end
                 4'd4: //버퍼에 데이터 쓰기
                 begin
-                    BUFWCLK <= 1'b1;
+                    OUTBUFWCLK <= 1'b1;
                     spi_counter <= spi_counter + 6'd1;
                 end
                 4'd5: //버퍼 어드레스 증가 및 돌아가기
                 begin
-                    BUFWCLK <= 1'b0; BUFWADDR <= BUFWADDR + 15'd1;
+                    OUTBUFWCLK <= 1'b0; OUTBUFWADDR <= OUTBUFWADDR + 15'd1;
                     case(map_data_out)
                         1'b0: begin spi_counter <= spi_counter - 6'd3; end //불량 루프면 다음 에러맵 읽기
                         1'b1: begin spi_counter <= spi_counter - 6'd4; general_counter <= general_counter + 12'd1; end //정상 루프면 되돌아가기, 카운터 증가
@@ -349,19 +349,19 @@ begin
                 begin
                     map_read_clk <= 1'b0; map_addr <= map_addr + 12'd1;
                     case(map_data_out)
-                        1'b0: BUFWDATA <= 1'b0; //불량 루프면 데이터 0쓰기 준비
-                        1'b1: BUFWDATA <= MISO; //정상 루프면 데이터 그대로 쓰기 준비
+                        1'b0: OUTBUFWDATA <= 1'b0; //불량 루프면 데이터 0쓰기 준비
+                        1'b1: OUTBUFWDATA <= MISO; //정상 루프면 데이터 그대로 쓰기 준비
                     endcase
                     spi_counter <= spi_counter + 6'd1;
                 end
                 4'd10: //버퍼에 쓰기
                 begin
-                    BUFWCLK <= 1'b1;
+                    OUTBUFWCLK <= 1'b1;
                     spi_counter <= spi_counter + 6'd1;
                 end
                 4'd11: //버퍼 어드레스 증가, 불량루프였을 경우 뭐 할지 결정
                 begin
-                    BUFWCLK <= 1'b0; BUFWADDR <= BUFWADDR + 15'd1; 
+                    OUTBUFWCLK <= 1'b0; OUTBUFWADDR <= OUTBUFWADDR + 15'd1; 
                     case(map_data_out)
                         1'b0: begin spi_counter <= spi_counter - 6'd3; end //불량 루프면 다음 에러맵 읽기
                         1'b1: begin spi_counter <= spi_counter - 6'd5; general_counter <= general_counter + 12'd1; end//정상 루프면 데이터 그대로 쓰기 준비
@@ -371,345 +371,5 @@ begin
         end
     endcase
 end
-
-/*
-    WEIRD CODE
-*/
-
-/*
-localparam RESET        = 6'b00_0000;
-
-localparam PGCONV       = 6'b01_0000;
-localparam INSTLD       = 6'b01_0001;
-localparam SPICS        = 6'b01_0010;
-localparam INSTSHIFT0   = 6'b01_0011;
-localparam INSTSHIFT1   = 6'b01_0100;
-localparam INSTBRA      = 6'b01_0101;
-
-localparam BOOTSET      = 6'b10_0000;
-localparam BOOTBRA      = 6'b10_0001;
-localparam BOOTSHIFT    = 6'b10_0010;
-localparam BOOTLD       = 6'b10_0011;
-localparam BOOTW        = 6'b10_0100;
-localparam BOOTINC      = 6'b10_0101;
-
-localparam MAPSET       = 6'b10_0110;
-localparam MAPBRA       = 6'b10_0111;
-localparam MAPSHIFT     = 6'b10_1000;
-localparam MAPLD        = 6'b10_1001;
-localparam MAPW         = 6'b10_1010;
-localparam MAPINC       = 6'b10_1011;
-
-localparam PGHEADSET    = 6'b11_0000;
-localparam PGHEADBRA    = 6'b11_0001;
-localparam PGHEADMAPLD  = 6'b11_0010;
-localparam PGHEADLD     = 6'b11_0011;
-localparam PGHEADW      = 6'b11_0100;
-localparam PGHEADINC    = 6'b11_0101;
-
-localparam PGBRA        = 6'b11_0110;
-localparam PGSHIFT      = 6'b11_0111;
-localparam PGMAPLD      = 6'b11_1000;
-localparam PGLD         = 6'b11_1001;
-localparam PGW          = 6'b11_1010; 
-localparam PGINCBRA     = 6'b11_1011; //TO PGMAPLD OR TO PGBRA
-
-//branch control
-always @(posedge MCLK)
-begin
-    case(spi_counter[5:4])
-        2'b00: //NOP
-        begin
-            if(spi_counter[3:0] == 4'd0)
-            begin
-                case(ACCTYPE[1])
-                    1'b0: spi_counter <= 6'b00_0000;
-                    1'b1: spi_counter <= 6'b01_0000;
-                endcase
-            end
-            else
-            begin
-                spi_counter <= 6'b00_0000;
-            end
-        end
-
-        2'b01: //SPI 인스트럭션 송신
-        begin
-            if(spi_counter[3:0] == 4'd5)
-            begin
-                case({general_counter[5], ACCTYPE[0]})
-                    2'b00: spi_counter <= spi_counter - 6'd2;
-                    2'b01: spi_counter <= spi_counter - 6'd2;
-                    2'b10: spi_counter <= 6'b10_0000;
-                    2'b11: spi_counter <= 6'b11_0000;
-                endcase
-            end
-            else
-            begin
-                spi_counter <= spi_counter + 6'd1; 
-            end
-        end
-
-        2'b10: //부트로더
-        begin
-            if(spi_counter[3:0] == 4'd1)
-            begin
-                if(general_counter < 12'd2656)
-                begin
-                    spi_counter <= spi_counter + 6'd1;
-                end
-                else
-                begin
-                    spi_counter <= spi_counter + 6'd5;
-                end
-            end
-            else if(spi_counter[3:0] == 4'd5)
-            begin
-                spi_counter <= spi_counter - 6'd4;
-            end
-            else if(spi_counter[3:0] == 4'd7)
-            begin
-                if(general_counter < 12'd1168)
-                begin
-                    spi_counter <= spi_counter + 6'd1;
-                end
-                else
-                begin
-                    spi_counter <= 6'b00_0000;
-                end
-            end
-            else if(spi_counter[3:0] == 4'd11)
-            begin
-                spi_counter <= spi_counter - 6'd4;
-            end
-            else
-            begin
-                spi_counter <= spi_counter + 6'd1;
-            end
-        end
-
-        2'b11: //페이지
-        begin
-            if(spi_counter[3:0] == 4'd1)
-            begin
-                if(general_counter < 6)
-                begin
-                    spi_counter <= spi_counter + 6'd1;
-                end
-                else
-                begin
-                    spi_counter <= spi_counter + 6'd5;
-                end
-            end
-            else if(spi_counter[3:0] == 4'd5)
-            begin
-                case(map_data_out)
-                    1'b0: spi_counter <= spi_counter - 6'd3; //불량 루프면 다음 에러맵 읽기
-                    1'b1: spi_counter <= spi_counter - 6'd4; //정상 루프면 되돌아가기,
-                endcase
-            end
-            else if(spi_counter[3:0] == 4'd6)
-            begin
-                if(general_counter < 518)
-                begin
-                    spi_counter <= spi_counter + 6'd1;
-                end
-                else
-                begin
-                    spi_counter <= 6'b00_0000;
-                end
-            end
-            else if(spi_counter[3:0] == 4'd11)
-            begin
-                case(map_data_out)
-                    1'b0: spi_counter <= spi_counter - 6'd3; //불량 루프면 다음 에러맵 읽기
-                    1'b1: spi_counter <= spi_counter - 6'd5;//정상 루프면 데이터 그대로 쓰기 준비
-                endcase
-            end
-            else
-            begin
-                spi_counter <= spi_counter + 6'd1;
-            end
-        end
-    endcase
-end
-
-//instruction execution
-always @(posedge MCLK)
-begin
-    case(spi_counter)
-        //기본
-        RESET:
-        begin
-            nCS <= 1'b1; CLK = 1'b1; 
-            BUFWADDR <= {1'b0, 13'd0, 1'b0}; BUFWCLK <= 1'b0;
-            map_addr <= 12'd0; map_write_enable <= 1'b1; map_table_clk <= 1'b0;
-            general_counter <= 12'd0; 
-            convert <= 1'b1;
-        end
-
-        //SPI인스트럭션 송신
-        PGCONV: 
-        begin 
-            convert <= 1'b0;
-        end
-        INSTLD:
-        begin
-            convert <= 1'b1; 
-            case(ACCTYPE[0])
-                1'b0: spi_instruction <= {1'b0, 8'b0000_0011, 2'b00, IMGNUM[2:0], 12'h805, 7'b000_0000};
-                1'b1: spi_instruction <= {1'b0, 8'b0000_0011, 2'b00, IMGNUM[2:0], bubble_page[11:0], 7'b000_0000};
-            endcase
-        end
-        SPICS:
-        begin
-            nCS <= 1'b0; 
-        end
-        INSTSHIFT0:
-        begin
-            CLK = 1'b0; 
-            spi_instruction <= spi_instruction << 1; 
-        end
-        INSTSHIFT1:
-        begin
-            CLK = 1'b1; 
-            general_counter <= general_counter + 12'd1; 
-        end
-        INSTBRA:
-        begin
-            
-        end
-
-        //부트로더 불러오기
-        BOOTSET:
-        begin
-            BUFWADDR <= {1'b0, 13'd2053, 1'b0}; //부트로더 시작 주소로 변경
-            general_counter <= 12'd0;
-        end
-        BOOTBRA:
-        begin
-            
-        end
-        BOOTSHIFT:
-        begin
-            CLK <= 1'b0;
-        end
-        BOOTLD:
-        begin
-            CLK <= 1'b1;
-            BUFWDATA <= MISO;
-        end
-        BOOTW:
-        begin
-            BUFWCLK <= 1'b1;
-        end
-        BOOTINC:
-        begin
-            BUFWCLK <= 1'b0; BUFWADDR <= BUFWADDR + 15'd1;
-            general_counter <= general_counter + 12'd1;
-        end
-
-        MAPSET:
-        begin
-            map_write_enable <= 1'b0; //에러맵 테이블 쓰기 허용
-            general_counter <= 12'd0;
-        end
-        MAPBRA:
-        begin
-            
-        end
-        MAPSHIFT:
-        begin
-            CLK <= 1'b0;
-        end
-        MAPLD:
-        begin
-            CLK <= 1'b1;
-            BUFWDATA <= MISO;
-            map_data_in <= MISO;
-        end
-        MAPW:
-        begin
-            BUFWCLK <= 1'b1;
-            map_table_clk <= 1'b1;
-        end
-        MAPINC:
-        begin
-            BUFWCLK <= 1'b0; BUFWADDR <= BUFWADDR + 15'd1;
-            map_table_clk <= 1'b0; map_addr <= map_addr + 12'd1;
-            general_counter <= general_counter + 12'd1;
-        end
-
-        //페이지 로딩
-        PGHEADSET:
-        begin
-            BUFWADDR <= {1'b0, 13'd7168, 1'b0}; //페이지 데이터 시작시점
-            general_counter <= 12'd0;
-        end
-        PGHEADBRA:
-        begin
-            
-        end
-        PGHEADMAPLD:
-        begin
-            map_table_clk <= 1'b1;
-        end
-        PGHEADLD:
-        begin
-            map_table_clk <= 1'b0; map_addr <= map_addr + 12'd1;
-            case(map_data_out)
-                1'b0: BUFWDATA <= 1'b0; //불량 루프면 데이터 0쓰기 준비
-                1'b1: BUFWDATA <= 1'b1; //정상 루프면 데이터 1쓰기 준비, 카운터 증가
-            endcase
-        end
-        PGHEADW:
-        begin
-            BUFWCLK <= 1'b1;
-        end
-        PGHEADINC:
-        begin
-            BUFWCLK <= 1'b0; BUFWADDR <= BUFWADDR + 15'd1;
-            case(map_data_out)
-                1'b0: ;//불량 루프면 다음 에러맵 읽기
-                1'b1: general_counter <= general_counter + 12'd1; //정상 루프면 되돌아가기, 카운터 증가
-            endcase
-        end
-
-        PGBRA:
-        begin
-            
-        end
-        PGSHIFT:
-        begin
-            CLK <= 1'b0;
-        end
-        PGMAPLD:
-        begin
-            CLK <= 1'b1;
-            map_table_clk <= 1'b1;
-        end
-        PGLD:
-        begin
-            map_table_clk <= 1'b0; map_addr <= map_addr + 12'd1;
-            case(map_data_out)
-                1'b0: BUFWDATA <= 1'b0; //불량 루프면 데이터 0쓰기 준비
-                1'b1: BUFWDATA <= MISO; //정상 루프면 데이터 그대로 쓰기 준비
-            endcase
-        end
-        PGW:
-        begin
-            BUFWCLK <= 1'b1;
-        end
-        PGINCBRA:
-        begin
-            BUFWCLK <= 1'b0; BUFWADDR <= BUFWADDR + 15'd1; 
-            case(map_data_out)
-                1'b0: ;//불량 루프면 다음 에러맵 읽기
-                1'b1: general_counter <= general_counter + 12'd1; //정상 루프면 데이터 그대로 쓰기 준비
-            endcase
-        end
-    endcase
-end
-*/
 
 endmodule
