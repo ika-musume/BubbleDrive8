@@ -11,7 +11,6 @@ module BubbleInterface
     input   wire    [2:0]   ACCTYPE,        //access type
     input   wire    [12:0]  BOUTCYCLENUM,   //bubble output cycle number
     input   wire    [1:0]   BOUTTICKS,      //bubble output asynchronous control ticks
-    input   wire    [11:0]  ABSPOS,         //absolute position number
 
     //Bubble out buffer interface
     input   wire    [14:0]  OUTBUFWADDR,      //bubble outbuffer write address
@@ -31,7 +30,7 @@ localparam BITWIDTH4 = 1'b0; //4bit mode off
 
 /*
     Block RAM Buffer Address [DOUT1/DOUT0]
-    13bit address
+    1bit 0 + 13bit address + 1bit CS
     0000-1986 : 11 = filler
     1987-2050 : X0 = 64 of ZEROs on EVEN channel
     2051      : X1 = 1 of ONE on EVEN channel
