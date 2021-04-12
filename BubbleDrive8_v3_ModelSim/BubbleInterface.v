@@ -31,15 +31,14 @@ localparam BITWIDTH4 = 1'b0; //4bit mode off
 /*
     Block RAM Buffer Address [DOUT1/DOUT0]
     1bit 0 + 13bit address + 1bit CS
-    0000-1986 : 11 = filler
-    1987-2050 : X0 = 64 of ZEROs on EVEN channel
+    0000-1985 : 11 = filler
+    1986-2050 : X0 = 65 of ZEROs on EVEN channel (or possibly 64?)
     2051      : X1 = 1 of ONE on EVEN channel
     2052      : XX
     2053-3972 : 480bytes = 3840bits bootloader
     3973-4105 : 11 = filler
     7168-7170 : 00 = 3 position shifted page data
-    7171-7682 : 128bytes = 1024bits page data
-    7683-7751 : 00 = filler
+    7171-7754 : 584bits of page data
     8190      : 00 = empty bubble propagation line
     8191      : 00 = empty bubble propagation line
 */
