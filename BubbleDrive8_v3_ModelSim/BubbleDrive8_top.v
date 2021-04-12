@@ -3,6 +3,9 @@ module BubbleDrive8_top
     //48MHz input clock
     input   wire            MCLK,
 
+    //input control
+    input   wire    [2:0]   IMGNUM,
+
     //4MHz output clock
     output  wire            CLKOUT,
 
@@ -91,7 +94,7 @@ BubbleInterface BubbleInterface_0
 
 SPILoader SPILoader_0
 (
-    .IMGNUM         (3'b000         ),
+    .IMGNUM         (IMGNUM         ),
 
     .MCLK           (MCLK           ),
 
@@ -106,19 +109,6 @@ SPILoader SPILoader_0
     .MOSI           (ROMMOSI        ),
     .MISO           (ROMMISO        ),
     .CLK            (ROMCLK         )
-);
-
-
-W25Q32JVxxIM Module0 
-(
-    .CSn(nCS),
-    .CLK(CLK),
-    .DO(MISO),
-    .DIO(MOSI),
-    
-    .WPn(nWP),
-    .HOLDn(nHOLD),
-    .RESETn(nHOLD)
 );
 
 endmodule
