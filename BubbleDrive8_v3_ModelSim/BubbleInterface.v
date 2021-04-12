@@ -84,12 +84,12 @@ begin
                 1'b0:
                 begin
                     outbuffer_write_address <= OUTBUFWADDR[13:1];
-                    outbuffer_write_en <= 4'b1110;
+                    outbuffer_write_en <= 4'b1101;
                 end
                 1'b1:
                 begin
                     outbuffer_write_address <= OUTBUFWADDR[13:1];
-                    outbuffer_write_en <= 4'b1101;
+                    outbuffer_write_en <= 4'b1110;
                 end
             endcase
         end
@@ -99,22 +99,22 @@ begin
                 2'b00:
                 begin
                     outbuffer_write_address <= OUTBUFWADDR[14:2];
-                    outbuffer_write_en <= 4'b1110;
+                    outbuffer_write_en <= 4'b0111;
                 end
                 2'b01:
                 begin
                     outbuffer_write_address <= OUTBUFWADDR[14:2];
-                    outbuffer_write_en <= 4'b1101;
+                    outbuffer_write_en <= 4'b1011;
                 end
                 2'b10:
                 begin
                     outbuffer_write_address <= OUTBUFWADDR[14:2];
-                    outbuffer_write_en <= 4'b1011;
+                    outbuffer_write_en <= 4'b1101;
                 end
                 2'b11:
                 begin
                     outbuffer_write_address <= OUTBUFWADDR[14:2];
-                    outbuffer_write_en <= 4'b0111;
+                    outbuffer_write_en <= 4'b1110;
                 end
             endcase
         end

@@ -83,12 +83,12 @@ end
     POSITION2PAGE CONVERTER
 */
 
-wire    [11:0]  current_position;
-assign          current_position = ABSPOS + 12'd1;
+wire    [11:0]  next_position;
+assign          next_position = (ABSPOS == 12'd2052) ? 12'd0 : ABSPOS + 12'd1;
 wire    [11:0]  bubble_page;
 reg             convert = 1'b1;
 
-PositionPageConverter Main (.MCLK(MCLK), .nCONV(convert), .ABSPOS(current_position), .PAGE(bubble_page));
+PositionPageConverter Main (.MCLK(MCLK), .nCONV(convert), .ABSPOS(next_position), .PAGE(bubble_page));
 
 
 
