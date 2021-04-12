@@ -25,14 +25,13 @@ module BubbleDrive8_top
     input   wire            ROMMISO,
     output  wire            ROMCLK,
     output  wire            nWP,
-    output  wire            nHOLD,
+    output  wire            nHOLD
 
     //ADT7311
     //output  wire            nTEMPCS,
     //output  wire            nTEMPMOSI,
     //input   wire            nTEMPMISO,
     //output  wire            TEMPCLK
-
 );
 
 assign nWP = 1'bZ;
@@ -47,15 +46,11 @@ wire    [11:0]  ABSPOS;
 
 //SPILoader -> BubbleInterface
 wire    [14:0]  OUTBUFWADDR;
-wire            OUTBUFWCLK;
+wire            nOUTBUFWCLKEN;
 wire            OUTBUFWDATA;
 
-//BubbleInterface
-wire            DOUT0;
-wire            DOUT1;
 
-
-TimingGenerator Main
+TimingGenerator TimingGenerator_0
 (
     .MCLK           (MCLK           ),
     .CLKOUT         (CLKOUT         ),
@@ -75,7 +70,8 @@ TimingGenerator Main
 );
 
 
-BubbleInterface Main
+
+BubbleInterface BubbleInterface_0
 (
     .MCLK           (MCLK           ),
 
@@ -84,7 +80,7 @@ BubbleInterface Main
     .BOUTTICKS      (BOUTTICKS      ),
 
     .OUTBUFWADDR    (OUTBUFWADDR    ),
-    .OUTBUFWCLK     (OUTBUFWCLK     ),
+    .nOUTBUFWCLKEN  (nOUTBUFWCLKEN  ),
     .OUTBUFWDATA    (OUTBUFWDATA    ),
 
     .DOUT0          (DOUT0          ),
@@ -93,7 +89,7 @@ BubbleInterface Main
 
 
 
-SPILoader Main
+SPILoader SPILoader_0
 (
     .IMGNUM         (3'b000         ),
 
@@ -103,7 +99,7 @@ SPILoader Main
     .ABSPOS         (ABSPOS         ),
 
     .OUTBUFWADDR    (OUTBUFWADDR    ),
-    .OUTBUFWCLK     (OUTBUFWCLK     ),
+    .nOUTBUFWCLKEN  (nOUTBUFWCLKEN  ),
     .OUTBUFWDATA    (OUTBUFWDATA    ),
 
     .nCS            (nROMCS         ),

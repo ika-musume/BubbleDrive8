@@ -13,8 +13,8 @@ module BubbleInterface
     input   wire    [1:0]   BOUTTICKS,      //bubble output asynchronous control ticks
 
     //Bubble out buffer interface
+    input   wire            nOUTBUFWCLKEN,    //bubble outbuffer write clk
     input   wire    [14:0]  OUTBUFWADDR,      //bubble outbuffer write address
-    input   wire            OUTBUFWCLK,       //bubble outbuffer write clk
     input   wire            OUTBUFWDATA,      //bubble outbuffer write data
 
     //Bubble data out
@@ -133,13 +133,27 @@ reg             D0_outbuffer[8191:0];
 reg             D0_outbuffer_read_data;
 assign          DOUT0 = ~D0_outbuffer_read_data;
 
-always @(posedge OUTBUFWCLK) //write
+always @(negedge MCLK)
+begin
+	if(nOUTBUFWCLKEN == 1'b0)
+	begin
+       if (outbuffer_write_en[0] == 1'b0)
+       begin
+           D0_outbuffer[outbuffer_write_address] <= OUTBUFWDATA;
+       end
+	end
+end
+
+//asynchronous code
+/*
+always @(negedge nOUTBUFWCLKEN) //write
 begin
     if (outbuffer_write_en[0] == 1'b0)
     begin
         D0_outbuffer[outbuffer_write_address] <= OUTBUFWDATA;
     end
 end
+*/
 
 always @(posedge BOUTTICKS[1]) //read 
 begin   
@@ -156,13 +170,28 @@ reg             D1_outbuffer[8191:0];
 reg             D1_outbuffer_read_data;
 assign          DOUT1 = ~D1_outbuffer_read_data;
 
-always @(posedge OUTBUFWCLK) //write
+
+always @(negedge MCLK)
+begin
+	if(nOUTBUFWCLKEN == 1'b0)
+	begin
+       if (outbuffer_write_en[1] == 1'b0)
+       begin
+           D1_outbuffer[outbuffer_write_address] <= OUTBUFWDATA;
+       end
+	end
+end
+
+//asynchronous code
+/*
+always @(negedge nOUTBUFWCLKEN) //write
 begin
     if (outbuffer_write_en[1] == 1'b0)
     begin
         D1_outbuffer[outbuffer_write_address] <= OUTBUFWDATA;
     end
 end
+*/
 
 always @(posedge BOUTTICKS[1]) //read 
 begin   

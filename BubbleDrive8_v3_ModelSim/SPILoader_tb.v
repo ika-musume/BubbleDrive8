@@ -29,7 +29,7 @@ SPILoader Main
 
     .OUTBUFWADDR(write_addr),
     .OUTBUFWDATA(write_data),
-    .OUTBUFWCLK(write_clock),
+    .nOUTBUFWCLKEN(write_clock),
 
     .nCS(nCS),
     .MOSI(MOSI),
