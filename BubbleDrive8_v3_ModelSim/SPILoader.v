@@ -48,10 +48,10 @@ begin
     if(map_write_clken == 1'b0)
     begin
         if(map_write_enable == 1'b0)
-		  begin
-		      map_table[{map_addr[11:4], ~map_addr[3:0]}] <= map_data_in; //see bubsys85.net
-		  end
-	 end
+          begin
+              map_table[{map_addr[11:4], ~map_addr[3:0]}] <= map_data_in; //see bubsys85.net
+          end
+     end
 end
 
 always @(negedge MCLK)

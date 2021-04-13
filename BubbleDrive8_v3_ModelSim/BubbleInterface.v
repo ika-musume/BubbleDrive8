@@ -134,13 +134,13 @@ assign          DOUT0 = ~D0_outbuffer_read_data;
 
 always @(negedge MCLK)
 begin
-	if(nOUTBUFWCLKEN == 1'b0)
-	begin
+    if(nOUTBUFWCLKEN == 1'b0)
+    begin
        if (outbuffer_write_en[0] == 1'b0)
        begin
            D0_outbuffer[outbuffer_write_address] <= OUTBUFWDATA;
        end
-	end
+    end
 end
 
 //asynchronous code
@@ -172,13 +172,13 @@ assign          DOUT1 = ~D1_outbuffer_read_data;
 
 always @(negedge MCLK)
 begin
-	if(nOUTBUFWCLKEN == 1'b0)
-	begin
+    if(nOUTBUFWCLKEN == 1'b0)
+    begin
        if (outbuffer_write_en[1] == 1'b0)
        begin
            D1_outbuffer[outbuffer_write_address] <= OUTBUFWDATA;
        end
-	end
+    end
 end
 
 //asynchronous code

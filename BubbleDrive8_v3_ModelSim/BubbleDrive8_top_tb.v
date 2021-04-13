@@ -28,7 +28,7 @@ wire            nHOLD;
 
 BubbleDrive8_top Main
 (
-	.MCLK           (master_clock   ),
+    .MCLK           (master_clock   ),
     .IMGNUM         (3'b000),
     .CLKOUT         (clock_out      ),
     

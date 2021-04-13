@@ -48,18 +48,18 @@ wire    [1:0]   BOUTTICKS;
 wire    [11:0]  ABSPOS;
 
 //SPILoader -> BubbleInterface
-wire    [14:0]  OUTBUFWADDR;
 wire            nOUTBUFWCLKEN;
+wire    [14:0]  OUTBUFWADDR;
 wire            OUTBUFWDATA;
 
 
 TimingGenerator TimingGenerator_0
 (
     .MCLK           (MCLK           ),
-    .CLKOUT         (CLKOUT         ),
-    
+
     .nINCTRL        (1'b0           ),
 
+    .CLKOUT         (CLKOUT         ),
     .nBSS           (nBSS           ),
     .nBSEN          (nBSEN          ),
     .nREPEN         (nREPEN         ),
@@ -82,8 +82,8 @@ BubbleInterface BubbleInterface_0
     .BOUTCYCLENUM   (BOUTCYCLENUM   ),
     .BOUTTICKS      (BOUTTICKS      ),
 
-    .OUTBUFWADDR    (OUTBUFWADDR    ),
     .nOUTBUFWCLKEN  (nOUTBUFWCLKEN  ),
+    .OUTBUFWADDR    (OUTBUFWADDR    ),
     .OUTBUFWDATA    (OUTBUFWDATA    ),
 
     .DOUT0          (DOUT0          ),
@@ -94,15 +94,15 @@ BubbleInterface BubbleInterface_0
 
 SPILoader SPILoader_0
 (
-    .IMGNUM         (IMGNUM         ),
-
     .MCLK           (MCLK           ),
+
+    .IMGNUM         (IMGNUM         ),
 
     .ACCTYPE        (ACCTYPE        ),
     .ABSPOS         (ABSPOS         ),
 
-    .OUTBUFWADDR    (OUTBUFWADDR    ),
     .nOUTBUFWCLKEN  (nOUTBUFWCLKEN  ),
+    .OUTBUFWADDR    (OUTBUFWADDR    ),
     .OUTBUFWDATA    (OUTBUFWDATA    ),
 
     .nCS            (nROMCS         ),
