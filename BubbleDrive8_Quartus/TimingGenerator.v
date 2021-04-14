@@ -18,6 +18,7 @@ module TimingGenerator
     input   wire            nBSEN,
     input   wire            nREPEN,
     input   wire            nBOOTEN,
+    input   wire            nSWAPEN,
     
     //Emulator signal outputs
     output  wire    [2:0]   ACCTYPE,        //access type
@@ -37,6 +38,7 @@ wire            nBSS_intl;
 wire            nBSEN_intl;
 wire            nREPEN_intl;
 wire            nBOOTEN_intl;
+wire            nSWAPEN_intl;
 
 
 
@@ -63,14 +65,15 @@ end
 /*
     SYNCHRONIZER CHAIN
 */
-reg     [3:0]   step1 = 4'b1110;
-reg     [3:0]   step2 = 4'b1110;
-reg     [3:0]   step3 = 4'b1110;
-reg     [3:0]   step4 = 4'b1110;
-assign {nBSS_intl, nBSEN_intl, nREPEN_intl, nBOOTEN_intl} = step4;
+reg     [4:0]   step1 = 5'b11110;
+reg     [4:0]   step2 = 5'b11110;
+reg     [4:0]   step3 = 5'b11110;
+reg     [4:0]   step4 = 5'b11110;
+assign {nSWAPEN_intl, nBSS_intl, nBSEN_intl, nREPEN_intl, nBOOTEN_intl} = step4;
 
 always @(posedge MCLK)
 begin
+    step1[4] <= nINCTRL | nSWAPEN;
     step1[3] <= nINCTRL | nBSS;
     step1[2] <= nINCTRL | nBSEN;
     step1[1] <= nINCTRL | (nREPEN | ~nBOOTEN);
@@ -105,15 +108,15 @@ localparam STBY = 3'b001;   //B
 localparam BOOT = 3'b110;   //C
 localparam USER = 3'b111;   //D
 localparam IDLE = 3'b100;   //E
-//localparam SWAP = 3'b101;   //F
+localparam SWAP = 3'b101;   //F
 
 reg     [2:0]   access_type = RST;
 assign ACCTYPE = access_type;
 
 always @(posedge MCLK)
 begin
-    case ({nBSS_intl, nBOOTEN_intl, nBSEN_intl, nREPEN_intl})
-        4'b1011: //시작시 리셋상태 혹은 부트로더 액세스 후 잠깐
+    case ({nBSS_intl, nBOOTEN_intl, nBSEN_intl, nREPEN_intl, nSWAPEN_intl})
+        5'b10111: //시작시 리셋상태 혹은 부트로더 액세스 후 잠깐
         begin
             if(access_type == STBY)
             begin
@@ -125,7 +128,7 @@ begin
             end
         end
 
-        4'b0011: //부트로더 스탠바이
+        5'b00111: //부트로더 스탠바이
         begin
             if(access_type == RST)
             begin
@@ -137,7 +140,7 @@ begin
             end
         end
 
-        4'b1001: //부트로더 액세스 시
+        5'b10011: //부트로더 액세스 시
         begin
             if(access_type == STBY || access_type == BOOT || access_type == RST)
             begin
@@ -149,7 +152,7 @@ begin
             end
         end
 
-        4'b1111: //평상시 리셋
+        5'b11111: //평상시 리셋
         begin
             if(access_type == STBY)
             begin
@@ -161,7 +164,7 @@ begin
             end
         end
 
-        4'b0111: //페이지 스탠바이
+        5'b01111: //페이지 스탠바이
         begin
             if(access_type == RST)
             begin
@@ -173,7 +176,7 @@ begin
             end
         end
 
-        4'b1101: //페이지 seek 혹은 페이지 로딩
+        5'b11011: //페이지 seek 혹은 페이지 로딩
         begin
             if(access_type == STBY || access_type == RST)
             begin
@@ -185,11 +188,23 @@ begin
             end
         end
 
-        4'b1100: //리플리케이션
+        5'b11001: //리플리케이션
         begin
             if(access_type == IDLE)
             begin
                 access_type <= USER;
+            end
+            else
+            begin
+                access_type <= access_type;
+            end
+        end
+
+        5'b11010: //스왑
+        begin
+            if(access_type == IDLE)
+            begin
+                access_type <= SWAP;
             end
             else
             begin
@@ -355,13 +370,13 @@ begin
                     end
                     else
                     begin
-                        if(bout_invalid_half_cycle_counter < 10'd1023)//584비트 전송 후에는 invalid +1
+                        if(bout_invalid_half_cycle_counter < 10'd1022)//584비트 전송 후에는 invalid +1
                         begin
                             bout_invalid_half_cycle_counter <= bout_invalid_half_cycle_counter + 10'd1; 
                         end
                         else
                         begin
-                            bout_invalid_half_cycle_counter <= 10'd0;
+                            bout_invalid_half_cycle_counter <= bout_invalid_half_cycle_counter;
                         end
                         bout_valid_half_cycle_counter <= 15'd32763;
                     end

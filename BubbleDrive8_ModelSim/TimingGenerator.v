@@ -1,150 +1,58 @@
 module TimingGenerator
-//This module partially emulates Fujitsu MB14506's timing control feature.
 /*
-Original pinout below:
-             +---------+
-    CLKOUT<--|    U    |---+5V
-    /REPEN-->|         |-->/CLAMP
-  /SWAPEN?-->|         |-->STROBE
-       GND---|         |-->/REP
-       /BS-->|         |-->/REPOUT
-      /BSS-->| MB14506 |-->/SWAP?
-(floating)---|         |-->/WR
-     CLKIN-->|         |-->+X
-         ?-->|         |-->-X
-       GND---|         |-->+Y
-       GND---|         |-->-Y
-             +---------+
-1. CLKOUT: 4MHz clock out
-2. /REPEN: Replicator enable
-3. /SWAPEN: Swap gate enable
-5. /BS: Shifts bubbles during LOW
-6. /BSS: Bubble shift start pulse
-8. CLKIN: 12MHz clock in
-9. ?: Something related to a voltage detection circuit, grounded.
-12. -Y: -Y driver enable
-13. +Y: +Y driver enable
-14. -X: -X driver enable
-15. +X: +X driver enable
-16. /WR: 74LS32 write data enable
-17. /SWAP: Swap gate enable (MB3910 Pin 5)
-18. /REPOUT: Replicate out pulse (MB3910 Pin 7)
-19. /REP: Replicator enable (MB3910 Pin 6)
-20. STROBE: Bubble data out strobe (MB3908 Pin 10)
-21. /CLAMP: Clamps bubble detector signal (MB3908 Pin 11)
+    
 */
+
 (
     //48MHz input clock
-    input   wire            master_clock,
-
-    //control
-    input   wire            bubble_module_enable,
+    input   wire            MCLK,
 
     //4MHz output clock
-    output  reg             clock_out = 1'b1,
+    output  reg             CLKOUT = 1'b1,
+
+    //Input control
+    input   wire            nINCTRL,
 
     //Bubble control signal inputs
-    input   wire            bubble_shift_enable,
-    input   wire            replicator_enable,
-    input   wire            bootloop_enable,
+    input   wire            nBSS,
+    input   wire            nBSEN,
+    input   wire            nREPEN,
+    input   wire            nBOOTEN,
+    input   wire            nSWAPEN,
     
     //Emulator signal outputs
-    output  wire            position_change, //0 degree, bubble position change notification (active high)
-    output  wire            data_out_strobe, //Starts at 180 degree, ends at 240 degree, can put bubble data at a falling edge (active high)
-    output  wire            data_out_notice, //Same as replicator clamp (active high)
-    output  wire            position_latch, //Current bubble position can be latched when this line has been asserted (active high)
-    output  wire            page_select, //Program page select, synchronized signal of bootloop_enable (active high)
-    output  wire            coil_enable //Goes high when bubble moves - same as COIL RUN (active low)
+    output  wire    [2:0]   ACCTYPE,        //access type
+    output  wire    [12:0]  BOUTCYCLENUM,   //bubble output cycle number
+    output  wire    [1:0]   BOUTTICKS,      //bubble output asynchronous control ticks
+    output  wire    [11:0]  ABSPOS          //absolute position number
 );
 
-
-
-/*
-    GLOBAL REGISTERS
-*/
-//Global clock
-reg             clock12MHz = 1'b1;
-
-//Synchronization registers HI[bubble_shift_enable / replicator_enable / bootloop_enable]LO
-reg     [2:0]   stepOne = 3'b110;
-reg     [2:0]   stepTwo = 3'b110;
-reg     [2:0]   stepThree = 3'b110;
-reg             bubbleShiftEnableInternal = 1'b1;
-reg             replicatorEnableInternal = 1'b1;
-reg             bootloopEnableInternal = 1'b0;
-
-//State counters
-reg     [7:0]   mainStateCounter = 8'd0;
-
-//Function signals
-reg     [3:0]   coilEnable = 4'b1111; //HI[+Y -Y -X +X]LO
-reg             detectorClamp = 1'b1;
-reg             detectorStrobe = 1'b0;
-//reg             functionRepEnable = 1'b1;
-reg             functionRepOut = 1'b1;
-//reg             dataInEnable = 1'b1;
-reg             coilRun = 1'b1; //Goes HIGH while driving
+localparam INITIAL_ABS_POSITION = 12'd1955; //0-2052
 
 
 
 /*
-    SIGNAL ASSIGNMENTS
+    GLOBAL NET/REGS
 */
-assign position_change = ~(coilEnable[3] | coilEnable[1]); //pulse at rotational vector of +Y
-assign data_out_notice = ~detectorClamp;
-assign data_out_strobe = detectorStrobe;
-assign position_latch = ~functionRepOut & bootloopEnableInternal; 
-assign page_select = bootloopEnableInternal;
-assign coil_enable = ~coilRun;
- 
-
-
-/*
-    SYNCHRONIZER
-*/
-always @(posedge clock12MHz)
-begin
-    stepOne[2] <= bubble_module_enable | bubble_shift_enable;
-    stepOne[1] <= bubble_module_enable | replicator_enable;
-    stepOne[0] <= ~bubble_module_enable & bootloop_enable;
-
-    stepTwo <= stepOne;
-    stepThree <= stepTwo;
-end
-
-always @(negedge clock12MHz)
-begin
-    bubbleShiftEnableInternal <= stepThree[2];
-    replicatorEnableInternal <= stepThree[1];
-    bootloopEnableInternal <= stepThree[0];
-end
+wire            nBSS_intl;
+wire            nBSEN_intl;
+wire            nREPEN_intl;
+wire            nBOOTEN_intl;
+wire            nSWAPEN_intl;
 
 
 
 /*
     CLOCK DIVIDER
 */
-reg     [1:0]   divide4 = 2'd0;
 reg     [2:0]   divide12 = 3'd0;
 
-always @(posedge master_clock)
+always @(posedge MCLK)
 begin
-    //Internal 12MHz clock
-    if(divide4 >= 2'd1)
-    begin
-        divide4 <= 2'd0;
-        clock12MHz <= ~clock12MHz;
-    end
-    else
-    begin
-        divide4 <= divide4 + 2'd1;
-    end
-    
-    //External 4MHz clock
     if(divide12 >= 3'd5)
     begin
         divide12 <= 3'd0;
-        clock_out <= ~clock_out;
+        CLKOUT <= ~CLKOUT;
     end
     else
     begin
@@ -155,192 +63,339 @@ end
 
 
 /*
-    MAIN SEQUENCER
+    SYNCHRONIZER CHAIN
 */
-//Because of the 12MHz synchronizer, there's a delay of 3 clock cycles on three internal signal BS, REPEN, and BOOTEN. 
-//I subtracted 3 from the reg mainStateCounter for timing compensation.
-always @(posedge clock12MHz)
+reg     [4:0]   step1 = 5'b11110;
+reg     [4:0]   step2 = 5'b11110;
+reg     [4:0]   step3 = 5'b11110;
+reg     [4:0]   step4 = 5'b11110;
+assign {nSWAPEN_intl, nBSS_intl, nBSEN_intl, nREPEN_intl, nBOOTEN_intl} = step4;
+
+always @(posedge MCLK)
 begin
-    if(bubbleShiftEnableInternal == 1'b1) //STOP
-    begin
-        if(coilRun == 1'b0) //COIL STOP
+    step1[4] <= nINCTRL | nSWAPEN;
+    step1[3] <= nINCTRL | nBSS;
+    step1[2] <= nINCTRL | nBSEN;
+    step1[1] <= nINCTRL | (nREPEN | ~nBOOTEN);
+    step1[0] <= ~nINCTRL & nBOOTEN;
+
+    step2 <= step1;
+    step3 <= step2;
+    step4 <= step3;
+end
+
+
+
+/*
+    ACCESS STATE STATE MACHINE
+*/
+
+/*
+    nREPEN            ¯¯¯¯¯¯¯¯¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯¯¯¯¯¯¯¯¯¯¯¯¯¯|_|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+
+    nBSS_intl         ¯¯¯¯¯|_|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|_|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|_|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+    nBOOTEN_intl      ______________________________________________|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+    nBSEN_intl        ¯¯¯¯¯¯¯¯|____________________________________|¯¯¯¯¯¯¯¯¯|__________________________|¯¯¯¯¯¯|__________________________|¯¯¯
+    nREPEN_intl       ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|_|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+    nSWAPEN_intl      ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|_|¯¯¯¯¯¯¯¯
+                              |----(bootloader load out enable)----|             |(page load out enable)|                          |(swap)|
+    ----->TIME        A    |B |C                                   |A     |B |E  |D(HOLD)               |A  |B |E                  |F     |A
+*/
+
+//[magnetic field activation/data transfer/mode]
+localparam RST = 3'b000;    //A
+localparam STBY = 3'b001;   //B
+localparam BOOT = 3'b110;   //C
+localparam USER = 3'b111;   //D
+localparam IDLE = 3'b100;   //E
+localparam SWAP = 3'b101;   //F
+
+reg     [2:0]   access_type = RST;
+assign ACCTYPE = access_type;
+
+always @(posedge MCLK)
+begin
+    case ({nBSS_intl, nBOOTEN_intl, nBSEN_intl, nREPEN_intl, nSWAPEN_intl})
+        5'b10111: //시작시 리셋상태 혹은 부트로더 액세스 후 잠깐
         begin
-            mainStateCounter <= 8'd0;
-        end
-        else //WHILE RUNNING
-        begin
-            if(mainStateCounter >= 8'd18 && mainStateCounter <= 8'd44) //-X vector
+            if(access_type == STBY)
             begin
-                mainStateCounter <= mainStateCounter + 8'd1;
-            end
-            else if(mainStateCounter == 8'd45) //Just before -Y vector starts
-            begin
-                mainStateCounter <= 8'd166;
-            end
-            else if(mainStateCounter >= 8'd46 && mainStateCounter <= 8'd168)
-            begin
-                mainStateCounter <= mainStateCounter + 8'd1;
+                access_type <= STBY;
             end
             else
             begin
-                mainStateCounter <= 8'd0;
+                access_type <= RST;
+            end
+        end
+
+        5'b00111: //부트로더 스탠바이
+        begin
+            if(access_type == RST)
+            begin
+                access_type <= STBY;
+            end
+            else
+            begin
+                access_type <= access_type;
+            end
+        end
+
+        5'b10011: //부트로더 액세스 시
+        begin
+            if(access_type == STBY || access_type == BOOT || access_type == RST)
+            begin
+                access_type <= BOOT;
+            end
+            else
+            begin
+                access_type <= access_type;
+            end
+        end
+
+        5'b11111: //평상시 리셋
+        begin
+            if(access_type == STBY)
+            begin
+                access_type <= STBY;
+            end
+            else
+            begin
+                access_type <= RST;
+            end
+        end
+
+        5'b01111: //페이지 스탠바이
+        begin
+            if(access_type == RST)
+            begin
+                access_type <= STBY;
+            end
+            else
+            begin
+                access_type <= access_type;
+            end
+        end
+
+        5'b11011: //페이지 seek 혹은 페이지 로딩
+        begin
+            if(access_type == STBY || access_type == RST)
+            begin
+                access_type <= IDLE;
+            end
+            else
+            begin
+                access_type <= access_type;
+            end
+        end
+
+        5'b11001: //리플리케이션
+        begin
+            if(access_type == IDLE)
+            begin
+                access_type <= USER;
+            end
+            else
+            begin
+                access_type <= access_type;
+            end
+        end
+
+        5'b11010: //스왑
+        begin
+            if(access_type == IDLE)
+            begin
+                access_type <= SWAP;
+            end
+            else
+            begin
+                access_type <= access_type;
+            end
+        end
+
+        default:
+        begin
+            access_type <= access_type;
+        end
+    endcase
+end
+
+
+
+/*
+    BUBBLE CYCLE STATE MACHINE
+*/
+//12MHz 1 bubble cycle = 120clks
+//48MHz 1 bubble cycle = 480clks
+//48MHz 4클럭 또는 12MHz 1클럭 씹힘
+
+reg     [9:0]   MCLK_counter = 10'd0; //마스터 카운터는 세기 쉽게 1부터 시작 0아님!!
+
+reg     [11:0]  absolute_position_number = INITIAL_ABS_POSITION;
+assign ABSPOS = absolute_position_number;
+
+reg     [9:0]   bout_invalid_half_cycle_counter = 10'd1023;
+reg     [14:0]  bout_valid_half_cycle_counter = 15'd32767;
+assign BOUTCYCLENUM = bout_valid_half_cycle_counter[14:2];
+assign BOUTTICKS = bout_invalid_half_cycle_counter[1:0] & bout_valid_half_cycle_counter[1:0];
+
+
+//master clock counters
+always @(posedge MCLK)
+begin
+    //시작
+    if(MCLK_counter == 10'd0)
+    begin
+        if(access_type[2] == 1'b0)
+        begin
+            MCLK_counter <= 10'd0;
+        end
+        else
+        begin
+            MCLK_counter <= MCLK_counter + 10'd1;
+        end
+    end
+
+    //53번째 pos엣지에서 -X방향
+    else if(MCLK_counter == 10'd208)
+    begin
+        if(access_type[2] == 1'b0) //bubble rotation ends
+        begin
+            MCLK_counter <= 10'd0;
+        end
+        else
+        begin
+            MCLK_counter <= MCLK_counter + 10'd1;
+        end
+    end
+
+    //143번째 pos엣지에서 half disk +Y방향 위치
+    else if(MCLK_counter == 10'd568) 
+    begin
+       MCLK_counter <= 10'd89; 
+    end
+
+    else
+    begin
+        MCLK_counter <= MCLK_counter + 10'd1;
+    end
+end
+
+
+//absolute position counter
+always @(posedge MCLK)
+begin
+    //143번째 pos엣지에서 half disk +Y방향 위치
+    if(MCLK_counter == 10'd568) 
+    begin
+        if(absolute_position_number < 12'd2052)
+        begin
+            absolute_position_number <= absolute_position_number + 12'd1;
+        end
+        else
+        begin
+            absolute_position_number <= 12'd0;
+        end
+    end
+
+    //나머지
+    else
+    begin
+        absolute_position_number <= absolute_position_number;
+    end
+end
+
+//half cycle counter
+always @(posedge MCLK)
+begin
+    //리셋상태
+    if(MCLK_counter == 10'd0)
+    begin
+        bout_invalid_half_cycle_counter = 10'd1023;
+        bout_valid_half_cycle_counter = 15'd32767;
+    end
+
+    //버블 시작, -X, -Y, +X, +Y에서 한번씩 체크
+    else if(MCLK_counter == 10'd88 || MCLK_counter == 10'd208 || MCLK_counter == 10'd328 || MCLK_counter == 10'd448 || MCLK_counter == 10'd568) 
+    begin
+        //실제 액세스 안 하면 리셋상태
+        if(access_type[1] == 1'b0)
+        begin
+            bout_invalid_half_cycle_counter = 10'd1023;
+            bout_valid_half_cycle_counter = 15'd32767;
+        end
+
+        //싸이클 카운팅은 실제 액세스시에만 유효
+        else
+        begin
+            if(bout_invalid_half_cycle_counter == 10'd1023 || bout_invalid_half_cycle_counter < 10'd391) //부트로더, 페이지 모두 첫 98싸이클 무효
+            begin
+                if(bout_invalid_half_cycle_counter < 10'd1023)
+                begin
+                    bout_invalid_half_cycle_counter <= bout_invalid_half_cycle_counter + 10'd1;
+                end
+                else
+                begin
+                    bout_invalid_half_cycle_counter <= 10'd0;
+                end
+                bout_valid_half_cycle_counter <= 15'd32767;
+            end
+            else //99번째 싸이클부터
+            begin
+                if(access_type == 3'b110) //부트로더
+                begin
+                    if(bout_valid_half_cycle_counter < 15'd16423) //부트로더는 2053*2*4-1 카운트
+                    begin
+                        bout_invalid_half_cycle_counter <= bout_invalid_half_cycle_counter;
+                        bout_valid_half_cycle_counter <= bout_valid_half_cycle_counter + 15'd1; //+1
+                    end
+                    else
+                    begin
+                        bout_invalid_half_cycle_counter <= bout_invalid_half_cycle_counter;
+                        bout_valid_half_cycle_counter <= 15'd0; //bootloop는 계속 루프
+                    end
+                end
+                else if(access_type == 3'b111) //페이지
+                begin
+                    if(bout_valid_half_cycle_counter == 15'd32767 || bout_valid_half_cycle_counter < 15'd2335) //페이지는 584*4-1 카운트
+                    begin
+                        bout_invalid_half_cycle_counter <= bout_invalid_half_cycle_counter;
+                        if(bout_valid_half_cycle_counter < 15'd32767)
+                        begin
+                            bout_valid_half_cycle_counter <= bout_valid_half_cycle_counter + 15'd1;
+                        end
+                        else
+                        begin
+                            bout_valid_half_cycle_counter <= 15'd0;
+                        end
+                    end
+                    else
+                    begin
+                        if(bout_invalid_half_cycle_counter < 10'd1023)//584비트 전송 후에는 invalid +1
+                        begin
+                            bout_invalid_half_cycle_counter <= bout_invalid_half_cycle_counter + 10'd1; 
+                        end
+                        else
+                        begin
+                            bout_invalid_half_cycle_counter <= 10'd0;
+                        end
+                        bout_valid_half_cycle_counter <= 15'd32763;
+                    end
+                end
+                else //가능성 없음
+                begin
+                    bout_invalid_half_cycle_counter = 10'd1023;
+                    bout_valid_half_cycle_counter = 15'd32767;
+                end
             end
         end
     end
-    else //SHIFTING
-    begin
-        if(mainStateCounter == 8'd139) //After a full rotation
-        begin
-            mainStateCounter <= 8'd20; //Loop
-        end
-        else
-        begin
-            mainStateCounter <= mainStateCounter + 8'd1;
-        end
-    end
-end
 
-//Coil driver signal generation
-always @(mainStateCounter)
-begin
-    if(mainStateCounter >= 8'd18 && mainStateCounter <= 8'd45)
-    begin
-        coilEnable <= 4'b1101; //HI[+Y -Y -X +X]LO
-    end
-    else if(mainStateCounter >= 8'd46 && mainStateCounter <= 8'd48)
-    begin
-        coilEnable <= 4'b1001; //HI[+Y -Y -X +X]LO
-    end
-    else if(mainStateCounter >= 8'd49 && mainStateCounter <= 8'd72)
-    begin
-        coilEnable <= 4'b1011; //HI[+Y -Y -X +X]LO
-    end
-    else if(mainStateCounter >= 8'd73 && mainStateCounter <= 8'd79)
-    begin
-        coilEnable <= 4'b1010; //HI[+Y -Y -X +X]LO
-    end
-    else if(mainStateCounter >= 8'd80 && mainStateCounter <= 8'd105) //MB3910 strobe goes LOW, clamp goes HIGH at positive edge of 97th clock
-    begin
-        coilEnable <= 4'b1110; //HI[+Y -Y -X +X]LO
-    end
-    else if(mainStateCounter >= 8'd106 && mainStateCounter <= 8'd109)
-    begin
-        coilEnable <= 4'b0110; //HI[+Y -Y -X +X]LO
-    end
-    else if(mainStateCounter >= 8'd110 && mainStateCounter <= 8'd137)
-    begin
-        coilEnable <= 4'b0111; //HI[+Y -Y -X +X]LO
-    end
-    else if(mainStateCounter >= 8'd138 && mainStateCounter <= 8'd139)
-    begin
-        coilEnable <= 4'b0101; //HI[+Y -Y -X +X]LO
-    end
-    else if(mainStateCounter >= 8'd140 && mainStateCounter <= 8'd168)
-    begin
-        coilEnable <= 4'b1101; //HI[+Y -Y -X +X]LO
-    end
+    //나머지 때에는 값 유지
     else
     begin
-        coilEnable <= 4'b1111; //HI[+Y -Y -X +X]LO
+        bout_invalid_half_cycle_counter <= bout_invalid_half_cycle_counter;
+        bout_valid_half_cycle_counter <= bout_valid_half_cycle_counter;
     end
 end
 
-always @(mainStateCounter)
-begin
-    if(mainStateCounter >= 8'd18 && mainStateCounter <= 8'd168)
-    begin
-        coilRun <= 1'b1;
-    end
-	else
-	begin
-	    coilRun <= 1'b0;
-	end
-end
-
-//Replicator signal generation
-always @(mainStateCounter or replicatorEnableInternal)
-begin
-    if(replicatorEnableInternal == 1'b1)
-    begin
-        //functionRepEnable <= 1'b1;
-        functionRepOut <= 1'b1;
-    end
-    else
-    begin
-        if(mainStateCounter >= 8'd19 && mainStateCounter <= 8'd20)
-        begin
-            //functionRepEnable <= 1'b0;
-            functionRepOut <= 1'b1;
-        end
-        else if(mainStateCounter >= 8'd21 && mainStateCounter <= 8'd23)
-        begin
-            //functionRepEnable <= 1'b0;
-            functionRepOut <= 1'b0;
-        end
-        else if(mainStateCounter >= 8'd24 && mainStateCounter <= 8'd54)
-        begin
-            //functionRepEnable <= 1'b0;
-            functionRepOut <= 1'b1;
-        end
-        else if(mainStateCounter >= 8'd139 && mainStateCounter <= 8'd140)
-        begin
-            //functionRepEnable <= 1'b0;
-            functionRepOut <= 1'b1;
-        end
-        else if(mainStateCounter >= 8'd141 && mainStateCounter <= 8'd143)
-        begin
-            //functionRepEnable <= 1'b0;
-            functionRepOut <= 1'b0;
-        end
-        else if(mainStateCounter >= 8'd144 && mainStateCounter <= 8'd174)
-        begin
-            //functionRepEnable <= 1'b0;
-            functionRepOut <= 1'b1;
-        end
-        else
-        begin
-            //functionRepEnable <= 1'b1;
-            functionRepOut <= 1'b1;
-        end
-    end
-end
-
-//Sense amplifier signal generation
-always @(mainStateCounter)
-begin
-    if(mainStateCounter >= 8'd56 && mainStateCounter <= 8'd77)
-    begin
-        detectorClamp <= 1'b0;
-        detectorStrobe <= 1'b0;
-    end
-    else if(mainStateCounter >= 8'd78 && mainStateCounter <= 8'd93)
-    begin
-        detectorClamp <= 1'b0;
-        detectorStrobe <= 1'b1;
-    end
-    else
-    begin
-        detectorClamp <= 1'b1;
-        detectorStrobe <= 1'b0;
-    end
-end
-
-/*
-//Data in enable(74LS32) signal generation
-always @(mainStateCounter)
-begin
-    if(mainStateCounter >= 8'd16 && mainStateCounter <= 8'd18)
-    begin
-        dataInEnable <= 1'b0;
-    end
-    else if(mainStateCounter >= 8'd136 && mainStateCounter <= 8'd138)
-    begin
-        dataInEnable <= 1'b0;
-    end
-    else
-    begin
-        dataInEnable <= 1'b1;
-    end
-end
-*/
 endmodule

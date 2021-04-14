@@ -1,11 +1,14 @@
 module PositionPageConverter 
 (
+    input   wire            MCLK,
     input   wire            nCONV,
     input   wire    [11:0]  ABSPOS,
     output  reg     [11:0]  PAGE = 12'd4095
 );
 
-    always @ (negedge nCONV)
+always @ (negedge MCLK)
+begin
+    if(nCONV == 1'b0)
     begin
         case (ABSPOS)
             12'd0: PAGE <= 12'd1862;
@@ -2061,7 +2064,7 @@ module PositionPageConverter
             12'd2050: PAGE <= 12'd296;
             12'd2051: PAGE <= 12'd818;
             12'd2052: PAGE <= 12'd1340;
-            12'd2053: PAGE <= 12'd4095;
+            12'd2053: PAGE <= 12'd1862;
             12'd2054: PAGE <= 12'd4095;
             12'd2055: PAGE <= 12'd4095;
             12'd2056: PAGE <= 12'd4095;
@@ -4106,4 +4109,6 @@ module PositionPageConverter
             12'd4095: PAGE <= 12'd4095;
         endcase
     end
+end
+
 endmodule

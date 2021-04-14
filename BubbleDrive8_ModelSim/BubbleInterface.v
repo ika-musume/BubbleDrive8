@@ -1,189 +1,67 @@
 module BubbleInterface
-(
-    //Master clock
-    input   wire            master_clock, //48MHz master clock
-
-    //Data from management module
-    input   wire            bubble_module_enable, //active low
-
-    //Timing signals from TimingGenerator module
-    input   wire            position_change, //0 degree, bubble position change notification (active high)
-    input   wire            data_out_strobe, //Starts at 180 degree, ends at 240 degree, can put bubble data at a falling edge (active high)
-    input   wire            data_out_notice, //Same as replicator clamp (active high)
-    input   wire            position_latch, //Current bubble position can be latched when this line has been asserted (active high)
-    input   wire            page_select, //Bootloader select, synchronized signal of bootloop_enable (active high)
-    input   wire            coil_enable, //Goes low when bubble moves - same as COIL RUN (active low)
-
-    //Bubble position to page converter I/O
-    output  wire            convert,
-    output  wire    [11:0]  bubble_position_output, //12 bit counter
-
-
-    //SPI Loader
-    input   wire    [10:0]  bubble_buffer_write_address,
-    input   wire    [1:0]   bubble_buffer_write_data_input,
-    input   wire            bubble_buffer_write_enable,
-    input   wire            bubble_buffer_write_clock,
-    output  wire            load_page,
-    output  wire            load_bootloader,
+/*
     
-    //Bubble data output
-    output  reg             bubble_out_odd,
-    output  reg             bubble_out_even
+*/
+
+(
+    //48MHz input clock
+    input   wire            MCLK,
+
+    //Emulator signal outputs
+    input   wire    [2:0]   ACCTYPE,        //access type
+    input   wire    [12:0]  BOUTCYCLENUM,   //bubble output cycle number
+    input   wire    [1:0]   BOUTTICKS,      //bubble output asynchronous control ticks
+
+    //Bubble out buffer interface
+    input   wire            nOUTBUFWCLKEN,    //bubble outbuffer write clk
+    input   wire    [14:0]  OUTBUFWADDR,      //bubble outbuffer write address
+    input   wire            OUTBUFWDATA,      //bubble outbuffer write data
+
+    //Bubble data out
+    output  wire            DOUT0,
+    output  wire            DOUT1
 );
 
-
-
-/*
-    CONSTANTS
-*/
-/*
-                    |-------(26420us)-------|(pos0)|-------(19290us)-------|
-74LS32 pulse   |____|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|____|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|____|        (90 degree)
-*/
-localparam THE_NUMBER_OF_BUBBLE_POSITIONS = 12'd2053; //0000 - 2052: 2053 positions
-localparam INITIAL_POSITION_VALUE = 12'd1464; //(initial value) + (pre-position 0 length) - 2053 = 0
-localparam BOOTLOADER_OUT_LENGTH = 13'd4571; //total bootloader enable length: 2640 + 2(20us of start pattern) + 1929
-localparam PAGE_OUT_LENGTH = 11'd703; //1 to 703
-
-
+localparam BITWIDTH4 = 1'b0; //4bit mode off
 
 /*
-    GLOBAL REGISTERS / NETS
-*/
-reg              bootloaderLoadOutEnable = 1'b1; //active low, goes low while bootloader load/out
-assign           load_bootloader = bootloaderLoadOutEnable;
-reg              pageLoadOutEnable = 1'b1; //active low,  goes low while page load/out
-assign           load_page = pageLoadOutEnable;
-
-wire             bufferDataOutCounterEnable; //active low, composite signal of above two
-assign           bufferDataOutCounterEnable = bootloaderLoadOutEnable & pageLoadOutEnable;
-reg     [13:0]   bufferDataOutNoticeCounter = 13'd0;
-reg     [13:0]   bufferDataOutCounter = 13'd0;
-
-reg              bufferReadAddressCountEnable = 1'b1; //active low, address incrementation enable
-reg              bubbleReadClockEnable = 1'b1; //active low, bubble block RAM buffer read clock (negative edge of STROBE)
-
-reg     [1:0]    bubbleOutMux = 2'b00;
-
-
-
-/*
-    ENABLE SIGNAL STATE MACHINE FOR BUBBLE OUT SEQUENCER / FLASH DATA LOADER
+    OUTBUFFER READ ADDRESS DECODER
 */
 
 /*
-~functionRepOut     ____|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_______________________|¯|_________________________
-
-page_select         ________________________________________|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-coil_enable         ¯¯|_______________________________________|¯¯¯¯¯¯¯¯¯|____________________________________|¯¯
-position_latch      ______________________________________________________________|¯|___________________________
-                      |----(bootloader load out enable)-----|                     |--(page load out enable)--|
------>TIME          A                    B                   D     C        D      E            D             C           X: POSSIBLE GLITCH
-
-A: INITIAL_STANDBY
-B: BOOTLOADER_ACCESS
-C: NORMAL_STANDBY
-D: NORMAL_ACCESS
-E: PAGE_LATCH
-X: POSSIBLE GLITCH - HOLD PREVIOUS STATE
+    Block RAM Buffer Address [DOUT1/DOUT0]
+    1bit 0 + 13bit address + 1bit CS
+    0000-1985 : 11 = filler
+    1986-2050 : X0 = 65 of ZEROs on EVEN channel (or possibly 64?)
+    2051      : X1 = 1 of ONE on EVEN channel
+    2052      : XX
+    2053-3972 : 480bytes = 3840bits bootloader
+    3973-4105 : 11 = filler
+    7168-7170 : 00 = 3 position shifted page data
+    7171-7754 : 584bits of page data
+    8190      : 00 = empty bubble propagation line
+    8191      : 00 = empty bubble propagation line
 */
 
-localparam BOOTLOADER_ACCESS = 3'b000;  //B
-localparam INITIAL_STANDBY = 3'b010;    //A
-localparam NORMAL_ACCESS = 3'b100;      //D
-localparam PAGE_LATCH = 3'b101;         //E
-localparam NORMAL_STANDBY = 3'b110;     //C
+localparam BOOT = 3'b110;   //C
+localparam USER = 3'b111;   //D
 
-reg     [2:0]    previousState = INITIAL_STANDBY;
+reg     [12:0]  outbuffer_read_address = 13'b1_1111_1111_1111;
 
-
-always @(posedge master_clock)
+always @(*)
 begin
-    case ({page_select, coil_enable, position_latch})
-        BOOTLOADER_ACCESS: //B
+    case (ACCTYPE)
+        BOOT:
         begin
-            if(previousState == NORMAL_ACCESS || previousState == PAGE_LATCH) //D or E->B: GLITCH
-            begin
-                bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
-                pageLoadOutEnable <= pageLoadOutEnable;
-                previousState <= previousState;
-            end
-            else
-            begin
-                bootloaderLoadOutEnable <= 1'b0;
-                pageLoadOutEnable <= 1'b1;
-                previousState <= BOOTLOADER_ACCESS;
-            end
+            outbuffer_read_address <= BOUTCYCLENUM;
         end
-        3'b001: //X
+        USER:
         begin
-            bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
-            pageLoadOutEnable <= pageLoadOutEnable;
-            previousState <= previousState;
+            outbuffer_read_address <= {3'b111, BOUTCYCLENUM[9:0]};
         end
-        INITIAL_STANDBY: //A
+        default:
         begin
-            if(previousState == PAGE_LATCH) //E->A: GLITCH
-            begin
-                bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
-                pageLoadOutEnable <= pageLoadOutEnable;
-                previousState <= previousState;
-            end
-            else
-            begin
-                bootloaderLoadOutEnable <= 1'b1;
-                pageLoadOutEnable <= 1'b1;
-                previousState <= INITIAL_STANDBY;
-            end
-        end
-        3'b011: //X
-        begin
-            bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
-            pageLoadOutEnable <= pageLoadOutEnable;
-            previousState <= previousState;
-        end
-        NORMAL_ACCESS: //D 
-        begin
-            bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
-            pageLoadOutEnable <= pageLoadOutEnable;
-            previousState <= NORMAL_ACCESS;
-        end
-        PAGE_LATCH: //E
-        begin
-            if(previousState == INITIAL_STANDBY || previousState == BOOTLOADER_ACCESS || previousState == NORMAL_STANDBY) //ONLY D->E ALLOWED
-            begin
-                bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
-                pageLoadOutEnable <= pageLoadOutEnable;
-                previousState <= previousState;
-            end
-            else
-            begin
-                bootloaderLoadOutEnable <= 1'b1;
-                pageLoadOutEnable <= 1'b0;
-                previousState <= PAGE_LATCH;
-            end
-        end
-        NORMAL_STANDBY: //C
-        begin
-            if(previousState == PAGE_LATCH) //E->C GLITCH
-            begin
-                bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
-                pageLoadOutEnable <= pageLoadOutEnable;
-                previousState <= previousState;
-            end
-            else
-            begin
-                bootloaderLoadOutEnable <= 1'b1;
-                pageLoadOutEnable <= 1'b1;
-                previousState <= NORMAL_STANDBY;
-            end
-        end
-        3'b111: //X
-        begin
-            bootloaderLoadOutEnable <= bootloaderLoadOutEnable;
-            pageLoadOutEnable <= pageLoadOutEnable;
-            previousState <= previousState;
+            outbuffer_read_address <= 13'b1_1111_1111_1111;
         end
     endcase
 end
@@ -191,256 +69,137 @@ end
 
 
 /*
-    BUBBLE POSITION TO PAGE CONVERTER
+    OUTBUFFER WRITE ADDRESS DECODER
 */
-reg     [11:0]   positionCounter = INITIAL_POSITION_VALUE;
 
-assign convert = position_latch; //only works when bootloader is not selected
-assign bubble_position_output = positionCounter;
+reg     [3:0]   outbuffer_write_en = 4'b1111; //D3 D2 DOUT1 DOUT0
+reg     [12:0]  outbuffer_write_address;
 
-//position counter
-always @(posedge position_change)
-begin
-    if(positionCounter < THE_NUMBER_OF_BUBBLE_POSITIONS - 12'd1)
-    begin
-        positionCounter <= positionCounter + 12'd1;
-    end
-    else
-    begin
-        positionCounter <= 12'd0;
-    end
-end
-
-
-
-/*
-    OUTPUT DATA MULTIPLEXER
-*/
 always @(*)
 begin
-    if(bubble_module_enable == 1'b1) //disabled
-    begin
-        bubble_out_odd <= 1'b0;
-        bubble_out_even <= 1'b0;        
-    end
-    else //enabled
-    begin
-        if((bufferDataOutCounterEnable) == 1'b1)
+    case(BITWIDTH4)
+        1'b0: //2BITMODE
         begin
-            bubble_out_odd <= 1'b1;
-            bubble_out_even <= 1'b1;   
+            case(OUTBUFWADDR[0])
+                1'b0:
+                begin
+                    outbuffer_write_address <= OUTBUFWADDR[13:1];
+                    outbuffer_write_en <= 4'b1101;
+                end
+                1'b1:
+                begin
+                    outbuffer_write_address <= OUTBUFWADDR[13:1];
+                    outbuffer_write_en <= 4'b1110;
+                end
+            endcase
         end
-        else
+        1'b1: //4BITMODE: no game released
         begin
-            bubble_out_odd <= ~bubbleOutMux[1];
-            bubble_out_even <= ~bubbleOutMux[0];   
+            case(OUTBUFWADDR[1:0])
+                2'b00:
+                begin
+                    outbuffer_write_address <= OUTBUFWADDR[14:2];
+                    outbuffer_write_en <= 4'b0111;
+                end
+                2'b01:
+                begin
+                    outbuffer_write_address <= OUTBUFWADDR[14:2];
+                    outbuffer_write_en <= 4'b1011;
+                end
+                2'b10:
+                begin
+                    outbuffer_write_address <= OUTBUFWADDR[14:2];
+                    outbuffer_write_en <= 4'b1101;
+                end
+                2'b11:
+                begin
+                    outbuffer_write_address <= OUTBUFWADDR[14:2];
+                    outbuffer_write_en <= 4'b1110;
+                end
+            endcase
         end
-    end
+    endcase
 end
 
 
 
 /*
-    BUBBLE OUTPUT BLOCK RAM BUFFER
+    OUTBUFFER
 */
-reg     [1:0]   bubbleBuffer[2047:0];
-reg     [10:0]  bubbleBufferReadAddress;
-reg     [1:0]   bubbleBufferDataOutput;
-wire            bubbleBufferReadClock;
-assign  bubbleBufferReadClock = data_out_strobe & ~bubbleReadClockEnable;
 
-always @(posedge bubble_buffer_write_clock) //write
+//DOUT0
+reg             D0_outbuffer[8191:0];
+reg             D0_outbuffer_read_data;
+assign          DOUT0 = ~D0_outbuffer_read_data;
+
+always @(negedge MCLK)
 begin
-    if (bubble_buffer_write_enable == 1'b0)
+    if(nOUTBUFWCLKEN == 1'b0)
     begin
-        bubbleBuffer[bubble_buffer_write_address] <= bubble_buffer_write_data_input;
+       if (outbuffer_write_en[0] == 1'b0)
+       begin
+           D0_outbuffer[outbuffer_write_address] <= OUTBUFWDATA;
+       end
     end
 end
 
-always @(negedge bubbleBufferReadClock) //read 
+//asynchronous code
+/*
+always @(negedge nOUTBUFWCLKEN) //write
+begin
+    if (outbuffer_write_en[0] == 1'b0)
+    begin
+        D0_outbuffer[outbuffer_write_address] <= OUTBUFWDATA;
+    end
+end
+*/
+
+always @(posedge BOUTTICKS[1]) //read 
 begin   
-    bubbleBufferDataOutput <= bubbleBuffer[bubbleBufferReadAddress];
+    D0_outbuffer_read_data <= D0_outbuffer[outbuffer_read_address];
 end
 
+initial
+begin
+    $readmemb("D0_outbuffer.txt", D0_outbuffer);
+end
+
+//DOUT1
+reg             D1_outbuffer[8191:0];
+reg             D1_outbuffer_read_data;
+assign          DOUT1 = ~D1_outbuffer_read_data;
 
 
+always @(negedge MCLK)
+begin
+    if(nOUTBUFWCLKEN == 1'b0)
+    begin
+       if (outbuffer_write_en[1] == 1'b0)
+       begin
+           D1_outbuffer[outbuffer_write_address] <= OUTBUFWDATA;
+       end
+    end
+end
+
+//asynchronous code
 /*
-    BUBBLE OUT SEQUENCER
-*/
-//Data out notice counter
-always @(posedge data_out_notice or posedge bufferDataOutCounterEnable)
+always @(negedge nOUTBUFWCLKEN) //write
 begin
-    if(bufferDataOutCounterEnable == 1'b1) //counter stop
+    if (outbuffer_write_en[1] == 1'b0)
     begin
-        bufferDataOutNoticeCounter <= 13'd0;
-    end
-    else //count up
-    begin
-        if(bufferDataOutNoticeCounter < BOOTLOADER_OUT_LENGTH)
-        begin
-            bufferDataOutNoticeCounter <= bufferDataOutNoticeCounter + 13'd1;
-        end
-        else
-        begin
-            bufferDataOutNoticeCounter <= bufferDataOutNoticeCounter;
-        end
+        D1_outbuffer[outbuffer_write_address] <= OUTBUFWDATA;
     end
 end
-
-//Data out bit counter
-always @(negedge data_out_strobe or posedge bufferDataOutCounterEnable)
-begin
-    if(bufferDataOutCounterEnable == 1'b1) //counter stop
-    begin
-        bufferDataOutCounter <= 13'd0;
-    end
-    else //count up
-    begin
-        if(bufferDataOutCounter < BOOTLOADER_OUT_LENGTH)
-        begin
-            bufferDataOutCounter <= bufferDataOutCounter + 13'd1;
-        end
-        else
-        begin
-            bufferDataOutCounter <= bufferDataOutCounter;
-        end
-    end
-end
-
-//Address counter
-always @(posedge data_out_strobe or posedge bufferReadAddressCountEnable)
-begin
-    if(bufferReadAddressCountEnable == 1'b1) //counter stop
-    begin
-        bubbleBufferReadAddress <= 11'b111_1111_1111;
-    end
-    else
-    begin
-        if(bubbleBufferReadAddress < 11'b111_1111_1111)
-        begin
-            bubbleBufferReadAddress <= bubbleBufferReadAddress + 11'b1;
-        end
-        else
-        begin
-            bubbleBufferReadAddress <= 11'b0;
-        end
-    end
-end
-
-/*
-BOOTLOADER OUT BIT COUNTER
-1 to 4571 pulse (the number of DATA_OUT_STROBE pulse)
-0001 - 2640: HIGH
-2641 - 2642: START PATTERN 0111
-2643 - 4562: BOOTLOADER (!!ERROR MAP LOW: 3971 - 4562 / 592 BITS PER CHANNEL!!) 
-4563 - 4568: LOW (DUMMY DATA)
-4569 - 4571: HIGH (DUMMY BITS: DON'T CARE)
-
-PAGE OUT BIT COUNTER
-1 to 703 (the number of DATA_OUT_STROBE pulse)
-001 - 100: HIGH (DON'T CARE?)
-101 - 612: DATA 1024 BITS
-613 - 703: HIGH (DON'T CARE)
 */
 
-//Controls address count enable, block RAM buffer read clock enable signals
-always @(*)
-begin
-    case ({bootloaderLoadOutEnable, pageLoadOutEnable})
-        2'b00:
-            begin
-                bufferReadAddressCountEnable <= 1'b1;
-                bubbleReadClockEnable <= 1'b1;
-            end
-        2'b01: //bootloader enable
-            begin
-                if(bufferDataOutNoticeCounter >= 13'd2643 && bufferDataOutNoticeCounter <= 13'd4562)
-                begin
-                    bufferReadAddressCountEnable <= 1'b0;
-                    bubbleReadClockEnable <= 1'b0;
-                end
-                else
-                begin
-                    bufferReadAddressCountEnable <= 1'b1;
-                    bubbleReadClockEnable <= 1'b1;
-                end
-            end
-        2'b10:
-            begin
-                if(bufferDataOutNoticeCounter >= 13'd101 && bufferDataOutNoticeCounter <= 13'd612)
-                begin
-                    bufferReadAddressCountEnable <= 1'b0;
-                    bubbleReadClockEnable <= 1'b0;
-                end
-                else
-                begin
-                    bufferReadAddressCountEnable <= 1'b1;
-                    bubbleReadClockEnable <= 1'b1;
-                end
-            end
-        2'b11:
-            begin
-                bufferReadAddressCountEnable <= 1'b1;
-                bubbleReadClockEnable <= 1'b1;
-            end
-    endcase
+always @(posedge BOUTTICKS[1]) //read 
+begin   
+    D1_outbuffer_read_data <= D1_outbuffer[outbuffer_read_address];
 end
 
-//Controls two-bit-width bubble data output
-always @(*)
+initial
 begin
-    case ({bootloaderLoadOutEnable, pageLoadOutEnable})
-        2'b00:
-            begin
-                bubbleOutMux[1] <= 1'b0;
-                bubbleOutMux[0] <= 1'b0;
-            end
-        2'b01: //bootloader enable
-            begin
-                if(bufferDataOutCounter == 13'd2641)
-                begin     
-                    bubbleOutMux[1] <= 1'b0;
-                    bubbleOutMux[0] <= 1'b1;
-                end
-                else if(bufferDataOutCounter == 13'd2642)
-                begin
-                    bubbleOutMux[1] <= 1'b1;
-                    bubbleOutMux[0] <= 1'b1;
-                end
-                else if(bufferDataOutCounter >= 13'd2643 && bufferDataOutCounter <= 13'd4562)
-                begin
-                    bubbleOutMux[1] <= bubbleBufferDataOutput[1];
-                    bubbleOutMux[0] <= bubbleBufferDataOutput[0];
-                end
-                else if(bufferDataOutCounter >= 13'd4563 && bufferDataOutCounter <= 13'd4568)
-                begin
-                    bubbleOutMux[1] <= 1'b1;
-                    bubbleOutMux[0] <= 1'b1;
-                end
-                else
-                begin                      
-                    bubbleOutMux[1] <= 1'b0;
-                    bubbleOutMux[0] <= 1'b0;
-                end
-            end
-        2'b10:
-            begin
-                if(bufferDataOutCounter >= 13'd101 && bufferDataOutCounter <= 13'd612)
-                begin
-                    bubbleOutMux[1] <= bubbleBufferDataOutput[1];
-                    bubbleOutMux[0] <= bubbleBufferDataOutput[0];
-                end
-                else
-                begin
-                    bubbleOutMux[1] <= 1'b0;
-                    bubbleOutMux[0] <= 1'b0;
-                end
-            end
-        2'b11:
-            begin
-                bubbleOutMux[1] <= 1'b0;
-                bubbleOutMux[0] <= 1'b0;
-            end
-    endcase
+    $readmemb("D1_outbuffer.txt", D1_outbuffer);
 end
+
 endmodule
