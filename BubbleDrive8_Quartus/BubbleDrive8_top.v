@@ -37,21 +37,15 @@ module BubbleDrive8_top
     //output  wire            TEMPCLK
      
      //debug
-    output wire nBSENOUT,
-    output wire nBOOTENOUT,
-    output wire nREPENOUT
+    output wire READY,
+	 output wire LED
      
 );
 
 assign nWP = 1'bZ;
 assign nHOLD = 1'bZ;
-
-
-assign nBSENOUT = nBSEN;
-assign nBOOTENOUT = nBOOTEN;
-assign nREPENOUT = nREPEN;
-
-
+assign READY = 1'b1;
+assign LED = ~ACCTYPE[2];
 
 //TimingGenerator
 wire    [2:0]   ACCTYPE;
