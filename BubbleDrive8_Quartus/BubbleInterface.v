@@ -35,10 +35,11 @@ localparam BITWIDTH4 = 1'b0; //4bit mode off
     1986-2050 : X0 = 65 of ZEROs on EVEN channel (or possibly 64?)
     2051      : X1 = 1 of ONE on EVEN channel
     2052      : XX
-    2053-3972 : 480bytes = 3840bits bootloader
-    3973-4105 : 11 = filler
+    2053-3964 : 478bytes = 3824bits bootloader
+    3965-4105 : 11 = filler
+    4106-7167 : 00 = empty space
     7168-7170 : 00 = 3 position shifted page data
-    7171-7754 : 584bits of page data
+    7171-7751 : 581bits remaining page data
     8190      : 00 = empty bubble propagation line
     8191      : 00 = empty bubble propagation line
 */
@@ -72,7 +73,9 @@ end
     OUTBUFFER WRITE ADDRESS DECODER
 */
 
-reg     [3:0]   outbuffer_write_en = 4'b1111; //D3 D2 DOUT1 DOUT0
+wire    [3:0]   outbuffer_write_enable;
+reg     [3:0]   outbuffer_we_decoder = 4'b1111; //D3 D2 DOUT1 DOUT0
+assign          outbuffer_write_enable = outbuffer_we_decoder | {4{~ACCTYPE[1]}};
 reg     [12:0]  outbuffer_write_address;
 
 always @(*)
@@ -84,12 +87,12 @@ begin
                 1'b0:
                 begin
                     outbuffer_write_address <= OUTBUFWADDR[13:1];
-                    outbuffer_write_en <= 4'b1101;
+                    outbuffer_we_decoder <= 4'b1101;
                 end
                 1'b1:
                 begin
                     outbuffer_write_address <= OUTBUFWADDR[13:1];
-                    outbuffer_write_en <= 4'b1110;
+                    outbuffer_we_decoder <= 4'b1110;
                 end
             endcase
         end
@@ -99,22 +102,22 @@ begin
                 2'b00:
                 begin
                     outbuffer_write_address <= OUTBUFWADDR[14:2];
-                    outbuffer_write_en <= 4'b0111;
+                    outbuffer_we_decoder <= 4'b0111;
                 end
                 2'b01:
                 begin
                     outbuffer_write_address <= OUTBUFWADDR[14:2];
-                    outbuffer_write_en <= 4'b1011;
+                    outbuffer_we_decoder <= 4'b1011;
                 end
                 2'b10:
                 begin
                     outbuffer_write_address <= OUTBUFWADDR[14:2];
-                    outbuffer_write_en <= 4'b1101;
+                    outbuffer_we_decoder <= 4'b1101;
                 end
                 2'b11:
                 begin
                     outbuffer_write_address <= OUTBUFWADDR[14:2];
-                    outbuffer_write_en <= 4'b1110;
+                    outbuffer_we_decoder <= 4'b1110;
                 end
             endcase
         end
@@ -136,10 +139,18 @@ always @(negedge MCLK)
 begin
     if(nOUTBUFWCLKEN == 1'b0)
     begin
-       if (outbuffer_write_en[0] == 1'b0)
+       if (outbuffer_write_enable[0] == 1'b0)
        begin
            D0_outbuffer[outbuffer_write_address] <= OUTBUFWDATA;
        end
+    end
+end
+
+always @(negedge MCLK) //read 
+begin
+    if(BOUTTICKS[1] == 1'b1)
+    begin
+        D0_outbuffer_read_data <= D0_outbuffer[outbuffer_read_address];
     end
 end
 
@@ -147,17 +158,15 @@ end
 /*
 always @(negedge nOUTBUFWCLKEN) //write
 begin
-    if (outbuffer_write_en[0] == 1'b0)
+    if (outbuffer_write_enable[0] == 1'b0)
     begin
         D0_outbuffer[outbuffer_write_address] <= OUTBUFWDATA;
     end
 end
 */
 
-always @(posedge BOUTTICKS[1]) //read 
-begin   
-    D0_outbuffer_read_data <= D0_outbuffer[outbuffer_read_address];
-end
+
+
 
 initial
 begin
@@ -174,10 +183,18 @@ always @(negedge MCLK)
 begin
     if(nOUTBUFWCLKEN == 1'b0)
     begin
-       if (outbuffer_write_en[1] == 1'b0)
+       if (outbuffer_write_enable[1] == 1'b0)
        begin
            D1_outbuffer[outbuffer_write_address] <= OUTBUFWDATA;
        end
+    end
+end
+
+always @(negedge MCLK) //read 
+begin   
+    if(BOUTTICKS[1] == 1'b1)
+    begin
+        D1_outbuffer_read_data <= D1_outbuffer[outbuffer_read_address];
     end
 end
 
@@ -185,17 +202,12 @@ end
 /*
 always @(negedge nOUTBUFWCLKEN) //write
 begin
-    if (outbuffer_write_en[1] == 1'b0)
+    if (outbuffer_write_enable[1] == 1'b0)
     begin
         D1_outbuffer[outbuffer_write_address] <= OUTBUFWDATA;
     end
 end
 */
-
-always @(posedge BOUTTICKS[1]) //read 
-begin   
-    D1_outbuffer_read_data <= D1_outbuffer[outbuffer_read_address];
-end
 
 initial
 begin

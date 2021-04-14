@@ -376,7 +376,7 @@ begin
                         end
                         else
                         begin
-                            bout_invalid_half_cycle_counter <= 10'd0;
+                            bout_invalid_half_cycle_counter <= bout_invalid_half_cycle_counter;
                         end
                         bout_valid_half_cycle_counter <= 15'd32763;
                     end

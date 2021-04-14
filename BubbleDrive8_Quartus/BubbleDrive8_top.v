@@ -35,21 +35,22 @@ module BubbleDrive8_top
     //output  wire            nTEMPMOSI,
     //input   wire            nTEMPMISO,
     //output  wire            TEMPCLK
-	 
-	 //debug
-	 output wire nCS,
-	 output wire MOSI,
-	 output wire MISO,
-	 output wire CLK
+     
+     //debug
+    output wire nBSENOUT,
+    output wire nBOOTENOUT,
+    output wire nREPENOUT
+     
 );
 
 assign nWP = 1'bZ;
 assign nHOLD = 1'bZ;
 
-assign nCS = nROMCS;
-assign MOSI = ROMMOSI;
-assign MISO = ROMMISO;
-assign CLK = ROMCLK;
+
+assign nBSENOUT = nBSEN;
+assign nBOOTENOUT = nBOOTEN;
+assign nREPENOUT = nREPEN;
+
 
 
 //TimingGenerator

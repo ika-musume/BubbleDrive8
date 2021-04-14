@@ -17,7 +17,7 @@ module SPILoader
     //Bubble out buffer interface
     output  reg             nOUTBUFWCLKEN = 1'b1,       //bubble buffer write clken
     output  reg     [14:0]  OUTBUFWADDR = 14'd0,      //bubble buffer write address
-    output  reg             OUTBUFWDATA = 1'b0,       //bubble buffer write data
+    output  reg             OUTBUFWDATA = 1'b1,       //bubble buffer write data
 
     //W25Q32
     output  reg             nCS = 1'b1,
