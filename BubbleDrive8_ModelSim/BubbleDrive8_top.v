@@ -28,13 +28,22 @@ module BubbleDrive8_top
     input   wire            ROMMISO,
     output  wire            ROMCLK,
     output  wire            nWP,
-    output  wire            nHOLD
+    output  wire            nHOLD,
 
     //ADT7311
     //output  wire            nTEMPCS,
     //output  wire            nTEMPMOSI,
     //input   wire            nTEMPMISO,
-    //output  wire            TEMPCLK
+    //output  wire            TEMPCLK,
+
+    //LED
+    output  wire            nACCLED,
+    output  wire            nWAITLED,
+    output  wire            nREADLED,
+    output  wire            nWRITELED,
+
+    output  wire    [7:0]   nFND, //a b c d e f g dp
+    output  wire    [2:0]   nANODE
 );
 
 assign nWP = 1'bZ;
@@ -51,6 +60,10 @@ wire    [11:0]  ABSPOS;
 wire            nOUTBUFWCLKEN;
 wire    [14:0]  OUTBUFWADDR;
 wire            OUTBUFWDATA;
+
+//LEDDriver
+wire    [11:0]  CURRPAGE;
+
 
 
 TimingGenerator TimingGenerator_0
@@ -100,6 +113,7 @@ SPILoader SPILoader_0
 
     .ACCTYPE        (ACCTYPE        ),
     .ABSPOS         (ABSPOS         ),
+    .CURRPAGE       (CURRPAGE       ),
 
     .nOUTBUFWCLKEN  (nOUTBUFWCLKEN  ),
     .OUTBUFWADDR    (OUTBUFWADDR    ),
@@ -109,6 +123,25 @@ SPILoader SPILoader_0
     .MOSI           (ROMMOSI        ),
     .MISO           (ROMMISO        ),
     .CLK            (ROMCLK         )
+);
+
+
+
+LEDDriver LEDDriver_0
+(
+    .MCLK           (MCLK           ),
+
+    .nWAIT          (nBOOTEN        ),
+    .ACCTYPE        (ACCTYPE        ),
+    .CURRPAGE       (CURRPAGE       ),
+
+    .nACCLED        (nACCLED        ),
+    .nWAITLED       (nWAITLED       ),
+    .nREADLED       (nREADLED       ),
+    .nWRITELED      (nWAITLED       ),
+
+    .nFND           (nFND           ),
+    .nANODE         (nANODE         )
 );
 
 endmodule

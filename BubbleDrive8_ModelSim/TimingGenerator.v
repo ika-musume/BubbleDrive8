@@ -370,13 +370,13 @@ begin
                     end
                     else
                     begin
-                        if(bout_invalid_half_cycle_counter < 10'd1023)//584비트 전송 후에는 invalid +1
+                        if(bout_invalid_half_cycle_counter < 10'd1022)//584비트 전송 후에는 invalid +1
                         begin
                             bout_invalid_half_cycle_counter <= bout_invalid_half_cycle_counter + 10'd1; 
                         end
                         else
                         begin
-                            bout_invalid_half_cycle_counter <= 10'd0;
+                            bout_invalid_half_cycle_counter <= bout_invalid_half_cycle_counter;
                         end
                         bout_valid_half_cycle_counter <= 15'd32763;
                     end

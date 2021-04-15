@@ -101,7 +101,7 @@ always @(posedge temperature_low)
 begin
     //bootloader
     #50000 bubble_shift_enable = 1'b0;
-    #4387745 bubble_shift_enable = 1'b1;
+    #4387745 bubble_shift_enable = 1'b1; //00붙임
     #423 bootloop_enable = 1'b1;
     //181
     #650000 bubble_shift_enable = 1'b0;

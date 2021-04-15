@@ -13,6 +13,7 @@ module SPILoader
     //Emulator signal outputs
     input   wire    [2:0]   ACCTYPE,        //access type
     input   wire    [11:0]  ABSPOS,         //absolute position number
+    output  wire    [11:0]  CURRPAGE,
 
     //Bubble out buffer interface
     output  reg             nOUTBUFWCLKEN = 1'b1,       //bubble buffer write clken
@@ -85,6 +86,7 @@ end
 
 reg     [11:0]  target_position = 12'd0;
 wire    [11:0]  bubble_page;
+assign          CURRPAGE = bubble_page;
 reg             convert = 1'b1;
 
 PositionPageConverter Main (.MCLK(MCLK), .nCONV(convert), .ABSPOS(target_position), .PAGE(bubble_page));
@@ -256,7 +258,7 @@ begin
                 end
                 4'd7: //에러맵 로딩이 끝났는지 체크
                 begin
-                    if(general_counter < 12'd1168)// + 12'd32) //쓸데없는 32비트 데이터
+                    if(general_counter < 12'd1168 + 12'd32) //쓸데없는 32비트 데이터
                     begin
                         spi_counter <= spi_counter + 6'd1;
                     end
