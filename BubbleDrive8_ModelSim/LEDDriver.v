@@ -105,7 +105,7 @@ wire    [4:0]   decoder_in;
 assign          decoder_in[4] = (nWAIT == 1'b0) ? 1'b1 : 1'b0;
 assign          decoder_in[3:0] = (anode_shifter == 3'b011) ? value_in[11:8] : 
                                   (anode_shifter == 3'b101) ? value_in[7:4] :
-                                  (anode_shifter == 3'b110) ? value_in[3:0] : 4'h17;
+                                  (anode_shifter == 3'b110) ? value_in[3:0] : 4'h0;
 
 /*
     00h : 0
@@ -121,46 +121,6 @@ assign          decoder_in[3:0] = (anode_shifter == 3'b011) ? value_in[11:8] :
     1Fh : decimal point
 */
 
-always @(*)
-begin
-    case(decoder_in)
-        5'b00000: nFND <= 8'b00000011;
-        5'b00001: nFND <= 8'b10011111;
-        5'b00010: nFND <= 8'b00100101;
-        5'b00011: nFND <= 8'b00001101;
-        5'b00100: nFND <= 8'b10011001;
-        5'b00101: nFND <= 8'b01001001;
-        5'b00110: nFND <= 8'b01000001;
-        5'b00111: nFND <= 8'b00011011;
-        5'b01000: nFND <= 8'b00000001;
-        5'b01001: nFND <= 8'b00001001;
-        5'b01010: nFND <= 8'b00010001;
-        5'b01011: nFND <= 8'b11000001;
-        5'b01100: nFND <= 8'b11100101;
-        5'b01101: nFND <= 8'b10000101;
-        5'b01110: nFND <= 8'b01100001;
-        5'b01111: nFND <= 8'b01110001;
-        5'b10000: nFND <= 8'b01111111;
-        5'b10001: nFND <= 8'b10111111;
-        5'b10010: nFND <= 8'b11011111;
-        5'b10011: nFND <= 8'b11101111;
-        5'b10100: nFND <= 8'b11110111;
-        5'b10101: nFND <= 8'b11111011;
-        5'b10110: nFND <= 8'b11111101;
-        5'b10111: nFND <= 8'b11111111;
-        5'b11000: nFND <= 8'b11111111;
-        5'b11001: nFND <= 8'b11111111;
-        5'b11010: nFND <= 8'b11111111;
-        5'b11011: nFND <= 8'b11111111;
-        5'b11100: nFND <= 8'b11111111;
-        5'b11101: nFND <= 8'b11111111;
-        5'b11110: nFND <= 8'b11111111;
-        5'b11111: nFND <= 8'b11111110;
-    endcase
-end
-
-
-/*
 //A
 assign nFND[7] = (~decoder_in[3] & ~decoder_in[2] & ~decoder_in[1] & ~decoder_in[0]) | 
                  (~decoder_in[4] & ~decoder_in[3] & decoder_in[2] & ~decoder_in[1] & decoder_in[0]) | 
@@ -220,6 +180,5 @@ assign nFND[1] = (~decoder_in[3] & decoder_in[2] & decoder_in[1] & ~decoder_in[0
 
 //decimal point
 assign nFND[0] = (decoder_in[4] & decoder_in[3] & decoder_in[2] & decoder_in[1] & decoder_in[0]);
-*/
 
 endmodule

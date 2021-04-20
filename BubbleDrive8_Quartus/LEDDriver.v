@@ -105,7 +105,7 @@ wire    [4:0]   decoder_in;
 assign          decoder_in[4] = (nWAIT == 1'b0) ? 1'b1 : 1'b0;
 assign          decoder_in[3:0] = (anode_shifter == 3'b011) ? value_in[11:8] : 
                                   (anode_shifter == 3'b101) ? value_in[7:4] :
-                                  (anode_shifter == 3'b110) ? value_in[3:0] : 4'h17;
+                                  (anode_shifter == 3'b110) ? value_in[3:0] : 4'h0;
 
 /*
     00h : 0

@@ -115,14 +115,455 @@ PositionPageConverter Main (.MCLK(MCLK), .nCONV(convert), .ABSPOS(target_positio
 reg    [32:0]  spi_instruction = {1'b0, 32'h0000_0000}; //33 bit register: 1 bit MOSI + 8 bit instruction + 24 bit address
 assign MOSI = spi_instruction[32];
 
-reg     [5:0]   spi_counter = 6'd0;
+//reg     [5:0]   spi_counter = 6'd0;
 reg     [11:0]  general_counter = 12'd0;
+
+
+
+//spi state
+reg     [6:0]   spi_state = 7'b111_0000;
+
+// Declare states
+localparam IDLE_S0 = 7'b111_0000;
+localparam IDLE_S1 = 7'b111_0001;
+
+localparam SPI_2B_S0 = 7'b110_0000;
+localparam SPI_2B_S1 = 7'b110_0001;
+localparam SPI_2B_S2 = 7'b110_0010;
+localparam SPI_2B_S3 = 7'b110_0011;
+localparam SPI_2B_S4 = 7'b110_0100;
+localparam SPI_2B_S5 = 7'b110_0101;
+localparam SPI_2B_S6 = 7'b110_0110;
+
+localparam BOOT_2B_S0 = 7'b000_0000;
+localparam BOOT_2B_S1 = 7'b000_0001;
+localparam BOOT_2B_S2 = 7'b000_0010;
+localparam BOOT_2B_S3 = 7'b000_0011;
+localparam BOOT_2B_S4 = 7'b000_0100;
+localparam BOOT_2B_S5 = 7'b000_0101;
+localparam BOOT_2B_S6 = 7'b000_0110;
+localparam BOOT_2B_S7 = 7'b000_0111;
+localparam BOOT_2B_S8 = 7'b000_1000;
+localparam BOOT_2B_S9 = 7'b000_1001;
+localparam BOOT_2B_S10 = 7'b000_1010;
+localparam BOOT_2B_S11 = 7'b000_1011;
+
+localparam PGRD_2B_S0 = 7'b001_0000;
+localparam PGRD_2B_S1 = 7'b001_0001;
+localparam PGRD_2B_S2 = 7'b001_0010;
+localparam PGRD_2B_S3 = 7'b001_0011;
+localparam PGRD_2B_S4 = 7'b001_0100;
+localparam PGRD_2B_S5 = 7'b001_0101;
+localparam PGRD_2B_S6 = 7'b001_0110;
+localparam PGRD_2B_S7 = 7'b001_0111;
+localparam PGRD_2B_S8 = 7'b001_1000;
+localparam PGRD_2B_S9 = 7'b001_1001;
+localparam PGRD_2B_S10 = 7'b001_1010;
+localparam PGRD_2B_S11 = 7'b001_1011;
+
+localparam PGWR_2B_S0 = 7'b010_0000;
+
+localparam BOOT_4B_S0 = 7'b100_0000;
+
+localparam PGRD_4B_S0 = 7'b101_0000;
+
+localparam PGWR_4B_S0 = 7'b110_0000;
+
+
+
+// Determine the next state synchronously, based on the
+// current state and the input
+always @(posedge MCLK)
+begin
+    case (spi_state)
+        //아이들 상태
+        IDLE_S0:
+            case(ACCTYPE[1])
+                1'b0: spi_state <= IDLE_S1;
+                1'b1: spi_state <= IDLE_S0;
+            endcase
+        IDLE_S1:
+            case(ACCTYPE[1])
+                1'b0: spi_state <= IDLE_S1;
+                1'b1: spi_state <= SPI_2B_S0;
+            endcase
+
+        //2비트 모드 SPI 로드
+        SPI_2B_S0:
+            if(spi_state == SPI_2B_S0)
+            begin
+                spi_state <= SPI_2B_S1;
+            end
+        SPI_2B_S1:
+            if(spi_state == SPI_2B_S1)
+            begin
+                spi_state <= SPI_2B_S2;
+            end
+        SPI_2B_S2:
+            if(spi_state == SPI_2B_S2)
+            begin
+                spi_state <= SPI_2B_S3;
+            end
+        SPI_2B_S3:
+            if(spi_state == SPI_2B_S3)
+            begin
+                spi_state <= SPI_2B_S4;
+            end
+        SPI_2B_S4:
+            case({general_counter[5], ACCTYPE[0]})
+                2'b00: spi_state <= SPI_2B_S5;
+                2'b01: spi_state <= SPI_2B_S5;
+                2'b10: spi_state <= BOOT_2B_S0;
+                2'b11: spi_state <= PGRD_2B_S0;
+            endcase
+        SPI_2B_S5:
+            if(spi_state == SPI_2B_S5)
+            begin
+                spi_state <= SPI_2B_S6;
+            end
+        SPI_2B_S6:
+            if(spi_state == SPI_2B_S6)
+            begin
+                spi_state <= SPI_2B_S4;
+            end
+
+        //2비트 모드 부트로더 읽기
+        BOOT_2B_S0:
+            if(spi_state == BOOT_2B_S0)
+            begin
+                spi_state <= BOOT_2B_S1;
+            end
+        BOOT_2B_S1:
+            if(general_counter < 12'd2656)
+            begin
+                spi_state <= BOOT_2B_S2;
+            end
+            else
+            begin
+                spi_state <= BOOT_2B_S6;
+            end
+        BOOT_2B_S2:
+            if(spi_state == BOOT_2B_S2)
+            begin
+                spi_state <= BOOT_2B_S3;
+            end
+        BOOT_2B_S3:
+            if(spi_state == BOOT_2B_S3)
+            begin
+                spi_state <= BOOT_2B_S4;
+            end
+        BOOT_2B_S4:
+            if(spi_state == BOOT_2B_S4)
+            begin
+                spi_state <= BOOT_2B_S5;
+            end
+        BOOT_2B_S5:
+            if(spi_state == BOOT_2B_S5)
+            begin
+                spi_state <= BOOT_2B_S1;
+            end
+
+        BOOT_2B_S6:
+            if(spi_state == BOOT_2B_S6)
+            begin
+                spi_state <= BOOT_2B_S7;
+            end
+        BOOT_2B_S7:
+            if(general_counter < 12'd1168 + 12'd32) //쓸데없는 32비트 데이터
+            begin
+                spi_state <= BOOT_2B_S8;
+            end
+            else
+            begin
+                spi_state <= IDLE_S0;
+            end
+        BOOT_2B_S8:
+            if(spi_state == BOOT_2B_S8)
+            begin
+                spi_state <= BOOT_2B_S9;
+            end
+        BOOT_2B_S9:
+            if(spi_state == BOOT_2B_S9)
+            begin
+                spi_state <= BOOT_2B_S10;
+            end
+        BOOT_2B_S10:
+            if(spi_state == BOOT_2B_S10)
+            begin
+                spi_state <= BOOT_2B_S11;
+            end
+        BOOT_2B_S11:
+            if(spi_state == BOOT_2B_S11)
+            begin
+                spi_state <= BOOT_2B_S7;
+            end
+
+        //2비트 모드 페이지 읽기
+        PGRD_2B_S0:
+            if(spi_state == PGRD_2B_S0)
+            begin
+                spi_state <= PGRD_2B_S1;
+            end
+        PGRD_2B_S1:
+            if(general_counter < 12'd6)
+            begin
+                spi_state <= PGRD_2B_S2;
+            end
+            else
+            begin
+                spi_state <= PGRD_2B_S6;
+            end
+        PGRD_2B_S2:
+            if(spi_state == PGRD_2B_S2)
+            begin
+                spi_state <= PGRD_2B_S3;
+            end
+        PGRD_2B_S3:
+            if(spi_state == PGRD_2B_S3)
+            begin
+                spi_state <= PGRD_2B_S4;
+            end
+        PGRD_2B_S4:
+            if(spi_state == PGRD_2B_S4)
+            begin
+                spi_state <= PGRD_2B_S5;
+            end
+        PGRD_2B_S5:
+            case(map_data_out)
+                1'b0: spi_state <= PGRD_2B_S2; //불량 루프면 다음 에러맵 읽기
+                1'b1: spi_state <= PGRD_2B_S1; //정상 루프면 되돌아가기, 카운터 증가
+            endcase
+
+        PGRD_2B_S6:
+            if(general_counter < 12'd1030)
+            begin
+                spi_state <= PGRD_2B_S7;
+            end
+            else
+            begin
+                spi_state <= IDLE_S0;
+            end
+        PGRD_2B_S7:
+            if(spi_state == PGRD_2B_S7)
+            begin
+                spi_state <= PGRD_2B_S8;
+            end
+        PGRD_2B_S8:
+            if(spi_state == PGRD_2B_S8)
+            begin
+                spi_state <= PGRD_2B_S9;
+            end
+        PGRD_2B_S9:
+            if(spi_state == PGRD_2B_S9)
+            begin
+                spi_state <= PGRD_2B_S10;
+            end
+        PGRD_2B_S10:
+            if(spi_state == PGRD_2B_S10)
+            begin
+                spi_state <= PGRD_2B_S11;
+            end
+        PGRD_2B_S11:
+            case(map_data_out)
+                1'b0: spi_state <= PGRD_2B_S8; //불량 루프면 다음 에러맵 읽기
+                1'b1: spi_state <= PGRD_2B_S6; //정상 루프면 데이터 그대로 쓰기 준비
+            endcase
+
+        default: spi_state <= IDLE_S1;
+    endcase
+end
+
+// Determine the output based only on the current state
+// and the input (do not wait for a clock edge).
+always @(posedge MCLK)
+begin
+    case (spi_state)
+        IDLE_S0:
+        begin
+           nCS <= 1'b1; CLK = 1'b1; 
+        end
+        IDLE_S1:
+        begin
+            nCS <= 1'b1; CLK = 1'b1; 
+            OUTBUFWADDR <= {1'b0, 13'd0, 1'b0}; nOUTBUFWCLKEN <= 1'b1;
+            map_addr <= 12'd0; map_write_enable <= 1'b1; map_write_clken <= 1'b1; map_read_clken <= 1'b1;
+            general_counter <= 12'd0; 
+            convert <= 1'b1;
+        end
+
+        SPI_2B_S0:
+        begin
+            target_position <= ABSPOS + 12'd1;
+        end
+        SPI_2B_S1:
+        begin
+            convert <= 1'b0;
+        end 
+        SPI_2B_S2:
+        begin
+            convert <= 1'b1;
+            case(ACCTYPE[0])
+                1'b0: spi_instruction <= {1'b0, 8'b0000_0011, 2'b00, IMGNUM[2:0], 12'h805, 7'b000_0000};
+                1'b1: spi_instruction <= {1'b0, 8'b0000_0011, 2'b00, IMGNUM[2:0], bubble_page[11:0], 7'b000_0000};
+            endcase
+        end
+        SPI_2B_S3:
+        begin
+            nCS <= 1'b0; 
+        end
+        SPI_2B_S4:
+        begin
+            
+        end
+        SPI_2B_S5:
+        begin
+            CLK = 1'b0; 
+            spi_instruction <= spi_instruction << 1; 
+            general_counter <= general_counter + 12'd1; 
+        end
+        SPI_2B_S6:
+        begin
+            CLK = 1'b1;
+        end
+
+        BOOT_2B_S0:
+        begin
+            OUTBUFWADDR <= {1'b0, 13'd2053, 1'b0}; //부트로더 시작 주소로 변경
+            general_counter <= 12'd0;
+        end
+        BOOT_2B_S1:
+        begin
+            
+        end
+        BOOT_2B_S2:
+        begin
+            CLK <= 1'b0;
+        end
+        BOOT_2B_S3:
+        begin
+            CLK <= 1'b1;
+            OUTBUFWDATA <= MISO;
+        end
+        BOOT_2B_S4:
+        begin
+            nOUTBUFWCLKEN <= 1'b0;
+        end
+        BOOT_2B_S5:
+        begin
+            nOUTBUFWCLKEN <= 1'b1; OUTBUFWADDR <= OUTBUFWADDR + 15'd1;
+            general_counter <= general_counter + 12'd1;
+        end
+        BOOT_2B_S6:
+        begin
+            map_write_enable <= 1'b0; //에러맵 테이블 쓰기 허용
+            general_counter <= 12'd0;
+        end
+        BOOT_2B_S7:
+        begin
+            
+        end
+        BOOT_2B_S8:
+        begin
+            CLK <= 1'b0;
+        end
+        BOOT_2B_S9:
+        begin
+            CLK <= 1'b1;
+            OUTBUFWDATA <= MISO;
+            map_data_in <= MISO;
+        end
+        BOOT_2B_S10:
+        begin
+            nOUTBUFWCLKEN <= 1'b0;
+            map_write_clken <= 1'b0;
+        end
+        BOOT_2B_S11:
+        begin
+            nOUTBUFWCLKEN <= 1'b1; OUTBUFWADDR <= OUTBUFWADDR + 15'd1;
+            map_write_clken <= 1'b1; map_addr <= map_addr + 12'd1;
+            general_counter <= general_counter + 12'd1;
+        end
+
+        PGRD_2B_S0:
+        begin
+            OUTBUFWADDR <= {1'b0, 13'd7168, 1'b0}; //페이지 데이터 시작시점
+            general_counter <= 12'd0;
+        end
+        PGRD_2B_S1:
+        begin
+            
+        end
+        PGRD_2B_S2:
+        begin
+            map_read_clken <= 1'b0;
+        end
+        PGRD_2B_S3:
+        begin
+            map_read_clken <= 1'b1; map_addr <= map_addr + 12'd1;
+            case(map_data_out)
+                1'b0: OUTBUFWDATA <= 1'b0; //불량 루프면 데이터 0쓰기 준비
+                1'b1: OUTBUFWDATA <= 1'b1; //정상 루프면 데이터 1쓰기 준비, 카운터 증가
+            endcase
+        end
+        PGRD_2B_S4:
+        begin
+            nOUTBUFWCLKEN <= 1'b0;
+        end
+        PGRD_2B_S5:
+        begin
+            nOUTBUFWCLKEN <= 1'b1; OUTBUFWADDR <= OUTBUFWADDR + 15'd1;
+            case(map_data_out)
+                1'b0: begin end //불량 루프면 다음 에러맵 읽기
+                1'b1: begin general_counter <= general_counter + 12'd1; end //정상 루프면 되돌아가기, 카운터 증가
+            endcase
+        end
+        PGRD_2B_S6:
+        begin
+            
+        end
+        PGRD_2B_S7:
+        begin
+            CLK <= 1'b0;
+        end
+        PGRD_2B_S8:
+        begin
+            CLK <= 1'b1;
+            map_read_clken <= 1'b0;
+        end
+        PGRD_2B_S9:
+        begin
+            map_read_clken <= 1'b1; map_addr <= map_addr + 12'd1;
+            case(map_data_out)
+                1'b0: OUTBUFWDATA <= 1'b0; //불량 루프면 데이터 0쓰기 준비
+                1'b1: OUTBUFWDATA <= MISO; //정상 루프면 데이터 그대로 쓰기 준비
+            endcase
+        end
+        PGRD_2B_S10:
+        begin
+            nOUTBUFWCLKEN <= 1'b0;
+        end
+        PGRD_2B_S11:
+        begin
+            nOUTBUFWCLKEN <= 1'b1; OUTBUFWADDR <= OUTBUFWADDR + 15'd1; 
+            case(map_data_out)
+                1'b0: begin end //불량 루프면 다음 에러맵 읽기
+                1'b1: begin general_counter <= general_counter + 12'd1; end//정상 루프면 데이터 그대로 쓰기 준비
+            endcase
+        end
+
+        default:
+        begin
+            
+        end
+    endcase
+end
 
 
 /*
     ORIGINAL CODE(CONSUMES MORE LE)
 */
 
+/*
 always @(posedge MCLK)
 begin
     case(spi_counter[5:4])
@@ -394,5 +835,7 @@ begin
         end
     endcase
 end
+
+*/
 
 endmodule
