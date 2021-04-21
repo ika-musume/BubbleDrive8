@@ -36,3 +36,5 @@ Updated TimingGenerator.v and BubbleInterface.v for better emulation. Changed bu
 Changed several signals to active low, changed obscure signal names. State machine improved.
 ### v1.0 - Apr. 14, 2021
 It works! v3 branch merged. Tested on a real PCB.
+### v1.1 - Apr. 21, 2021
+State machine improved. LEDDriver.v removed(for I2C OLED screen driver implementation)

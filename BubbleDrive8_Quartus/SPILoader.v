@@ -120,9 +120,6 @@ reg     [11:0]  general_counter = 12'd0;
 
 
 
-//spi state
-reg     [6:0]   spi_state = 7'b111_0000;
-
 // Declare states
 localparam IDLE_S0 = 7'b111_0000;
 localparam IDLE_S1 = 7'b111_0001;
@@ -170,9 +167,10 @@ localparam PGRD_4B_S0 = 7'b101_0000;
 localparam PGWR_4B_S0 = 7'b110_0000;
 
 
+//spi state
+reg     [6:0]   spi_state = IDLE_S0;
 
-// Determine the next state synchronously, based on the
-// current state and the input
+
 always @(posedge MCLK)
 begin
     case (spi_state)
@@ -373,8 +371,6 @@ begin
     endcase
 end
 
-// Determine the output based only on the current state
-// and the input (do not wait for a clock edge).
 always @(posedge MCLK)
 begin
     case (spi_state)
