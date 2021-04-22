@@ -138,7 +138,7 @@ LEDDriver LEDDriver_0
     .nACCLED        (nACCLED        ),
     .nWAITLED       (nWAITLED       ),
     .nREADLED       (nREADLED       ),
-    .nWRITELED      (nWAITLED       ),
+    .nWRITELED      (nWRITELED       ),
 
     .nFND           (nFND           ),
     .nANODE         (nANODE         )
