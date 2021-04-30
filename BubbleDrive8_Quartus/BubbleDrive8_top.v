@@ -37,17 +37,17 @@ module BubbleDrive8_top
     //output  wire            TEMPCLK,
     
     //LED
-    output  wire            nACCLED,
-    output  wire            nWAITLED,
-    output  wire            nREADLED,
-    output  wire            nWRITELED,
+    //output  wire            nACCLED,
+    //output  wire            nWAITLED,
+    //output  wire            nREADLED,
+    //output  wire            nWRITELED,
 
-    output  wire    [7:0]   nFND, //a b c d e f g dp
-    output  wire    [2:0]   nANODE,
+    //output  wire    [7:0]   nFND, //a b c d e f g dp
+    //output  wire    [2:0]   nANODE,
 
      //debug
     output wire READY,
-	output wire LED  
+    output wire LED  
 );
 
 assign nWP = 1'bZ;
@@ -58,8 +58,8 @@ assign LED = ~ACCTYPE[2];
 //TimingGenerator
 wire    [2:0]   ACCTYPE;
 wire    [12:0]  BOUTCYCLENUM;
-wire    [1:0]   BOUTTICKS;
-
+wire            nBINCLKEN;
+wire            nBOUTCLKEN;
 wire    [11:0]  ABSPOS;
 
 //SPILoader -> BubbleInterface
@@ -69,7 +69,6 @@ wire            OUTBUFWDATA;
 
 //LEDDriver
 wire    [11:0]  CURRPAGE;
-
 
 
 TimingGenerator TimingGenerator_0
@@ -83,11 +82,12 @@ TimingGenerator TimingGenerator_0
     .nBSEN          (nBSEN          ),
     .nREPEN         (nREPEN         ),
     .nBOOTEN        (nBOOTEN        ),
-    .nSWAPEN        (1'b1        ),
+    .nSWAPEN        (1'b1           ),
 
     .ACCTYPE        (ACCTYPE        ),
     .BOUTCYCLENUM   (BOUTCYCLENUM   ),
-    .BOUTTICKS      (BOUTTICKS      ),
+    .nBINCLKEN      (nBINCLKEN      ),
+    .nBOUTCLKEN     (nBOUTCLKEN     ),
     .ABSPOS         (ABSPOS         )
 );
 
@@ -99,7 +99,8 @@ BubbleInterface BubbleInterface_0
 
     .ACCTYPE        (ACCTYPE        ),
     .BOUTCYCLENUM   (BOUTCYCLENUM   ),
-    .BOUTTICKS      (BOUTTICKS      ),
+    .nBINCLKEN      (nBINCLKEN      ),
+    .nBOUTCLKEN     (nBOUTCLKEN     ),
 
     .nOUTBUFWCLKEN  (nOUTBUFWCLKEN  ),
     .OUTBUFWADDR    (OUTBUFWADDR    ),
@@ -132,7 +133,7 @@ SPILoader SPILoader_0
 );
 
 
-
+/*
 LEDDriver LEDDriver_0
 (
     .MCLK           (MCLK           ),
@@ -149,5 +150,6 @@ LEDDriver LEDDriver_0
     .nFND           (nFND           ),
     .nANODE         (nANODE         )
 );
+*/
 
 endmodule

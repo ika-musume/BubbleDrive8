@@ -23,7 +23,10 @@ module TimingGenerator
     //Emulator signal outputs
     output  wire    [2:0]   ACCTYPE,        //access type
     output  wire    [12:0]  BOUTCYCLENUM,   //bubble output cycle number
-    output  wire    [1:0]   BOUTTICKS,      //bubble output asynchronous control ticks
+    //output  wire    [1:0]   BOUTTICKS,      //bubble output asynchronous control ticks
+    output  reg             nBINCLKEN,
+    output  reg             nBOUTCLKEN,
+
     output  wire    [11:0]  ABSPOS          //absolute position number
 );
 
@@ -236,7 +239,7 @@ assign ABSPOS = absolute_position_number;
 reg     [9:0]   bout_invalid_half_cycle_counter = 10'd1023;
 reg     [14:0]  bout_valid_half_cycle_counter = 15'd32767;
 assign BOUTCYCLENUM = bout_valid_half_cycle_counter[14:2];
-assign BOUTTICKS = bout_invalid_half_cycle_counter[1:0] & bout_valid_half_cycle_counter[1:0];
+//assign BOUTTICKS = bout_invalid_half_cycle_counter[1:0] & bout_valid_half_cycle_counter[1:0];
 
 
 //master clock counters
@@ -395,6 +398,34 @@ begin
     begin
         bout_invalid_half_cycle_counter <= bout_invalid_half_cycle_counter;
         bout_valid_half_cycle_counter <= bout_valid_half_cycle_counter;
+    end
+end
+
+//inout clock enable generator
+always @(posedge MCLK)
+begin
+    //리셋상태
+    if(MCLK_counter == 10'd0)
+    begin
+        nBOUTCLKEN = 1'b1;
+        nBINCLKEN = 1'b1;
+    end
+    //버블 시작, +Y에서 한번씩 체크
+    else if(MCLK_counter == 10'd88 || MCLK_counter == 10'd568) 
+    begin
+        nBOUTCLKEN = 1'b1;
+        nBINCLKEN = 1'b0;   
+    end
+    //버블 -Y에서 체크
+    else if(MCLK_counter == 10'd328)
+    begin
+        nBOUTCLKEN = 1'b0;
+        nBINCLKEN = 1'b1;   
+    end
+    else
+    begin
+        nBOUTCLKEN = 1'b1;
+        nBINCLKEN = 1'b1;
     end
 end
 

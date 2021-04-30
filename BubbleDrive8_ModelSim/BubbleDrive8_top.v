@@ -35,7 +35,7 @@ module BubbleDrive8_top
     //output  wire            nTEMPMOSI,
     //input   wire            nTEMPMISO,
     //output  wire            TEMPCLK,
-
+    
     //LED
     output  wire            nACCLED,
     output  wire            nWAITLED,
@@ -43,16 +43,23 @@ module BubbleDrive8_top
     output  wire            nWRITELED,
 
     output  wire    [7:0]   nFND, //a b c d e f g dp
-    output  wire    [2:0]   nANODE
+    output  wire    [2:0]   nANODE,
+
+     //debug
+    output wire READY,
+	output wire LED  
 );
 
 assign nWP = 1'bZ;
 assign nHOLD = 1'bZ;
+assign READY = 1'b1;
+
 
 //TimingGenerator
 wire    [2:0]   ACCTYPE;
 wire    [12:0]  BOUTCYCLENUM;
-wire    [1:0]   BOUTTICKS;
+wire            nBINCLKEN;
+wire            nBOUTCLKEN;
 
 wire    [11:0]  ABSPOS;
 
@@ -64,6 +71,7 @@ wire            OUTBUFWDATA;
 //LEDDriver
 wire    [11:0]  CURRPAGE;
 
+assign LED = ~ACCTYPE[2];
 
 
 TimingGenerator TimingGenerator_0
@@ -73,15 +81,16 @@ TimingGenerator TimingGenerator_0
     .nINCTRL        (1'b0           ),
 
     .CLKOUT         (CLKOUT         ),
-    .nBSS           (nBSS           ),
+    .nBSS           (1'b1           ),
     .nBSEN          (nBSEN          ),
     .nREPEN         (nREPEN         ),
     .nBOOTEN        (nBOOTEN        ),
-    .nSWAPEN        (nSWAPEN        ),
+    .nSWAPEN        (1'b1        ),
 
     .ACCTYPE        (ACCTYPE        ),
     .BOUTCYCLENUM   (BOUTCYCLENUM   ),
-    .BOUTTICKS      (BOUTTICKS      ),
+    .nBINCLKEN      (nBINCLKEN      ),
+    .nBOUTCLKEN     (nBOUTCLKEN     ),
     .ABSPOS         (ABSPOS         )
 );
 
@@ -93,7 +102,8 @@ BubbleInterface BubbleInterface_0
 
     .ACCTYPE        (ACCTYPE        ),
     .BOUTCYCLENUM   (BOUTCYCLENUM   ),
-    .BOUTTICKS      (BOUTTICKS      ),
+    .nBINCLKEN      (nBINCLKEN      ),
+    .nBOUTCLKEN     (nBOUTCLKEN     ),
 
     .nOUTBUFWCLKEN  (nOUTBUFWCLKEN  ),
     .OUTBUFWADDR    (OUTBUFWADDR    ),
@@ -138,7 +148,7 @@ LEDDriver LEDDriver_0
     .nACCLED        (nACCLED        ),
     .nWAITLED       (nWAITLED       ),
     .nREADLED       (nREADLED       ),
-    .nWRITELED      (nWRITELED       ),
+    .nWRITELED      (nWRITEED       ),
 
     .nFND           (nFND           ),
     .nANODE         (nANODE         )

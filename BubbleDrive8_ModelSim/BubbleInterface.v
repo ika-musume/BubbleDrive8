@@ -10,7 +10,8 @@ module BubbleInterface
     //Emulator signal outputs
     input   wire    [2:0]   ACCTYPE,        //access type
     input   wire    [12:0]  BOUTCYCLENUM,   //bubble output cycle number
-    input   wire    [1:0]   BOUTTICKS,      //bubble output asynchronous control ticks
+    input   wire            nBINCLKEN,
+    input   wire            nBOUTCLKEN,     //bubble output asynchronous control ticks
 
     //Bubble out buffer interface
     input   wire            nOUTBUFWCLKEN,    //bubble outbuffer write clk
@@ -148,7 +149,7 @@ end
 
 always @(negedge MCLK) //read 
 begin
-    if(BOUTTICKS[1] == 1'b1)
+    if(nBOUTCLKEN == 1'b0)
     begin
         D0_outbuffer_read_data <= D0_outbuffer[outbuffer_read_address];
     end
@@ -192,7 +193,7 @@ end
 
 always @(negedge MCLK) //read 
 begin   
-    if(BOUTTICKS[1] == 1'b1)
+    if(nBOUTCLKEN == 1'b0)
     begin
         D1_outbuffer_read_data <= D1_outbuffer[outbuffer_read_address];
     end

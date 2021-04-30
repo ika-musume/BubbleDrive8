@@ -38,3 +38,5 @@ Changed several signals to active low, changed obscure signal names. State machi
 It works! v3 branch merged. Tested on a real PCB.
 ### v1.1 - Apr. 21, 2021
 State machine improved. LEDDriver.v removed(for I2C OLED screen driver implementation)
+### v1.2 - Apr. 30, 2021
+GX400 main test program added.
