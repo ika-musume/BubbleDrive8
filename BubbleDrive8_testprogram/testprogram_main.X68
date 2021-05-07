@@ -34,7 +34,6 @@
     move.l #$1000, -(sp)
     jsr RAMTEST
     move.w (sp)+, d2
-    lsl.w #0, d2
     or.w d2, d3                                         ;save test result in d3[0]
      
     move.w #1, -(sp)                                    ;character RAM test
@@ -79,7 +78,39 @@
     move.w #1, -(sp)
     move.w #36, -(sp)
     jsr LOADBUBBLE
+    
+    
+    
+    lea $52900, a0
+    lea $54901, a1
+    move.w #$F000, d0
+    move.b #$00, d1
 
+    move.w #11, d3
+    TESTYDRAW:
+        move.w #11, d4
+        TESTXDRAW:
+            move.w d0, (a0)
+            move.b d1, (a1)
+            add.w #1, d0
+            add.l #2, a0
+            add.l #2, a1
+            dbf d4, TESTXDRAW
+        sub.l #24, a0
+        sub.l #24, a1
+        add.l #128, a0
+        add.l #128, a1
+        dbf d3, TESTYDRAW
+
+    move.w #12, -(sp)
+    move.w #12, -(sp)
+    move.w #$F000, -(sp)
+    move.w #$0000, -(sp)
+    move.w #5, -(sp)
+    move.w #10, -(sp)
+    move.w #1, -(sp)
+    jsr DRAWTILEMAP
+        
 
     END:
     move.w #$20, d6
@@ -104,8 +135,8 @@
         subi.l #1, d1                                   ;test length - 1
 
         move.w (sp)+, d2                                ;pop bit width flag(0 = 8bit, 1 = 16bit)
-        btst.w #$0, d2                                  ;1 = WORDTEST 0 = BYTETEST
-        beq.w BYTETEST                                  ;if 0(Z=1), go to BYTETEST if 1(Z=0) go to WORDTEST
+        btst.l #$0, d2                                  ;1 = WORDTEST 0 = BYTETEST
+        beq.s BYTETEST                                  ;if 0(Z=1), go to BYTETEST if 1(Z=0) go to WORDTEST
 
             WORDTEST:       
                 move.w #$FFFF, d3
@@ -116,6 +147,8 @@
                 jsr FILLWORD
                 move.w #$0000, d3
                 jsr FILLWORD
+
+                move.w #0, -(sp)                        ;set ok flag
                 move.l a2, -(sp)                        ;push return address
                 rts  
 
@@ -124,7 +157,7 @@
                     movea.l a1, a0                      ;move start address to a0
                     WORDRWTEST:
                         move.w d3, (a0)                 ;write $FFFF
-                        cmpi.w d3, (a0)+                ;read and compare
+                        cmp.w (a0)+, d3                ;read and compare
                         bne.w ERROR                     ;if not matches, goto ERROR
                         dbf d0, WORDRWTEST              ;loop  
                     rts        
@@ -141,6 +174,7 @@
                 move.w #$00, d3
                 jsr FILLBYTE
 
+                move.w #0, -(sp)                        ;set ok flag
                 move.l a2, -(sp)                        ;push return address
                 rts
 
@@ -149,8 +183,8 @@
                     movea.l a1, a0                      ;move start address to a0
                     BYTERWTEST:                    
                         move.b d3, (a0)                 ;write $FF
-                        cmpi.b d3, (a0)                 ;read and compare
-                        addi #2, a0                     ;increment
+                        cmp.b (a0), d3                 ;read and compare
+                        add.l #2, a0                     ;increment
                         bne.w ERROR                     ;if not matches, goto ERROR
                         dbf d0, BYTERWTEST              ;loop
                     rts  
@@ -219,13 +253,13 @@
         beq.s SETTMAADDR                                ;if 0(Z=1), go to SETTMA if 1(Z=0) go to SETTMB
 
         SETTMBADDR:
-            lea #$53000, a0                             ;ADDR offset + VRAM 2 base address
-            lea #$55000, a1                             ;ADDR offset + COLOR RAM 2 base address
+            lea $53000, a0                             ;ADDR offset + VRAM 2 base address
+            lea $55000, a1                             ;ADDR offset + COLOR RAM 2 base address
             bra SETPOSOFFSET
 
         SETTMAADDR:
-            lea #$52000, a0                             ;ADDR offset + VRAM 1 base address
-            lea #$54000, a1                             ;ADDR offset + COLOR RAM 1 base address
+            lea $52000, a0                             ;ADDR offset + VRAM 1 base address
+            lea $54000, a1                             ;ADDR offset + COLOR RAM 1 base address
 
         SETPOSOFFSET:
             move.w (sp)+, d0                            ;pop Ypos
@@ -259,7 +293,7 @@
             dbf d3, YDRAW
 
         add.l #2, sp                                    ;move stack pointer
-        move.l a3, -(sp)                                ;push return address
+        move.l a2, -(sp)                                ;push return address
         rts 
 
 
@@ -268,3 +302,7 @@
 * Put variables and constants here
 
     END    START        ; last line of source
+*~Font name~Courier New~
+*~Font size~10~
+*~Tab type~1~
+*~Tab size~4~
