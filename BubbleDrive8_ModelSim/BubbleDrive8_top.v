@@ -42,9 +42,6 @@ module BubbleDrive8_top
     output  wire            nREADLED,
     output  wire            nWRITELED,
 
-    output  wire    [7:0]   nFND, //a b c d e f g dp
-    output  wire    [2:0]   nANODE,
-
      //debug
     output wire READY,
 	output wire LED  
@@ -135,23 +132,5 @@ SPILoader SPILoader_0
     .CLK            (ROMCLK         )
 );
 
-
-
-LEDDriver LEDDriver_0
-(
-    .MCLK           (MCLK           ),
-
-    .nWAIT          (nBOOTEN        ),
-    .ACCTYPE        (ACCTYPE        ),
-    .CURRPAGE       (CURRPAGE       ),
-
-    .nACCLED        (nACCLED        ),
-    .nWAITLED       (nWAITLED       ),
-    .nREADLED       (nREADLED       ),
-    .nWRITELED      (nWRITEED       ),
-
-    .nFND           (nFND           ),
-    .nANODE         (nANODE         )
-);
 
 endmodule
