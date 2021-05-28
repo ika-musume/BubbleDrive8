@@ -101,7 +101,7 @@ PositionPageConverter Main (.MCLK(MCLK), .nCONV(convert), .ABSPOS(target_positio
     HI [00II/IPPP/PPPP/PPPP/PAAA/AAAA] LO
     00II/IXXX = 3 bits of image number
     XPPP/PPPP/PPPP/PXXX = 12 bits of page number
-    XAAA/AAAA = 7 bits of address of a page(128 bytes)
+    XAAA/AAAA = 7 bitaddress of a page(128 bytes)
     0x000 - page
     0x001 - page
     ...
@@ -120,8 +120,8 @@ reg     [11:0]  general_counter = 12'd0;
 
 
 // Declare states
-localparam IDLE_S0 = 8'b1110_0000;
-localparam IDLE_S1 = 8'b1110_0001;
+localparam IDLE_S0 = 8'b1110_0000;              //데이터 출력 다 끝난 후 버블 데이터 다 보낼때까지 대기시간
+localparam IDLE_S1 = 8'b1110_0001;              //버블 출력 종료 후 기본 리셋상태
 
 localparam SPI_RDCMD_2B_S0 = 8'b0000_0000;
 localparam SPI_RDCMD_2B_S1 = 8'b0000_0001;
@@ -130,6 +130,8 @@ localparam SPI_RDCMD_2B_S3 = 8'b0000_0011;
 localparam SPI_RDCMD_2B_S4 = 8'b0000_0100;
 localparam SPI_RDCMD_2B_S5 = 8'b0000_0101;
 localparam SPI_RDCMD_2B_S6 = 8'b0000_0110;
+
+localparam SPI_RDCMD_4B_S0 = 8'b0000_1000;
 
 localparam BOOT_2B_S0 = 8'b0010_0000;
 localparam BOOT_2B_S1 = 8'b0010_0001;
@@ -144,6 +146,8 @@ localparam BOOT_2B_S9 = 8'b0010_1001;
 localparam BOOT_2B_S10 = 8'b0010_1010;
 localparam BOOT_2B_S11 = 8'b0010_1011;
 
+localparam BOOT_4B_S0 = 8'b0010_1100;
+
 localparam PGRD_2B_S0 = 8'b0100_0000;
 localparam PGRD_2B_S1 = 8'b0100_0001;
 localparam PGRD_2B_S2 = 8'b0100_0010;
@@ -157,22 +161,16 @@ localparam PGRD_2B_S9 = 8'b0100_1001;
 localparam PGRD_2B_S10 = 8'b0100_1010;
 localparam PGRD_2B_S11 = 8'b0100_1011;
 
+localparam PGRD_4B_S0 = 8'b0100_1100;
+
 localparam PGWR_2B_S0 = 8'b0110_0000;
-
-localparam SPI_RDCMD_4B_S0 = 8'b1000_0000;
-
-localparam BOOT_4B_S0 = 8'b1010_0000;
-
-localparam PGRD_4B_S0 = 8'b1100_0000;
 
 localparam PGWR_4B_S0 = 8'b1110_0000;
 
 //spi state
 reg     [7:0]   spi_state = IDLE_S1;
 
-
-// Determine the next state synchronously, based on the
-// current state and the input
+//state flow control
 always @(posedge MCLK)
 begin
     case (spi_state)
@@ -189,26 +187,10 @@ begin
             endcase
 
         //2비트 모드 SPI 로드
-        SPI_RDCMD_2B_S0:
-            if(spi_state == SPI_RDCMD_2B_S0)
-            begin
-                spi_state <= SPI_RDCMD_2B_S1;
-            end
-        SPI_RDCMD_2B_S1:
-            if(spi_state == SPI_RDCMD_2B_S1)
-            begin
-                spi_state <= SPI_RDCMD_2B_S2;
-            end
-        SPI_RDCMD_2B_S2:
-            if(spi_state == SPI_RDCMD_2B_S2)
-            begin
-                spi_state <= SPI_RDCMD_2B_S3;
-            end
-        SPI_RDCMD_2B_S3:
-            if(spi_state == SPI_RDCMD_2B_S3)
-            begin
-                spi_state <= SPI_RDCMD_2B_S4;
-            end
+        SPI_RDCMD_2B_S0: spi_state <= SPI_RDCMD_2B_S1;
+        SPI_RDCMD_2B_S1: spi_state <= SPI_RDCMD_2B_S2;
+        SPI_RDCMD_2B_S2: spi_state <= SPI_RDCMD_2B_S3;
+        SPI_RDCMD_2B_S3: spi_state <= SPI_RDCMD_2B_S4;
         SPI_RDCMD_2B_S4:
             case({general_counter[5], ACCTYPE[0]})
                 2'b00: spi_state <= SPI_RDCMD_2B_S5;
@@ -216,23 +198,11 @@ begin
                 2'b10: spi_state <= BOOT_2B_S0;
                 2'b11: spi_state <= PGRD_2B_S0;
             endcase
-        SPI_RDCMD_2B_S5:
-            if(spi_state == SPI_RDCMD_2B_S5)
-            begin
-                spi_state <= SPI_RDCMD_2B_S6;
-            end
-        SPI_RDCMD_2B_S6:
-            if(spi_state == SPI_RDCMD_2B_S6)
-            begin
-                spi_state <= SPI_RDCMD_2B_S4;
-            end
+        SPI_RDCMD_2B_S5: spi_state <= SPI_RDCMD_2B_S6;
+        SPI_RDCMD_2B_S6: spi_state <= SPI_RDCMD_2B_S4;
 
         //2비트 모드 부트로더 읽기
-        BOOT_2B_S0:
-            if(spi_state == BOOT_2B_S0)
-            begin
-                spi_state <= BOOT_2B_S1;
-            end
+        BOOT_2B_S0: spi_state <= BOOT_2B_S1;
         BOOT_2B_S1:
             if(general_counter < 12'd2656)
             begin
@@ -242,34 +212,14 @@ begin
             begin
                 spi_state <= BOOT_2B_S6;
             end
-        BOOT_2B_S2:
-            if(spi_state == BOOT_2B_S2)
-            begin
-                spi_state <= BOOT_2B_S3;
-            end
-        BOOT_2B_S3:
-            if(spi_state == BOOT_2B_S3)
-            begin
-                spi_state <= BOOT_2B_S4;
-            end
-        BOOT_2B_S4:
-            if(spi_state == BOOT_2B_S4)
-            begin
-                spi_state <= BOOT_2B_S5;
-            end
-        BOOT_2B_S5:
-            if(spi_state == BOOT_2B_S5)
-            begin
-                spi_state <= BOOT_2B_S1;
-            end
+        BOOT_2B_S2: spi_state <= BOOT_2B_S3;
+        BOOT_2B_S3: spi_state <= BOOT_2B_S4;
+        BOOT_2B_S4: spi_state <= BOOT_2B_S5;
+        BOOT_2B_S5: spi_state <= BOOT_2B_S1;
 
-        BOOT_2B_S6:
-            if(spi_state == BOOT_2B_S6)
-            begin
-                spi_state <= BOOT_2B_S7;
-            end
+        BOOT_2B_S6: spi_state <= BOOT_2B_S7;
         BOOT_2B_S7:
-            if(general_counter < 12'd1168 + 12'd32) //쓸데없는 32비트 데이터
+            if(general_counter < 12'd1168 + 12'd32) //굉장히 수상한 32비트 데이터
             begin
                 spi_state <= BOOT_2B_S8;
             end
@@ -277,33 +227,13 @@ begin
             begin
                 spi_state <= IDLE_S0;
             end
-        BOOT_2B_S8:
-            if(spi_state == BOOT_2B_S8)
-            begin
-                spi_state <= BOOT_2B_S9;
-            end
-        BOOT_2B_S9:
-            if(spi_state == BOOT_2B_S9)
-            begin
-                spi_state <= BOOT_2B_S10;
-            end
-        BOOT_2B_S10:
-            if(spi_state == BOOT_2B_S10)
-            begin
-                spi_state <= BOOT_2B_S11;
-            end
-        BOOT_2B_S11:
-            if(spi_state == BOOT_2B_S11)
-            begin
-                spi_state <= BOOT_2B_S7;
-            end
+        BOOT_2B_S8: spi_state <= BOOT_2B_S9;
+        BOOT_2B_S9: spi_state <= BOOT_2B_S10;
+        BOOT_2B_S10: spi_state <= BOOT_2B_S11;
+        BOOT_2B_S11: spi_state <= BOOT_2B_S7;
 
         //2비트 모드 페이지 읽기
-        PGRD_2B_S0:
-            if(spi_state == PGRD_2B_S0)
-            begin
-                spi_state <= PGRD_2B_S1;
-            end
+        PGRD_2B_S0: spi_state <= PGRD_2B_S1;
         PGRD_2B_S1:
             if(general_counter < 12'd6)
             begin
@@ -313,21 +243,9 @@ begin
             begin
                 spi_state <= PGRD_2B_S6;
             end
-        PGRD_2B_S2:
-            if(spi_state == PGRD_2B_S2)
-            begin
-                spi_state <= PGRD_2B_S3;
-            end
-        PGRD_2B_S3:
-            if(spi_state == PGRD_2B_S3)
-            begin
-                spi_state <= PGRD_2B_S4;
-            end
-        PGRD_2B_S4:
-            if(spi_state == PGRD_2B_S4)
-            begin
-                spi_state <= PGRD_2B_S5;
-            end
+        PGRD_2B_S2: spi_state <= PGRD_2B_S3;
+        PGRD_2B_S3: spi_state <= PGRD_2B_S4;
+        PGRD_2B_S4: spi_state <= PGRD_2B_S5;
         PGRD_2B_S5:
             case(map_data_out)
                 1'b0: spi_state <= PGRD_2B_S2; //불량 루프면 다음 에러맵 읽기
@@ -343,26 +261,10 @@ begin
             begin
                 spi_state <= IDLE_S0;
             end
-        PGRD_2B_S7:
-            if(spi_state == PGRD_2B_S7)
-            begin
-                spi_state <= PGRD_2B_S8;
-            end
-        PGRD_2B_S8:
-            if(spi_state == PGRD_2B_S8)
-            begin
-                spi_state <= PGRD_2B_S9;
-            end
-        PGRD_2B_S9:
-            if(spi_state == PGRD_2B_S9)
-            begin
-                spi_state <= PGRD_2B_S10;
-            end
-        PGRD_2B_S10:
-            if(spi_state == PGRD_2B_S10)
-            begin
-                spi_state <= PGRD_2B_S11;
-            end
+        PGRD_2B_S7: spi_state <= PGRD_2B_S8;
+        PGRD_2B_S8: spi_state <= PGRD_2B_S9;
+        PGRD_2B_S9: spi_state <= PGRD_2B_S10;
+        PGRD_2B_S10: spi_state <= PGRD_2B_S11;
         PGRD_2B_S11:
             case(map_data_out)
                 1'b0: spi_state <= PGRD_2B_S8; //불량 루프면 다음 에러맵 읽기
@@ -373,8 +275,7 @@ begin
     endcase
 end
 
-// Determine the output based only on the current state
-// and the input (do not wait for a clock edge).
+//determine the output
 always @(posedge MCLK)
 begin
     case (spi_state)

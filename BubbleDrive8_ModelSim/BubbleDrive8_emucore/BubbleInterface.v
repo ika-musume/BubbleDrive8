@@ -20,10 +20,15 @@ module BubbleInterface
 
     //Bubble data out
     output  wire            DOUT0,
-    output  wire            DOUT1
+    output  wire            DOUT1,
+    output  wire            DOUT2,
+    output  wire            DOUT3
 );
 
 localparam BITWIDTH4 = 1'b0; //4bit mode off
+assign  DOUT2 = 1'b1;
+assign  DOUT3 = 1'b1;
+
 
 /*
     OUTBUFFER READ ADDRESS DECODER

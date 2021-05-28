@@ -23,7 +23,7 @@ module TimingGenerator
     //Emulator signal outputs
     output  wire    [2:0]   ACCTYPE,        //access type
     output  wire    [12:0]  BOUTCYCLENUM,   //bubble output cycle number
-    //output  wire    [1:0]   BOUTTICKS,      //bubble output asynchronous control ticks
+    //output  wire    [1:0]   BOUTTICKS,    //bubble output asynchronous control ticks
     output  reg             nBINCLKEN,
     output  reg             nBOUTCLKEN,
 
