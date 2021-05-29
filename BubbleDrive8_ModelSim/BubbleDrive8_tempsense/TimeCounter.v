@@ -16,7 +16,7 @@ module TimeCounter
     output  reg             OVFL              //overflow
 );
 
-localparam CLOCK = 48'd48000000;
+localparam CLOCK = 48'd4; //00000;
 
 
 
@@ -27,7 +27,7 @@ localparam CLOCK = 48'd48000000;
 localparam RESET = 1'b0;
 localparam RUN = 1'b1;
 
-reg             counter_state = 1'b0;
+reg             counter_state = RESET;
 
 always @(posedge MCLK)
 begin
@@ -62,7 +62,7 @@ begin
     case(counter_state)
         RESET:
         begin
-            TIME_ELAPSED <= 16'd0;
+            TIMEELAPSED <= 16'd0;
             clock_counter <= 18'd0;
             OVFL <= 1'b0;
         end
@@ -74,14 +74,14 @@ begin
             end
             else
             begin
-                if(TIME_ELAPSED < 16'd65535)
+                if(TIMEELAPSED < 16'd65535)
                 begin
-                    TIME_ELAPSED <= TIME_ELAPSED + 16'd1;
+                    TIMEELAPSED <= TIMEELAPSED + 16'd1;
                     clock_counter <= 48'd0;
                 end
                 else
                 begin
-                    TIME_ELAPSED <= TIME_ELAPSED;
+                    TIMEELAPSED <= TIMEELAPSED;
                     clock_counter <= clock_counter;
                     OVFL <= 1'b1;
                 end

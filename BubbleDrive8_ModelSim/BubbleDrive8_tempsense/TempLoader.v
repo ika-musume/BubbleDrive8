@@ -12,7 +12,7 @@ module TempLoader
 
     //control
     input   wire            nLOAD,
-    input   wire            nCOMPLETE,
+    output  reg             nCOMPLETE,
 
     output  reg             nCS = 1'b1,
     inout   wire            SIO,
@@ -93,7 +93,7 @@ begin
         TEMP_RD_S4: begin end //nop
         TEMP_RD_S5: begin end //nop
         TEMP_RD_S6: begin end //nop
-        TEMP_RD_S7: begin CLK <= 1'b1; spi_counter <= spi_counter + 4'd1; {TEMPDATA, SIO} << 1; end
+        TEMP_RD_S7: begin CLK <= 1'b1; spi_counter <= spi_counter + 4'd1; TEMPDATA[13:1] <= TEMPDATA[12:0]; TEMPDATA[0] <= SIO; end
         TEMP_RD_S8: begin end //nop
         TEMP_RD_S9: begin end //nop
         TEMP_RD_S10: begin end //nop
