@@ -11,9 +11,28 @@ module TC77_fake
 );
 
 
-localparam TEMP_VALUE = 13'b0_0001_1001_0000; //25 degrees
-localparam IS_CONVERTED = 1'b1; //converted
+reg     [12:0]  TEMP_VALUE = 13'b0_0001_1001_0000; //25 degrees
+reg             IS_CONVERTED = 1'b1; //converted
 localparam FILLER = 2'bZZ;
+
+initial
+begin
+    #0 TEMP_VALUE <= 13'b0_0001_1001_0000;  //not ready
+    #0 IS_CONVERTED <= 1'b0;
+
+    #4200 TEMP_VALUE <= 13'b0_0001_0000_0000; //16 degrees
+    #0 IS_CONVERTED <= 1'b1;
+
+    //#4200 TEMP_VALUE <= 13'b0_0010_0100_0000; //36 degrees
+    //#0 IS_CONVERTED <= 1'b1;
+
+    //#4200 TEMP_VALUE <= 13'b0_0001_1001_0000; //25 degrees
+    //#0 IS_CONVERTED <= 1'b1;
+
+    #82400 TEMP_VALUE <= 13'b0_0010_0100_0000; //36 degrees
+    #0 IS_CONVERTED <= 1'b1;
+end
+
 
 reg     [15:0]  tempreg = 16'b0;
 reg             OUTLATCH = 1'bZ;

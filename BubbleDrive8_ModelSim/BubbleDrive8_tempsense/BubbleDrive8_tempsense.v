@@ -19,7 +19,7 @@ module BubbleDrive8_tempsense
     //status
     output  reg             nTEMPLO = 1'b0,
     output  reg             nFANEN = 1'b1,
-    output  reg             nLED_DELAYING,
+    output  reg             nLED_DELAYING = 1'b0,
 
     //TC77
     output  wire            nTEMPCS,
@@ -28,7 +28,7 @@ module BubbleDrive8_tempsense
 );
 
 
-localparam      CHECKING_PERIOD = 16'd60;
+localparam      CHECKING_PERIOD = 16'd200;
 
 
 reg     [2:0]   dip_switch_settings = 3'b000;
@@ -75,9 +75,9 @@ TempLoader TempLoader_0
 );
 
 
-localparam RESET_S0 = 5'b1_0101;
-localparam RESET_S1 = 5'b1_0110;            //딥스위치 데이터 래치
-localparam RESET_S2 = 5'b1_0111;            //branch
+localparam RESET_S0 = 5'b0_1100;
+localparam RESET_S1 = 5'b0_1101;            //딥스위치 데이터 래치
+localparam RESET_S2 = 5'b0_1110;            //branch
 
 localparam DELAY_FIXED_S0 = 5'b1_0000;      //여름(00) = 5초, 봄가을(01) = 80초, 겨울(10) = 260초 delaying_time에 로드
 localparam DELAY_FIXED_S1 = 5'b1_0001;      //타이머 시작
@@ -97,13 +97,13 @@ localparam DELAY_REALTEMP_S8 = 5'b0_1000;   //올리고 대기, 타이머 다 �
 localparam DELAY_REALTEMP_S9 = 5'b0_1001;   //타이머 리셋 0
 localparam DELAY_REALTEMP_S10 = 5'b0_1010;  //리셋 올리기, 부팅 시작, FAN_CONTROL_S0으로
 
-localparam FAN_CONTROL_S0 = 5'b1_0100;
-localparam FAN_CONTROL_S1 = 5'b1_0101;      //타이머 시작
-localparam FAN_CONTROL_S2 = 5'b1_0110;      //올리고 대기, CHECKING PERIOD 되면 S2로, 아니면 S1
-localparam FAN_CONTROL_S3 = 5'b1_0111;      //온도 로드
-localparam FAN_CONTROL_S4 = 5'b1_1000;      //올리고 대기, 로드되면 S4로
-localparam FAN_CONTROL_S5 = 5'b1_1001;      //35도 이상이면 팬 켜기, 타이머 리셋 0
-localparam FAN_CONTROL_S6 = 5'b1_1010;      //리셋 올리기, S0으로
+localparam FAN_CONTROL_S0 = 5'b1_1000;
+localparam FAN_CONTROL_S1 = 5'b1_1001;      //타이머 시작
+localparam FAN_CONTROL_S2 = 5'b1_1010;      //올리고 대기, CHECKING PERIOD 되면 S2로, 아니면 S1
+localparam FAN_CONTROL_S3 = 5'b1_1011;      //온도 로드
+localparam FAN_CONTROL_S4 = 5'b1_1100;      //올리고 대기, 로드되면 S4로
+localparam FAN_CONTROL_S5 = 5'b1_1101;      //35도 이상이면 팬 켜기, 타이머 리셋 0
+localparam FAN_CONTROL_S6 = 5'b1_1110;      //리셋 올리기, S0으로
 
 reg     [4:0]   tempsense_state = RESET_S0;
 
@@ -171,7 +171,7 @@ begin
         DELAY_REALTEMP_S3:
             if(TL_data[13] == 1'b0 && TL_data[12:1] > 12'b0001_1010_1000) //temperature over +26.5 degrees,
             begin
-                tempsense_state <= DELAY_REALTEMP_S8;
+                tempsense_state <= DELAY_REALTEMP_S10;
             end
             else
             begin
@@ -209,7 +209,7 @@ begin
             end
         FAN_CONTROL_S1: tempsense_state <= FAN_CONTROL_S2;
         FAN_CONTROL_S2:
-            if(TC_time == CHECKING_PERIOD) //1분
+            if(TC_time > CHECKING_PERIOD) //1분
             begin
                 tempsense_state <= FAN_CONTROL_S3;
             end
@@ -240,7 +240,7 @@ begin
         //리셋
         RESET_S0: 
         begin
-            nLED_DELAYING <= 1'b1;
+            nLED_DELAYING <= 1'b0;
             nTEMPLO <= 1'b0;
             nFANEN <= 1'b1; 
             TC_reset <= 1'b1;
@@ -333,13 +333,13 @@ begin
         end
         DELAY_REALTEMP_S9:
         begin
-            nLED_DELAYING <= 1'b1;
             TC_reset <= 1'b0;
         end
         DELAY_REALTEMP_S10:
         begin
-            TC_reset <= 1'b1;
+            nLED_DELAYING <= 1'b1;
             nTEMPLO <= 1'b1;
+            TC_reset <= 1'b1;
         end
     
         //팬컨
@@ -361,7 +361,7 @@ begin
         end
         FAN_CONTROL_S4:
         begin
-            
+            TL_load <= 1'b1;
         end
         FAN_CONTROL_S5:
         begin
