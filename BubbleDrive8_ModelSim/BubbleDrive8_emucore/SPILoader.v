@@ -22,7 +22,7 @@ module SPILoader
 
     //W25Q32
     output  reg             nCS = 1'b1,
-    output  wire            MOSI,
+    output  reg             MOSI = 1'b0,
     input   wire            MISO,
     output  reg             CLK = 1'b1,
     output  wire            nWP,
@@ -112,8 +112,7 @@ PositionPageConverter Main (.MCLK(MCLK), .nCONV(convert), .ABSPOS(target_positio
     0x808 - bootloader
 */
 
-reg    [32:0]  spi_instruction = {1'b0, 32'h0000_0000}; //33 bit register: 1 bit MOSI + 8 bit instruction + 24 bit address
-assign MOSI = spi_instruction[32];
+reg    [31:0]  spi_instruction = 32'h0000_0000; //33 bit: 1 bit MOSI + 8 bit instruction + 24 bit address
 
 //reg     [5:0]   spi_counter = 6'd0;
 reg     [11:0]  general_counter = 12'd0;
@@ -281,11 +280,11 @@ begin
     case (spi_state)
         IDLE_S0:
         begin
-           nCS <= 1'b1; CLK = 1'b1; 
+           nCS <= 1'b1; CLK <= 1'b1; 
         end
         IDLE_S1:
         begin
-            nCS <= 1'b1; CLK = 1'b1; 
+            nCS <= 1'b1; CLK <= 1'b1; 
             OUTBUFWADDR <= {1'b0, 13'd0, 1'b0}; nOUTBUFWCLKEN <= 1'b1;
             map_addr <= 12'd0; map_write_enable <= 1'b1; map_write_clken <= 1'b1; map_read_clken <= 1'b1;
             general_counter <= 12'd0; 
@@ -304,8 +303,8 @@ begin
         begin
             convert <= 1'b1;
             case(ACCTYPE[0])
-                1'b0: spi_instruction <= {1'b0, 8'b0000_0011, 2'b00, IMGNUM[2:0], 12'h805, 7'b000_0000};
-                1'b1: spi_instruction <= {1'b0, 8'b0000_0011, 2'b00, IMGNUM[2:0], bubble_page[11:0], 7'b000_0000};
+                1'b0: spi_instruction <= {8'b0000_0011, 2'b00, IMGNUM[2:0], 12'h805, 7'b000_0000};
+                1'b1: spi_instruction <= {8'b0000_0011, 2'b00, IMGNUM[2:0], bubble_page[11:0], 7'b000_0000};
             endcase
         end
         SPI_RDCMD_2B_S3:
@@ -318,13 +317,14 @@ begin
         end
         SPI_RDCMD_2B_S5:
         begin
-            CLK = 1'b0; 
-            spi_instruction <= spi_instruction << 1; 
+            CLK <= 1'b0;
+            MOSI <= spi_instruction[31];
+            spi_instruction[31:1] <= spi_instruction[30:0]; 
             general_counter <= general_counter + 12'd1; 
         end
         SPI_RDCMD_2B_S6:
         begin
-            CLK = 1'b1;
+            CLK <= 1'b1;
         end
 
         BOOT_2B_S0:

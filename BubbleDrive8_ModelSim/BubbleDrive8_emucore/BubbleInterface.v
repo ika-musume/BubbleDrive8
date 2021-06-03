@@ -12,6 +12,7 @@ module BubbleInterface
     input   wire    [12:0]  BOUTCYCLENUM,   //bubble output cycle number
     input   wire            nBINCLKEN,
     input   wire            nBOUTCLKEN,     //bubble output asynchronous control ticks
+    input   wire            nNOBUBBLE,
 
     //Bubble out buffer interface
     input   wire            nOUTBUFWCLKEN,    //bubble outbuffer write clk
@@ -57,20 +58,27 @@ reg     [12:0]  outbuffer_read_address = 13'b1_1111_1111_1111;
 
 always @(*)
 begin
-    case (ACCTYPE)
-        BOOT:
-        begin
-            outbuffer_read_address <= BOUTCYCLENUM;
-        end
-        USER:
-        begin
-            outbuffer_read_address <= {3'b111, BOUTCYCLENUM[9:0]};
-        end
-        default:
-        begin
-            outbuffer_read_address <= 13'b1_1111_1111_1111;
-        end
-    endcase
+    if(nNOBUBBLE == 1'b00)
+    begin
+        outbuffer_read_address <= 13'b1_1111_1111_1111;
+    end
+    else
+    begin
+        case (ACCTYPE)
+            BOOT:
+            begin
+                outbuffer_read_address <= BOUTCYCLENUM;
+            end
+            USER:
+            begin
+                outbuffer_read_address <= {3'b111, BOUTCYCLENUM[9:0]};
+            end
+            default:
+            begin
+                outbuffer_read_address <= 13'b1_1111_1111_1111;
+            end
+        endcase
+    end
 end
 
 

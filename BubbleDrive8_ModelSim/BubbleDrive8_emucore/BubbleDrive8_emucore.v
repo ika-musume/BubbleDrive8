@@ -5,7 +5,7 @@ module BubbleDrive8_emucore
 
     //input control
     input   wire    [2:0]   IMGNUM,
-    input   wire            nINCTRL,
+    input   wire            nSYSOK,
 
     //4MHz output clock
     output  wire            CLKOUT,
@@ -29,7 +29,7 @@ module BubbleDrive8_emucore
     output  wire            ROMCLK,
     
     //BUBBLE ACC LED
-    output  wire            nACCLED
+    output  wire            nACC
 );
 
 //TimingGenerator
@@ -38,20 +38,22 @@ wire    [12:0]  BOUTCYCLENUM;
 wire    [11:0]  ABSPOS;
 wire            nBINCLKEN;
 wire            nBOUTCLKEN;
+wire            nNOBUBBLE;
+wire    [11:0]  CURRPAGE;
 
 //SPILoader -> BubbleInterface
 wire            nOUTBUFWCLKEN;
 wire    [14:0]  OUTBUFWADDR;
 wire            OUTBUFWDATA;
 
-assign nACCLED = ~ACCTYPE[2];
+assign nACC = ~ACCTYPE[2];
 
 
 TimingGenerator TimingGenerator_0
 (
     .MCLK           (MCLK           ),
 
-    .nINCTRL        (nINCTRL        ),
+    .nSYSOK         (nSYSOK         ),
 
     .CLKOUT         (CLKOUT         ),
     .nBSS           (nBSS           ),
@@ -64,6 +66,8 @@ TimingGenerator TimingGenerator_0
     .BOUTCYCLENUM   (BOUTCYCLENUM   ),
     .nBINCLKEN      (nBINCLKEN      ),
     .nBOUTCLKEN     (nBOUTCLKEN     ),
+    .nNOBUBBLE      (nNOBUBBLE      ),
+
     .ABSPOS         (ABSPOS         )
 );
 
@@ -77,6 +81,7 @@ BubbleInterface BubbleInterface_0
     .BOUTCYCLENUM   (BOUTCYCLENUM   ),
     .nBINCLKEN      (nBINCLKEN      ),
     .nBOUTCLKEN     (nBOUTCLKEN     ),
+    .nNOBUBBLE      (nNOBUBBLE      ),
 
     .nOUTBUFWCLKEN  (nOUTBUFWCLKEN  ),
     .OUTBUFWADDR    (OUTBUFWADDR    ),

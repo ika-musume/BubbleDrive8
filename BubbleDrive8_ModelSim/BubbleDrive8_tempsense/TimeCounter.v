@@ -16,7 +16,7 @@ module TimeCounter
     output  reg             OVFL              //overflow
 );
 
-localparam CLOCK = 48'd8; //00000;
+localparam CLOCK = 48'd8192; //00000;
 
 
 

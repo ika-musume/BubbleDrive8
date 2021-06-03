@@ -8,8 +8,8 @@ reg             bubble_shift_enable = 1'b1;
 reg             replicator_enable = 1'b1;
 reg             bootloop_enable = 1'b0;
 
-reg             power_good = 1'b0;
-reg             temperature_low = 1'b0;
+reg             power_good = 1'b1;
+wire            temperature_low;
 
 reg     [2:0]   image_dip_switch = 3'b111;
 
@@ -26,10 +26,20 @@ wire            ROMCLK;
 wire            nWP;
 wire            nHOLD;
 
+wire            nTEMPCS;
+wire            TEMPCLK;
+wire            TEMPSIO;
+
+wire            nFANEN;
+
+wire            nLED_ACC;
+wire            nLED_DELAYING;
+
+
 BubbleDrive8_top Main
 (
     .MCLK           (master_clock   ),
-    .IMGNUM         (3'b000         ),
+    
     .CLKOUT         (clock_out      ),
     
     .nBSS           (1'b1           ),
@@ -41,37 +51,60 @@ BubbleDrive8_top Main
     .DOUT0          (bubble_out_0   ),
     .DOUT1          (bubble_out_1   ),
 
+    .IMGNUM         (3'b000         ),
+
     .nROMCS         (nROMCS         ),
     .ROMMOSI        (ROMMOSI        ),
     .ROMMISO        (ROMMISO        ),
     .ROMCLK         (ROMCLK         ),
     .nWP            (nWP            ),
-    .nHOLD          (nHOLD          )
+    .nHOLD          (nHOLD          ),
+
+    .TEMPSW         (3'b111         ),
+    .FORCEBOOT      (1'b0           ),
+
+    .nTEMPCS        (nTEMPCS        ),
+    .TEMPCLK        (TEMPCLK        ),
+    .TEMPSIO        (TEMPSIO        ),
+
+    .nTEMPLO        (temperature_low),
+    .nFANEN         (nFANEN         ),
+
+
+    .nSYSOK         (power_good     ),
+
+
+    .nLED_ACC       (nLED_ACC       ),
+    .nLED_DELAYING  (nLED_DELAYING  )
 );
 
 
-W25Q32JVxxIM Module0 
+W25Q32JVxxIM SPIFlash_0 
 (
-    .CSn(nROMCS),
-    .CLK(ROMCLK),
-    .DO(ROMMISO),
-    .DIO(ROMMOSI),
+    .CSn            (nROMCS         ),
+    .CLK            (ROMCLK         ),
+    .DO             (ROMMISO        ),
+    .DIO            (ROMMOSI        ),
     
-    .WPn(nWP),
-    .HOLDn(nHOLD),
-    .RESETn(nHOLD)
+    .WPn            (nWP            ),
+    .HOLDn          (nHOLD          ),
+    .RESETn         (nHOLD          )
+);
+
+TC77_fake TC77_0
+(
+    .nCS            (nTEMPCS        ),
+    .SIO            (TEMPSIO        ),
+    .CLK            (TEMPCLK        ),
+
+    .nSYSOK         (power_good     )
 );
 
 always #1 master_clock = ~master_clock;
 
 initial
 begin
-    #300000 power_good = 1'b1;
-end
-
-initial
-begin
-    #300500 temperature_low = 1'b1;
+    #300000 power_good = 1'b0;
 end
 
 always @(posedge temperature_low)
@@ -112,6 +145,10 @@ begin
     //183
     #75000 bubble_shift_enable = 1'b0;
     #675660 bubble_shift_enable = 1'b1;
+
+    #1000 bootloop_enable = 1'b0;
+    #50000 bubble_shift_enable = 1'b0;
+    #4387745 bubble_shift_enable = 1'b1; //00붙임
 end
 
 endmodule

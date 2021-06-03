@@ -4,14 +4,14 @@ module BubbleDrive8_tempsense
 */
 
 (
-    //master reset
-    input   wire            nSYSOK,
-
     //input clock
     input   wire            MCLK,
 
     //startup delay set switch
     input   wire    [2:0]   TEMPSW, //[FAN/DELAY1/DELAY0]
+
+    //master reset
+    input   wire            nSYSOK,
 
     //force start
     input   wire            FORCESTART,
@@ -19,7 +19,7 @@ module BubbleDrive8_tempsense
     //status
     output  reg             nTEMPLO = 1'b0,
     output  reg             nFANEN = 1'b1,
-    output  reg             nLED_DELAYING = 1'b0,
+    output  reg             nDELAYING = 1'b0,
 
     //TC77
     output  wire            nTEMPCS,
@@ -240,7 +240,7 @@ begin
         //리셋
         RESET_S0: 
         begin
-            nLED_DELAYING <= 1'b0;
+            nDELAYING <= 1'b0;
             nTEMPLO <= 1'b0;
             nFANEN <= 1'b1; 
             TC_reset <= 1'b1;
@@ -272,12 +272,12 @@ begin
         end
         DELAY_FIXED_S2:
         begin
-            nLED_DELAYING <= 1'b0;
+            nDELAYING <= 1'b0;
             TC_start <= 1'b1;
         end
         DELAY_FIXED_S3:
         begin
-            nLED_DELAYING <= 1'b1;
+            nDELAYING <= 1'b1;
             TC_reset <= 1'b0;
         end
         DELAY_FIXED_S4:
@@ -328,7 +328,7 @@ begin
         end
         DELAY_REALTEMP_S8:
         begin
-            nLED_DELAYING <= 1'b0;
+            nDELAYING <= 1'b0;
             TC_start <= 1'b1;
         end
         DELAY_REALTEMP_S9:
@@ -337,7 +337,7 @@ begin
         end
         DELAY_REALTEMP_S10:
         begin
-            nLED_DELAYING <= 1'b1;
+            nDELAYING <= 1'b1;
             nTEMPLO <= 1'b1;
             TC_reset <= 1'b1;
         end
