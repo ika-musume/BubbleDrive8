@@ -75,27 +75,29 @@ TempLoader TempLoader_0
 );
 
 
-localparam RESET_S0 = 5'b0_1100;
-localparam RESET_S1 = 5'b0_1101;            //딥스위치 데이터 래치
-localparam RESET_S2 = 5'b0_1110;            //branch
+localparam RESET_S0 = 5'b0_1101;
+localparam RESET_S1 = 5'b0_1110;            //딥스위치 데이터 래치
+localparam RESET_S2 = 5'b0_1111;            //branch
 
-localparam DELAY_FIXED_S0 = 5'b1_0000;      //여름(00) = 5초, 봄가을(01) = 80초, 겨울(10) = 260초 delaying_time에 로드
+localparam DELAY_FIXED_S0 = 5'b1_0000;      //여름(00) = 2초, 봄가을(01) = 80초, 겨울(10) = 260초 delaying_time에 로드
 localparam DELAY_FIXED_S1 = 5'b1_0001;      //타이머 시작
 localparam DELAY_FIXED_S2 = 5'b1_0010;      //올리고 대기, 타이머 다 되면 S3으로, 아니면 S2, FORCESTART(1) 눌리면 S4로
 localparam DELAY_FIXED_S3 = 5'b1_0011;      //타이머 리셋 0
 localparam DELAY_FIXED_S4 = 5'b1_0100;      //리셋 올리기, 부팅 시작, FAN_CONTROL_S0으로
 
-localparam DELAY_REALTEMP_S0 = 5'b0_0000;   //실제 온도(11), 온도 로드
-localparam DELAY_REALTEMP_S1 = 5'b0_0001;   //올리고 대기, 로드되면 S2로
-localparam DELAY_REALTEMP_S2 = 5'b0_0010;   //LSB 체크, 최초 변환 완료이면 S3, 아니면 S0
-localparam DELAY_REALTEMP_S3 = 5'b0_0011;   //26.5도 넘으면 S10, 아니면 S4
-localparam DELAY_REALTEMP_S4 = 5'b0_0100;   //t(T) = -16.8T + 485 -> -16.8 곱하기
-localparam DELAY_REALTEMP_S5 = 5'b0_0101;   //곱하기 nop
-localparam DELAY_REALTEMP_S6 = 5'b0_0110;   //t(T) = -16.8T + 485 -> 485 더하기
-localparam DELAY_REALTEMP_S7 = 5'b0_0111;   //타이머 시작
-localparam DELAY_REALTEMP_S8 = 5'b0_1000;   //올리고 대기, 타이머 다 되면 S9, 아니면 S8 유지, FORCESTART(1) 눌리면 S10으로
-localparam DELAY_REALTEMP_S9 = 5'b0_1001;   //타이머 리셋 0
-localparam DELAY_REALTEMP_S10 = 5'b0_1010;  //리셋 올리기, 부팅 시작, FAN_CONTROL_S0으로
+localparam DELAY_REALTEMP_S0 = 5'b0_0000;   //실제 온도(11), 타이머 시작
+localparam DELAY_REALTEMP_S1 = 5'b0_0001;   //1초 되면 S2로
+localparam DELAY_REALTEMP_S2 = 5'b0_0010;   //온도 로드, 타이머 리셋 0
+localparam DELAY_REALTEMP_S3 = 5'b0_0011;   //올리고 대기, 로드되면 S4로
+localparam DELAY_REALTEMP_S4 = 5'b0_0100;   //LSB 체크, 최초 변환 완료이면 S5, 아니면 S0
+localparam DELAY_REALTEMP_S5 = 5'b0_0101;   //27도 넘으면 S12, 아니면 S6
+localparam DELAY_REALTEMP_S6 = 5'b0_0110;   //t(T) = -16.8T + 485 -> -16.8 곱하기
+localparam DELAY_REALTEMP_S7 = 5'b0_0111;   //곱하기 nop
+localparam DELAY_REALTEMP_S8 = 5'b0_1000;   //t(T) = -16.8T + 485 -> 485 더하기
+localparam DELAY_REALTEMP_S9 = 5'b0_1001;   //타이머 시작
+localparam DELAY_REALTEMP_S10 = 5'b0_1010;   //올리고 대기, 타이머 다 되면 S11, 아니면 S10 유지, FORCESTART(1) 눌리면 S12으로
+localparam DELAY_REALTEMP_S11 = 5'b0_1011;   //타이머 리셋 0
+localparam DELAY_REALTEMP_S12 = 5'b0_1100;  //리셋 올리기, 부팅 시작, FAN_CONTROL_S0으로
 
 localparam FAN_CONTROL_S0 = 5'b1_1000;
 localparam FAN_CONTROL_S1 = 5'b1_1001;      //타이머 시작
@@ -150,8 +152,8 @@ begin
 
         //실제 온도 딜레이
         DELAY_REALTEMP_S0: tempsense_state <= DELAY_REALTEMP_S1;
-        DELAY_REALTEMP_S1:
-            if(TL_completion == 1'b0)
+        DELAY_REALTEMP_S1: 
+            if(TC_time > 16'd0) //from 1sec
             begin
                 tempsense_state <= DELAY_REALTEMP_S2;
             end
@@ -159,43 +161,53 @@ begin
             begin
                 tempsense_state <= DELAY_REALTEMP_S1;
             end
-        DELAY_REALTEMP_S2:
+        DELAY_REALTEMP_S2: tempsense_state <= DELAY_REALTEMP_S3;
+        DELAY_REALTEMP_S3:
+            if(TL_completion == 1'b0)
+            begin
+                tempsense_state <= DELAY_REALTEMP_S4;
+            end
+            else
+            begin
+                tempsense_state <= DELAY_REALTEMP_S3;
+            end
+        DELAY_REALTEMP_S4:
             if(TL_data[0] == 1'b1)
             begin
-                tempsense_state <= DELAY_REALTEMP_S3; //temperature conversion completed
+                tempsense_state <= DELAY_REALTEMP_S5; //temperature conversion completed
             end
             else
             begin
                 tempsense_state <= DELAY_REALTEMP_S0;
             end
-        DELAY_REALTEMP_S3:
-            if(TL_data[13] == 1'b0 && TL_data[12:1] > 12'b0001_1010_1000) //temperature over +26.5 degrees,
+        DELAY_REALTEMP_S5:
+            if(TL_data[13] == 1'b0 && TL_data[12:1] > 12'b0001_1011_0000) //temperature over +27 degrees,
             begin
-                tempsense_state <= DELAY_REALTEMP_S10;
+                tempsense_state <= DELAY_REALTEMP_S12;
             end
             else
             begin
-                tempsense_state <= DELAY_REALTEMP_S4;
+                tempsense_state <= DELAY_REALTEMP_S6;
             end
-        DELAY_REALTEMP_S4: tempsense_state <= DELAY_REALTEMP_S5;
-        DELAY_REALTEMP_S5: tempsense_state <= DELAY_REALTEMP_S6;
         DELAY_REALTEMP_S6: tempsense_state <= DELAY_REALTEMP_S7;
         DELAY_REALTEMP_S7: tempsense_state <= DELAY_REALTEMP_S8;
-        DELAY_REALTEMP_S8:
+        DELAY_REALTEMP_S8: tempsense_state <= DELAY_REALTEMP_S9;
+        DELAY_REALTEMP_S9: tempsense_state <= DELAY_REALTEMP_S10;
+        DELAY_REALTEMP_S10:
             if(FORCESTART == 1'b1)
             begin
-                tempsense_state <= DELAY_REALTEMP_S10;
+                tempsense_state <= DELAY_REALTEMP_S12;
             end
             else if(TC_time > delaying_time[23:8])
             begin
-                tempsense_state <= DELAY_REALTEMP_S9;
+                tempsense_state <= DELAY_REALTEMP_S11;
             end
             else
             begin
-                tempsense_state <= DELAY_REALTEMP_S8;
+                tempsense_state <= DELAY_REALTEMP_S10;
             end
-        DELAY_REALTEMP_S9: tempsense_state <= DELAY_REALTEMP_S10;
-        DELAY_REALTEMP_S10: tempsense_state <= FAN_CONTROL_S0;
+        DELAY_REALTEMP_S11: tempsense_state <= DELAY_REALTEMP_S12;
+        DELAY_REALTEMP_S12: tempsense_state <= FAN_CONTROL_S0;
 
         //팬 가동
         FAN_CONTROL_S0: 
@@ -260,7 +272,7 @@ begin
         DELAY_FIXED_S0:
         begin
             case(dip_switch_settings[1:0])
-                2'b00: delaying_time <= 32'sb0000_0000_0000_0000_0000_0101_0000_0000; //5초
+                2'b00: delaying_time <= 32'sb0000_0000_0000_0000_0000_0010_0000_0000; //2초
                 2'b01: delaying_time <= 32'sb0000_0000_0000_0000_0110_0000_0000_0000; //80초
                 2'b10: delaying_time <= 32'sb0000_0000_0000_0001_0000_0100_0000_0000; //260초
                 2'b11: delaying_time <= 32'sb0000_0000_0000_0000_0000_0000_0000_0000; //0초(온도감지, 여기 아님)
@@ -289,21 +301,31 @@ begin
         //실제 온도 감지
         DELAY_REALTEMP_S0: 
         begin
-            TL_load <= 1'b0;
+            TC_start <= 1'b0;
         end
         DELAY_REALTEMP_S1: 
         begin
-            TL_load <= 1'b1;
+            TC_start <= 1'b1;
         end
-        DELAY_REALTEMP_S2:
+        DELAY_REALTEMP_S2: 
         begin
-            
+            TC_reset <= 1'b0;
+            TL_load <= 1'b0;
         end
         DELAY_REALTEMP_S3: 
         begin
-        
+            TC_reset <= 1'b1;
+            TL_load <= 1'b1;
         end
         DELAY_REALTEMP_S4:
+        begin
+            
+        end
+        DELAY_REALTEMP_S5: 
+        begin
+        
+        end
+        DELAY_REALTEMP_S6:
         /*
                                 0+000_0001_0000.1101 = +16.8
                                 1+111_1110_1111.0011 = -16.8 (2s complement)
@@ -314,28 +336,28 @@ begin
         begin
             delaying_time <= $signed({TL_data[13], {{3{TL_data[13]}}, TL_data[12:1]}} ) * $signed({1'b1, 15'b111_1110_1111_0100}); //delay = TC77 airtemp * -16.8
         end
-        DELAY_REALTEMP_S5:
+        DELAY_REALTEMP_S7:
         begin
             
         end
-        DELAY_REALTEMP_S6: 
+        DELAY_REALTEMP_S8: 
         begin
             delaying_time <= delaying_time + 32'sb0000_0000_0000_0001_1110_0101_0000_0000; //delay = delay + 485
         end
-        DELAY_REALTEMP_S7:
+        DELAY_REALTEMP_S9:
         begin
             TC_start <= 1'b0;
         end
-        DELAY_REALTEMP_S8:
+        DELAY_REALTEMP_S10:
         begin
             nDELAYING <= 1'b0;
             TC_start <= 1'b1;
         end
-        DELAY_REALTEMP_S9:
+        DELAY_REALTEMP_S11:
         begin
             TC_reset <= 1'b0;
         end
-        DELAY_REALTEMP_S10:
+        DELAY_REALTEMP_S12:
         begin
             nDELAYING <= 1'b1;
             nTEMPLO <= 1'b1;

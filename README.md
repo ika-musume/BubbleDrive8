@@ -40,3 +40,5 @@ It works! v3 branch merged. Tested on a real PCB.
 State machine improved. LEDDriver.v removed(for I2C OLED screen driver implementation)
 ### v1.2 - Apr. 30, 2021
 GX400 main test program added.
+### v1.3 - Jun. 07, 2021
+Added TC77 temperature sensor to make an "realistic" heating delay.
