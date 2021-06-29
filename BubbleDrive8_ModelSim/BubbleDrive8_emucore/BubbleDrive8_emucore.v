@@ -3,12 +3,15 @@ module BubbleDrive8_emucore
     //48MHz input clock
     input   wire            MCLK,
 
-    //input control
+    //module enable
+    input   wire            nEN,
+
+    //DIP switch
     input   wire    [2:0]   IMGNUM,
-    input   wire            nSYSOK,
 
     //4MHz output clock
     output  wire            CLKOUT,
+
     //Bubble control signal inputs
     input   wire            nBSS,
     input   wire            nBSEN,
@@ -53,7 +56,7 @@ TimingGenerator TimingGenerator_0
 (
     .MCLK           (MCLK           ),
 
-    .nSYSOK         (nSYSOK         ),
+    .nEN            (nEN            ),
 
     .CLKOUT         (CLKOUT         ),
     .nBSS           (nBSS           ),

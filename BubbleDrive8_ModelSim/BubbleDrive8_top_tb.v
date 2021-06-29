@@ -11,7 +11,7 @@ reg             bootloop_enable = 1'b0;
 reg             power_good = 1'b1;
 wire            temperature_low;
 
-reg     [2:0]   image_dip_switch = 3'b111;
+reg     [2:0]   image_dip_switch = 3'b000;
 
 wire            bubble_out_0;
 wire            bubble_out_1;
@@ -34,12 +34,15 @@ wire            nFANEN;
 
 wire            nLED_ACC;
 wire            nLED_DELAYING;
+wire            nLED_STATUS;
+wire            nLED_PWROK;
 
 
 BubbleDrive8_top Main
 (
     .MCLK           (master_clock   ),
     
+    //emulator
     .CLKOUT         (clock_out      ),
     
     .nBSS           (1'b1           ),
@@ -48,8 +51,12 @@ BubbleDrive8_top Main
     .nBOOTEN        (bootloop_enable),
     .nSWAPEN        (1'b1           ),
 
+    .MRST           (power_good     ),
+
     .DOUT0          (bubble_out_0   ),
     .DOUT1          (bubble_out_1   ),
+    .DOUT2          (               ),
+    .DOUT3          (               ),
 
     .IMGNUM         (3'b000         ),
 
@@ -60,7 +67,8 @@ BubbleDrive8_top Main
     .nWP            (nWP            ),
     .nHOLD          (nHOLD          ),
 
-    .TEMPSW         (3'b111         ),
+    //temperature detector
+    .TEMPSW         (3'b000         ),
     .FORCEBOOT      (1'b0           ),
 
     .nTEMPCS        (nTEMPCS        ),
@@ -70,12 +78,15 @@ BubbleDrive8_top Main
     .nTEMPLO        (temperature_low),
     .nFANEN         (nFANEN         ),
 
+    //MPSSE
+    .PWRSTAT        (1'b0           ),
 
-    .nSYSOK         (power_good     ),
 
 
     .nLED_ACC       (nLED_ACC       ),
-    .nLED_DELAYING  (nLED_DELAYING  )
+    .nLED_DELAYING  (nLED_DELAYING  ),
+    .nLED_STATUS    (nLED_STATUS    ),
+    .nLED_PWROK     (nLED_PWROK     )
 );
 
 

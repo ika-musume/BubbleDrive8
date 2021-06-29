@@ -1,6 +1,6 @@
 module TimingGenerator
 /*
-    BubbleDrive8_emucore\TimingGenerator.v
+    BubbleDrive8_emucore > modules > TimingGenerator.v
 
     Copyright (C) 2020-2021, Raki
 
@@ -26,7 +26,7 @@ module TimingGenerator
     nSWAPEN: SWAP gate ENable
         FTG use this signal to write a page to a bubble memory
 
-    nSYSOK: similar to MASTER RESET
+    nEN: module enable signal
     ACCTYPE: bubble access mode type
     BOUTCYCLENUM: bubble output cycle number: counts serial bits
     nBINCLKEN: emulator samples bubble data for page write when this goes low
@@ -47,7 +47,7 @@ module TimingGenerator
     output  reg             CLKOUT = 1'b1,
 
     //Input control
-    input   wire            nSYSOK,
+    input   wire            nEN,
 
     //Bubble control signal inputs
     input   wire            nBSS,
@@ -122,11 +122,11 @@ assign {nSWAPEN_intl, nBSS_intl, nBSEN_intl, nREPEN_intl, nBOOTEN_intl} = step4;
 
 always @(posedge MCLK)
 begin
-    step1[4] <= nSYSOK | nSWAPEN;
-    step1[3] <= nSYSOK | nBSS;
-    step1[2] <= nSYSOK | nBSEN;
-    step1[1] <= nSYSOK | (nREPEN | ~nBOOTEN);
-    step1[0] <= ~nSYSOK & nBOOTEN;
+    step1[4] <= nEN | nSWAPEN;
+    step1[3] <= nEN | nBSS;
+    step1[2] <= nEN | nBSEN;
+    step1[1] <= nEN | (nREPEN | ~nBOOTEN);
+    step1[0] <= ~nEN & nBOOTEN;
 
     step2 <= step1;
     step3 <= step2;
@@ -333,7 +333,7 @@ end
 //absolute position counter
 always @(posedge MCLK)
 begin
-    if(nSYSOK == 1'b1) //시스템 시작이 안 됐다면, 초기값으로 설정
+    if(nEN == 1'b1) //시스템 시작이 안 됐다면, 초기값으로 설정
     begin
         absolute_position_number <= INITIAL_ABS_POSITION;
     end
