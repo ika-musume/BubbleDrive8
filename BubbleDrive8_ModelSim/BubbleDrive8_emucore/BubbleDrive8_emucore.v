@@ -45,9 +45,9 @@ wire            nNOBUBBLE;
 wire    [11:0]  CURRPAGE;
 
 //SPILoader -> BubbleInterface
-wire            nOUTBUFWCLKEN;
-wire    [14:0]  OUTBUFWADDR;
-wire            OUTBUFWDATA;
+wire            nOUTBUFWRCLKEN;
+wire    [14:0]  OUTBUFWRADDR;
+wire            OUTBUFWRDATA;
 
 assign nACC = ~ACCTYPE[2];
 
@@ -86,9 +86,9 @@ BubbleInterface BubbleInterface_0
     .nBOUTCLKEN     (nBOUTCLKEN     ),
     .nNOBUBBLE      (nNOBUBBLE      ),
 
-    .nOUTBUFWCLKEN  (nOUTBUFWCLKEN  ),
-    .OUTBUFWADDR    (OUTBUFWADDR    ),
-    .OUTBUFWDATA    (OUTBUFWDATA    ),
+    .nOUTBUFWRCLKEN (nOUTBUFWRCLKEN ),
+    .OUTBUFWRADDR   (OUTBUFWRADDR   ),
+    .OUTBUFWRDATA   (OUTBUFWRDATA   ),
 
     .DOUT0          (DOUT0          ),
     .DOUT1          (DOUT1          ),
@@ -108,9 +108,9 @@ SPILoader SPILoader_0
     .ABSPOS         (ABSPOS         ),
     .CURRPAGE       (CURRPAGE       ),
 
-    .nOUTBUFWCLKEN  (nOUTBUFWCLKEN  ),
-    .OUTBUFWADDR    (OUTBUFWADDR    ),
-    .OUTBUFWDATA    (OUTBUFWDATA    ),
+    .nOUTBUFWRCLKEN (nOUTBUFWRCLKEN ),
+    .OUTBUFWRADDR   (OUTBUFWRADDR   ),
+    .OUTBUFWRDATA   (OUTBUFWRDATA   ),
 
     .nCS            (nROMCS         ),
     .MOSI           (ROMMOSI        ),

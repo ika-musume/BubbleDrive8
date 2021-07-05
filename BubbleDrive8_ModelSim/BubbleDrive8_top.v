@@ -42,7 +42,7 @@ module BubbleDrive8_top
 
     //control inputs
     input   wire    [2:0]   TEMPSW,
-    input   wire            FORCEBOOT,
+    input   wire            FORCESTART,
 
     //TC77
     output  wire            nTEMPCS,
@@ -66,8 +66,8 @@ module BubbleDrive8_top
     //// LEDS
     output  wire            nLED_ACC,
     output  wire            nLED_DELAYING,
-    output  wire            nLED_STATUS,
-    output  reg             nLED_PWROK
+    output  wire            nLED_STANDBY,
+    output  wire            nLED_PWROK
 );
 
 assign nWP = 1'bZ;
@@ -112,7 +112,7 @@ BubbleDrive8_tempsense BubbleDrive8_tempsense_0
     .TEMPSW         (TEMPSW         ),
     .nEN            (tempsense_en   ),
 
-    .FORCESTART     (1'b0           ),
+    .FORCESTART     (FORCESTART     ),
 
     .nTEMPLO        (nTEMPLO        ),
     .nFANEN         (nFANEN         ),
@@ -195,15 +195,16 @@ localparam MODE_SELECT_S0 = 3'b001;     //에뮬/MPSSE 선택
 localparam EMULATOR_S0 = 3'b010;        //4비트 모드 체크
 localparam EMULATOR_S1 = 3'b011;        //버블 모듈 enable, FIFO enable, MPSSE disable
 
-localparam MPSSE_S0 = 3'b101;           //버블 모듈 diasble, FIFO disable, MPSSE enable
+localparam MPSSE_STANDBY_S0 = 3'b101;   //버블 모듈 diasble, FIFO disable, MPSSE enable하면서 대기, 버블쪽 파워가 들어올 경우 에뮬레이터 모드로
 
 localparam ERROR_S0 = 3'b110;           //FPGA는 켜졌으나 기판 MRST가 1일때(-12V 등 불량)
 localparam ERROR_S1 = 3'b111;           //전원공급은 USB이나 기판 MRST가 0일때(애매한 상태)
 
 //emulator state
 reg     [2:0]   emulator_state = RESET_S0;
-reg             led_status = 1'b1;
-assign nLED_STATUS = led_status | blinker;
+reg             led_pwrok;
+assign nLED_PWROK = led_pwrok & blinker;
+assign nLED_STANDBY = ~nLED_DELAYING;
 
 //state flow control
 always @(posedge MCLK)
@@ -216,13 +217,21 @@ begin
                 2'b00: emulator_state <= EMULATOR_S1;
                 2'b01: emulator_state <= ERROR_S0;
                 2'b10: emulator_state <= ERROR_S1;
-                2'b11: emulator_state <= MPSSE_S0;
+                2'b11: emulator_state <= MPSSE_STANDBY_S0;
             endcase
 
         EMULATOR_S0: emulator_state <= EMULATOR_S1;
         EMULATOR_S1: emulator_state <= EMULATOR_S1;
 
-        MPSSE_S0: emulator_state <= MPSSE_S0;
+        MPSSE_STANDBY_S0:
+            if({PWRSTAT, MRST} == 2'b00)
+            begin
+                emulator_state <= RESET_S0;
+            end
+            else
+            begin
+                emulator_state <= MPSSE_STANDBY_S0;
+            end
 
         ERROR_S0:
             if(MRST == 1'b1)
@@ -253,8 +262,7 @@ begin
         begin
             emucore_en <= 1'b1;
             tempsense_en <= 1'b1;
-            nLED_PWROK <= 1'b1;
-            led_status <= 1'b1;
+            led_pwrok <= 1'b1;
             blinker_stop <= 1'b0;
             blinker_start <= 1'b1;
         end
@@ -268,29 +276,25 @@ begin
         end
         EMULATOR_S1:
         begin
-            nLED_PWROK <= 1'b0;
-            led_status <= 1'b1;
+            led_pwrok <= 1'b0;
             emucore_en <= 1'b0;
             tempsense_en <= 1'b0;
         end
 
-        MPSSE_S0:
+        MPSSE_STANDBY_S0:
         begin
-            nLED_PWROK <= 1'b0;
-            led_status <= 1'b1;
+            led_pwrok <= 1'b0;
         end
 
         ERROR_S0:
         begin
-            nLED_PWROK <= 1'b1;
-            led_status <= 1'b0;
+            led_pwrok <= 1'b1;
             blinker_stop <= 1'b1;
             blinker_start <= 1'b0;
         end
         ERROR_S1:
         begin
-            nLED_PWROK <= 1'b1;
-            led_status <= 1'b0;
+            led_pwrok <= 1'b1;
             blinker_stop <= 1'b1;
             blinker_start <= 1'b0;
         end

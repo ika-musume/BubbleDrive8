@@ -71,7 +71,7 @@ module TimingGenerator
 
 
 
-localparam  INITIAL_ABS_POSITION = 12'd1955; //0-2052
+localparam  INITIAL_ABS_POSITION = 12'd1400; //0-2052
 
 /*
 localparam  BOOT_VALID_HALF_CYCLE_CNTR_INIT_VALUE = (INITIAL_ABS_POSITION + 12'd98 > 12'd2052) ? 
@@ -476,30 +476,40 @@ begin
     end
 end
 
-//inout clock enable generator
+//bubble output clock enable generator
 always @(posedge MCLK)
 begin
     //리셋상태
     if(MCLK_counter == 10'd0)
     begin
         nBOUTCLKEN <= 1'b1;
-        nBINCLKEN <= 1'b1;
-    end
-    //버블 시작, +Y에서 한번씩 체크
-    else if(MCLK_counter == 10'd88 || MCLK_counter == 10'd568) 
-    begin
-        nBOUTCLKEN <= 1'b1;
-        nBINCLKEN <= 1'b0;   
     end
     //버블 -Y에서 체크
     else if(MCLK_counter == 10'd328)
     begin
         nBOUTCLKEN <= 1'b0;
-        nBINCLKEN <= 1'b1;   
     end
     else
     begin
         nBOUTCLKEN <= 1'b1;
+    end
+end
+
+//bubble input enable generator
+always @(posedge MCLK)
+begin
+    //리셋상태
+    if(MCLK_counter == 10'd0)
+    begin
+        nBINCLKEN <= 1'b1;
+    end
+    //버블 시작, +Y에서 한번씩 체크
+    else if(MCLK_counter == 10'd88 || MCLK_counter == 10'd568) 
+    begin
+        nBINCLKEN <= 1'b0;   
+    end
+    else
+    begin
         nBINCLKEN <= 1'b1;
     end
 end

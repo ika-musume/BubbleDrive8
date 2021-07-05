@@ -15,9 +15,9 @@ module BubbleInterface
     input   wire            nNOBUBBLE,
 
     //Bubble out buffer interface
-    input   wire            nOUTBUFWCLKEN,    //bubble outbuffer write clk
-    input   wire    [14:0]  OUTBUFWADDR,      //bubble outbuffer write address
-    input   wire            OUTBUFWDATA,      //bubble outbuffer write data
+    input   wire            nOUTBUFWRCLKEN,    //bubble outbuffer write clk
+    input   wire    [14:0]  OUTBUFWRADDR,      //bubble outbuffer write address
+    input   wire            OUTBUFWRDATA,      //bubble outbuffer write data
 
     //Bubble data out
     output  wire            DOUT0,
@@ -97,40 +97,40 @@ begin
     case(BITWIDTH4)
         1'b0: //2BITMODE
         begin
-            case(OUTBUFWADDR[0])
+            case(OUTBUFWRADDR[0])
                 1'b0:
                 begin
-                    outbuffer_write_address <= OUTBUFWADDR[13:1];
+                    outbuffer_write_address <= OUTBUFWRADDR[13:1];
                     outbuffer_we_decoder <= 4'b1101;
                 end
                 1'b1:
                 begin
-                    outbuffer_write_address <= OUTBUFWADDR[13:1];
+                    outbuffer_write_address <= OUTBUFWRADDR[13:1];
                     outbuffer_we_decoder <= 4'b1110;
                 end
             endcase
         end
         1'b1: //4BITMODE: no game released
         begin
-            case(OUTBUFWADDR[1:0])
+            case(OUTBUFWRADDR[1:0])
                 2'b00:
                 begin
-                    outbuffer_write_address <= OUTBUFWADDR[14:2];
+                    outbuffer_write_address <= OUTBUFWRADDR[14:2];
                     outbuffer_we_decoder <= 4'b0111;
                 end
                 2'b01:
                 begin
-                    outbuffer_write_address <= OUTBUFWADDR[14:2];
+                    outbuffer_write_address <= OUTBUFWRADDR[14:2];
                     outbuffer_we_decoder <= 4'b1011;
                 end
                 2'b10:
                 begin
-                    outbuffer_write_address <= OUTBUFWADDR[14:2];
+                    outbuffer_write_address <= OUTBUFWRADDR[14:2];
                     outbuffer_we_decoder <= 4'b1101;
                 end
                 2'b11:
                 begin
-                    outbuffer_write_address <= OUTBUFWADDR[14:2];
+                    outbuffer_write_address <= OUTBUFWRADDR[14:2];
                     outbuffer_we_decoder <= 4'b1110;
                 end
             endcase
@@ -151,11 +151,11 @@ assign          DOUT0 = ~D0_outbuffer_read_data;
 
 always @(negedge MCLK)
 begin
-    if(nOUTBUFWCLKEN == 1'b0)
+    if(nOUTBUFWRCLKEN == 1'b0)
     begin
        if (outbuffer_write_enable[0] == 1'b0)
        begin
-           D0_outbuffer[outbuffer_write_address] <= OUTBUFWDATA;
+           D0_outbuffer[outbuffer_write_address] <= OUTBUFWRDATA;
        end
     end
 end
@@ -168,38 +168,24 @@ begin
     end
 end
 
-//asynchronous code
-/*
-always @(negedge nOUTBUFWCLKEN) //write
-begin
-    if (outbuffer_write_enable[0] == 1'b0)
-    begin
-        D0_outbuffer[outbuffer_write_address] <= OUTBUFWDATA;
-    end
-end
-*/
-
-
-
-
 initial
 begin
     $readmemb("D0_outbuffer.txt", D0_outbuffer);
 end
+
 
 //DOUT1
 reg             D1_outbuffer[8191:0];
 reg             D1_outbuffer_read_data;
 assign          DOUT1 = ~D1_outbuffer_read_data;
 
-
 always @(negedge MCLK)
 begin
-    if(nOUTBUFWCLKEN == 1'b0)
+    if(nOUTBUFWRCLKEN == 1'b0)
     begin
        if (outbuffer_write_enable[1] == 1'b0)
        begin
-           D1_outbuffer[outbuffer_write_address] <= OUTBUFWDATA;
+           D1_outbuffer[outbuffer_write_address] <= OUTBUFWRDATA;
        end
     end
 end
@@ -211,17 +197,6 @@ begin
         D1_outbuffer_read_data <= D1_outbuffer[outbuffer_read_address];
     end
 end
-
-//asynchronous code
-/*
-always @(negedge nOUTBUFWCLKEN) //write
-begin
-    if (outbuffer_write_enable[1] == 1'b0)
-    begin
-        D1_outbuffer[outbuffer_write_address] <= OUTBUFWDATA;
-    end
-end
-*/
 
 initial
 begin

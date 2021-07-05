@@ -34,7 +34,7 @@ wire            nFANEN;
 
 wire            nLED_ACC;
 wire            nLED_DELAYING;
-wire            nLED_STATUS;
+wire            nLED_STANDBY;
 wire            nLED_PWROK;
 
 
@@ -69,7 +69,7 @@ BubbleDrive8_top Main
 
     //temperature detector
     .TEMPSW         (3'b000         ),
-    .FORCEBOOT      (1'b0           ),
+    .FORCESTART     (1'b0           ),
 
     .nTEMPCS        (nTEMPCS        ),
     .TEMPCLK        (TEMPCLK        ),
@@ -80,12 +80,12 @@ BubbleDrive8_top Main
 
     //MPSSE
     .PWRSTAT        (1'b0           ),
-
+    .nMPSSEEN       (1'b1           ),
 
 
     .nLED_ACC       (nLED_ACC       ),
     .nLED_DELAYING  (nLED_DELAYING  ),
-    .nLED_STATUS    (nLED_STATUS    ),
+    .nLED_STANDBY   (nLED_STANDBY    ),
     .nLED_PWROK     (nLED_PWROK     )
 );
 
@@ -159,7 +159,7 @@ begin
 
     #1000 bootloop_enable = 1'b0;
     #50000 bubble_shift_enable = 1'b0;
-    #4387745 bubble_shift_enable = 1'b1; //00붙임
+    #438774500 bubble_shift_enable = 1'b1; //00붙임
 end
 
 endmodule

@@ -16,9 +16,15 @@ module SPILoader
     output  wire    [11:0]  CURRPAGE,
 
     //Bubble out buffer interface
-    output  reg             nOUTBUFWCLKEN = 1'b1,       //bubble buffer write clken
-    output  reg     [14:0]  OUTBUFWADDR = 14'd0,      //bubble buffer write address
-    output  reg             OUTBUFWDATA = 1'b1,       //bubble buffer write data
+    output  reg             nOUTBUFWRCLKEN = 1'b1,       //bubble buffer write clken
+    output  reg     [14:0]  OUTBUFWRADDR = 14'd0,      //bubble buffer write address
+    output  reg             OUTBUFWRDATA = 1'b1,       //bubble buffer write data
+
+    //FIFO buffer interface
+    output  reg             nFIFOEN = 1'b1,
+    output  reg             nFIFOBUFWCLKEN = 1'b1,
+    output  reg     [12:0]  FIFOBUFWADDR = 13'd0,   //13bit addr = 8k * 1bit
+    output  reg             FIFOBUFWDATA = 1'b1,
 
     //W25Q32
     output  reg             nCS = 1'b1,
@@ -270,10 +276,11 @@ begin
         RESET:
         begin
             nCS <= 1'b1; CLK <= 1'b1; 
-            OUTBUFWADDR <= {1'b0, 13'd0, 1'b0}; nOUTBUFWCLKEN <= 1'b1;
+            OUTBUFWRADDR <= {1'b0, 13'd0, 1'b0}; nOUTBUFWRCLKEN <= 1'b1;
             map_addr <= 12'd0; map_write_enable <= 1'b1; map_write_clken <= 1'b1; map_read_clken <= 1'b1;
-            general_counter <= 12'd0; 
+            nFIFOEN <= 1'b1; FIFOBUFWADDR <= 13'd0; nFIFOBUFWCLKEN <= 1'b1;
             convert <= 1'b1;
+            general_counter <= 12'd0; 
         end
 
         SPI_RDCMD_2B_S0:
@@ -314,7 +321,9 @@ begin
 
         BOOT_2B_S0:
         begin
-            OUTBUFWADDR <= {1'b0, 13'd2053, 1'b0}; //부트로더 시작 주소로 변경
+            OUTBUFWRADDR <= {1'b0, 13'd2053, 1'b0}; //부트로더 시작 주소로 변경
+            FIFOBUFWADDR <= 13'd0;
+
             general_counter <= 12'd0;
         end
         BOOT_2B_S1:
@@ -328,15 +337,18 @@ begin
         BOOT_2B_S3:
         begin
             CLK <= 1'b1;
-            OUTBUFWDATA <= MISO;
+            OUTBUFWRDATA <= MISO;
+            FIFOBUFWDATA <= MISO;
         end
         BOOT_2B_S4:
         begin
-            nOUTBUFWCLKEN <= 1'b0;
+            nOUTBUFWRCLKEN <= 1'b0;
+            nFIFOBUFWCLKEN <= 1'b0;
         end
         BOOT_2B_S5:
         begin
-            nOUTBUFWCLKEN <= 1'b1; OUTBUFWADDR <= OUTBUFWADDR + 15'd1;
+            nOUTBUFWRCLKEN <= 1'b1; OUTBUFWRADDR <= OUTBUFWRADDR + 15'd1;
+            nFIFOBUFWCLKEN <= 1'b1; FIFOBUFWADDR <= FIFOBUFWADDR + 13'd1;
             general_counter <= general_counter + 12'd1;
         end
         BOOT_2B_S6:
@@ -355,24 +367,28 @@ begin
         BOOT_2B_S9:
         begin
             CLK <= 1'b1;
-            OUTBUFWDATA <= MISO;
+            OUTBUFWRDATA <= MISO;
             map_data_in <= MISO;
+            FIFOBUFWDATA <= MISO;
         end
         BOOT_2B_S10:
         begin
-            nOUTBUFWCLKEN <= 1'b0;
+            nOUTBUFWRCLKEN <= 1'b0;
             map_write_clken <= 1'b0;
+            nFIFOBUFWCLKEN <= 1'b0;
         end
         BOOT_2B_S11:
         begin
-            nOUTBUFWCLKEN <= 1'b1; OUTBUFWADDR <= OUTBUFWADDR + 15'd1;
+            nOUTBUFWRCLKEN <= 1'b1; OUTBUFWRADDR <= OUTBUFWRADDR + 15'd1;
             map_write_clken <= 1'b1; map_addr <= map_addr + 12'd1;
+            nFIFOBUFWCLKEN <= 1'b1; FIFOBUFWADDR <= FIFOBUFWADDR + 13'd1;
             general_counter <= general_counter + 12'd1;
         end
 
         PGRD_2B_S0:
         begin
-            OUTBUFWADDR <= {1'b0, 13'd7168, 1'b0}; //페이지 데이터 시작시점
+            OUTBUFWRADDR <= {1'b0, 13'd7168, 1'b0}; //페이지 데이터 시작시점
+            FIFOBUFWADDR <= 13'd0;
             general_counter <= 12'd0;
         end
         PGRD_2B_S1:
@@ -387,17 +403,17 @@ begin
         begin
             map_read_clken <= 1'b1; map_addr <= map_addr + 12'd1;
             case(map_data_out)
-                1'b0: OUTBUFWDATA <= 1'b0; //불량 루프면 데이터 0쓰기 준비
-                1'b1: OUTBUFWDATA <= 1'b1; //정상 루프면 데이터 1쓰기 준비, 카운터 증가
+                1'b0: OUTBUFWRDATA <= 1'b0; //불량 루프면 데이터 0쓰기 준비
+                1'b1: OUTBUFWRDATA <= 1'b1; //정상 루프면 데이터 1쓰기 준비, 카운터 증가
             endcase
         end
         PGRD_2B_S4:
         begin
-            nOUTBUFWCLKEN <= 1'b0;
+            nOUTBUFWRCLKEN <= 1'b0;
         end
         PGRD_2B_S5:
         begin
-            nOUTBUFWCLKEN <= 1'b1; OUTBUFWADDR <= OUTBUFWADDR + 15'd1;
+            nOUTBUFWRCLKEN <= 1'b1; OUTBUFWRADDR <= OUTBUFWRADDR + 15'd1;
             case(map_data_out)
                 1'b0: begin end //불량 루프면 다음 에러맵 읽기
                 1'b1: begin general_counter <= general_counter + 12'd1; end //정상 루프면 되돌아가기, 카운터 증가
@@ -420,17 +436,19 @@ begin
         begin
             map_read_clken <= 1'b1; map_addr <= map_addr + 12'd1;
             case(map_data_out)
-                1'b0: OUTBUFWDATA <= 1'b0; //불량 루프면 데이터 0쓰기 준비
-                1'b1: OUTBUFWDATA <= MISO; //정상 루프면 데이터 그대로 쓰기 준비
+                1'b0: begin OUTBUFWRDATA <= 1'b0; end //불량 루프면 데이터 0쓰기 준비
+                1'b1: begin OUTBUFWRDATA <= MISO; FIFOBUFWDATA <= MISO; end //정상 루프면 데이터 그대로 쓰기 준비
             endcase
         end
         PGRD_2B_S10:
         begin
-            nOUTBUFWCLKEN <= 1'b0;
+            nOUTBUFWRCLKEN <= 1'b0;
+            nFIFOBUFWCLKEN <= 1'b0;
         end
         PGRD_2B_S11:
         begin
-            nOUTBUFWCLKEN <= 1'b1; OUTBUFWADDR <= OUTBUFWADDR + 15'd1; 
+            nOUTBUFWRCLKEN <= 1'b1; OUTBUFWRADDR <= OUTBUFWRADDR + 15'd1; 
+            nFIFOBUFWCLKEN <= 1'b1; FIFOBUFWADDR <= FIFOBUFWADDR + 13'd1;
             case(map_data_out)
                 1'b0: begin end //불량 루프면 다음 에러맵 읽기
                 1'b1: begin general_counter <= general_counter + 12'd1; end//정상 루프면 데이터 그대로 쓰기 준비

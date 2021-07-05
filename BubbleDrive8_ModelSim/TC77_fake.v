@@ -31,7 +31,7 @@ begin
     #3420 TEMP_VALUE <= 13'b0_0001_1000_0000; //25 degrees
     #0 IS_CONVERTED <= 1'b1;
 
-    #8240 TEMP_VALUE <= 13'b0_0010_0100_0000; //36 degrees
+    #82400 TEMP_VALUE <= 13'b0_0010_0111_0000; //39 degrees
     #0 IS_CONVERTED <= 1'b1;
 end
 
