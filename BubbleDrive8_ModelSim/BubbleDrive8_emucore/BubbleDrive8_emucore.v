@@ -41,7 +41,6 @@ wire    [12:0]  BOUTCYCLENUM;
 wire    [11:0]  ABSPOS;
 wire            nBINCLKEN;
 wire            nBOUTCLKEN;
-wire            nNOBUBBLE;
 wire    [11:0]  CURRPAGE;
 
 //SPILoader -> BubbleInterface
@@ -69,7 +68,6 @@ TimingGenerator TimingGenerator_0
     .BOUTCYCLENUM   (BOUTCYCLENUM   ),
     .nBINCLKEN      (nBINCLKEN      ),
     .nBOUTCLKEN     (nBOUTCLKEN     ),
-    .nNOBUBBLE      (nNOBUBBLE      ),
 
     .ABSPOS         (ABSPOS         )
 );
@@ -84,7 +82,6 @@ BubbleInterface BubbleInterface_0
     .BOUTCYCLENUM   (BOUTCYCLENUM   ),
     .nBINCLKEN      (nBINCLKEN      ),
     .nBOUTCLKEN     (nBOUTCLKEN     ),
-    .nNOBUBBLE      (nNOBUBBLE      ),
 
     .nOUTBUFWRCLKEN (nOUTBUFWRCLKEN ),
     .OUTBUFWRADDR   (OUTBUFWRADDR   ),

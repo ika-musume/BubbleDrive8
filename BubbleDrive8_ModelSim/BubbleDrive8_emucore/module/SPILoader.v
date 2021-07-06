@@ -321,7 +321,7 @@ begin
 
         BOOT_2B_S0:
         begin
-            OUTBUFWRADDR <= {1'b0, 13'd2053, 1'b0}; //부트로더 시작 주소로 변경
+            OUTBUFWRADDR <= {1'b0, 13'd0, 1'b0}; //부트로더 시작 주소로 변경
             FIFOBUFWADDR <= 13'd0;
 
             general_counter <= 12'd0;

@@ -1,6 +1,26 @@
 module BubbleInterface
 /*
-    
+    BubbleDrive8_emucore > modules > BubbleInterface.v
+
+    Copyright (C) 2020-2021, Raki
+
+    BubbleInterface acts as a buffer. This buffer has 8k*1bit space per
+    one bubble memory. So, a 2Mbit module can take two of them, and a 4Mb,
+    unreleased, undeveloped, never-seen one takes four.
+    This buffer can hold both bootloader(2053*2) and user pages(584). SPI 
+    Loader writes the bootloader and a requested page on here. One important 
+    thing is that this buffer also has the synchronization pattern and empty
+    propagation line.
+    64 of LOGIC LOW + 1 of LOGIC HIGH + extra 1 of DON'T CARE synchronization
+    pattern bits are loaded on the D0 buffer during the FPGA configuration 
+    session. BUBBLE VALID CYCLE COUNTER automatically sweeps the address bus 
+    of the buffer, so entire bootloop read can be accomplished without 
+    unnatural behavior or exceptional asynchronous code that forces to make
+    the pattern.
+    Timing Generator makes Clock Enable pulses(active low) to launch a bubble
+    bit.
+
+    * For my convenience, many comments are written in Korean *
 */
 
 (
@@ -12,7 +32,6 @@ module BubbleInterface
     input   wire    [12:0]  BOUTCYCLENUM,   //bubble output cycle number
     input   wire            nBINCLKEN,
     input   wire            nBOUTCLKEN,     //bubble output asynchronous control ticks
-    input   wire            nNOBUBBLE,
 
     //Bubble out buffer interface
     input   wire            nOUTBUFWRCLKEN,    //bubble outbuffer write clk
@@ -38,16 +57,17 @@ assign  DOUT3 = 1'b1;
 /*
     Block RAM Buffer Address [DOUT1/DOUT0]
     1bit 0 + 13bit address + 1bit CS
-    0000-1985 : 11 = filler
-    1986-2050 : X0 = 65 of ZEROs on EVEN channel (or possibly 64?)
-    2051      : X1 = 1 of ONE on EVEN channel
-    2052      : XX
-    2053-3964 : 478bytes = 3824bits bootloader
-    3965-4105 : 11 = filler
+    0000-1327 : bootloader data 1328*2 bits
+    1328-1911 : 584*2 bad loop table
+    1912-1926 : 14*2 or 15*2 bits of CRC(??) data, at least 28 bits
+    1927-4038 : 11 = filler
+    4039-4103 : X0 = 65 of ZEROs on EVEN channel (or possibly 64?)
+    4104      : X1 = 1 of ONE on EVEN channel
+    4105      : XX = DON'T CARE
     4106-7167 : 00 = empty space
     7168-7170 : 00 = 3 position shifted page data
     7171-7751 : 581bits remaining page data
-    8190      : 00 = empty bubble propagation line
+
     8191      : 00 = empty bubble propagation line
 */
 
@@ -58,27 +78,20 @@ reg     [12:0]  outbuffer_read_address = 13'b1_1111_1111_1111;
 
 always @(*)
 begin
-    if(nNOBUBBLE == 1'b00)
-    begin
-        outbuffer_read_address <= 13'b1_1111_1111_1111;
-    end
-    else
-    begin
-        case (ACCTYPE)
-            BOOT:
-            begin
-                outbuffer_read_address <= BOUTCYCLENUM;
-            end
-            USER:
-            begin
-                outbuffer_read_address <= {3'b111, BOUTCYCLENUM[9:0]};
-            end
-            default:
-            begin
-                outbuffer_read_address <= 13'b1_1111_1111_1111;
-            end
-        endcase
-    end
+    case (ACCTYPE)
+        BOOT:
+        begin
+            outbuffer_read_address <= BOUTCYCLENUM;
+        end
+        USER:
+        begin
+            outbuffer_read_address <= {3'b111, BOUTCYCLENUM[9:0]};
+        end
+        default:
+        begin
+            outbuffer_read_address <= 13'b1_1111_1111_1111;
+        end
+    endcase
 end
 
 

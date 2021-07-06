@@ -58,26 +58,14 @@ module TimingGenerator
     
     //Emulator signal outputs
     output  wire    [2:0]   ACCTYPE,
-    output  wire    [12:0]  BOUTCYCLENUM,
+    output  reg     [12:0]  BOUTCYCLENUM,
     output  reg             nBINCLKEN = 1'b1,
     output  reg             nBOUTCLKEN = 1'b1,
-    output  reg             nNOBUBBLE = 1'b0,
 
     output  wire    [11:0]  ABSPOS
-
-    //Test signal for synchronous implementation
-    //output  wire    [1:0]   BOUTTICKS    //bubble output asynchronous control ticks
 );
 
-
-
-localparam  INITIAL_ABS_POSITION = 12'd1400; //0-2052
-
-/*
-localparam  BOOT_VALID_HALF_CYCLE_CNTR_INIT_VALUE = (INITIAL_ABS_POSITION + 12'd98 > 12'd2052) ? 
-                                                    (((INITIAL_ABS_POSITION + 12'd98) - 12'd2053) * 3'd4) - 15'd1 : ((INITIAL_ABS_POSITION + 12'd98) * 3'd4) - 15'd1;
-*/
-
+localparam  INITIAL_ABS_POSITION = 12'd1951; //0-2052
 
 
 /*
@@ -279,15 +267,6 @@ end
 
 reg     [9:0]   MCLK_counter = 10'd0; //마스터 카운터는 세기 쉽게 1부터 시작 0아님!!
 
-reg     [11:0]  absolute_position_number = INITIAL_ABS_POSITION;
-assign ABSPOS = absolute_position_number;
-
-reg     [9:0]   bout_invalid_cycle_counter = 10'd1023;
-reg     [14:0]  bout_valid_cycle_counter = 15'd32767;
-assign BOUTCYCLENUM = bout_valid_cycle_counter[14:2];
-//assign BOUTTICKS = bout_invalid_cycle_counter[1:0] & bout_valid_cycle_counter[1:0];
-
-
 //master clock counters
 always @(posedge MCLK)
 begin
@@ -329,150 +308,226 @@ begin
     end
 end
 
+/*
+        -1
+    ----O---- DETECTOR 1
+     \  |0 /   <------------ bubble output signal latched here(magnetic field -Y) by MB3908 sense amplifier; stretcher patterns exist here
+      --O--   DETECTOR 0
+        |                                                   ←     ←     ←     ←     ←         propagation direction
+        |1    2         95    96    97    98    99    100   101               680   681
+        O-----O   ...   O-----O-----O-----O-----O-----O-----O--             --O-----O
+                              ↑     ↑     ↑     ↑     ↑     ↑                 ↑     ↑  
+                            __^__ __^__ __^__ __^__ __^__ __^__             __^__ __^__  <-- "block" replicators; replicators for two bootloops
+                         ↓  |   | |   | |   | |   | |   | |   |             |   | |   |       can be operated independantly from page replicators
+                            |   | |   | |   | |   | |   | |   |             |   | |   | 
+                         ↓  | L | | L | | L | | L | | L | | L |             | L | | L | 
+                            | O | | O | | O | | O | | O | | O |             | O | | O | 
+        ←                ↓  | O | | O | | O | | O | | O | | O |    .....    | O | | O |  <-- each loop can hold 2053 magnetic bubbles
+     ↙                     | P | | P | | P | | P | | P | | P |             | P | | P | 
+     ↓  ↑ EXTERNAL       ↓  |B 0| |B 1| |  0| |  1| |  2| |  3|             |582| |583| 
+        | MAGNETIC          |   | |   | |   | |   | |   | |   |             |   | |   | 
+          FIELD             ~   ~ ~   ~ ~   ~ ~   ~ ~   ~ ~   ~             ~   ~ ~O N~ 
+                            |   | |   | |   | |   | |   | |   |             |   | |L E| 
+                            |   | |   | |   | |   | |   | |   |             |   | |D W| 
+                            ¯↓^↑¯ ¯↓^↑¯ ¯↓^↑¯ ¯↓^↑¯ ¯↓^↑¯ ¯↓^↑¯             ¯↓^↑¯ ¯↓^↑¯  <-- swap gate swaps an old bubble with a new bubble at the same time: -Y
+                             / \   / \   / \   / \   / \   / \               / \   / \                    2     1
+                            /-O-\-/-O-\-/-O-\-/-O-\-/-O-\-/-O-\-            /-O-\-/-O-\---O-----O   ...   O-----O
+                              626   625   624   623   622   621               42    41    40    39              |
+                                                                                                      __________^_0________
+                                                                                                      | G E N E R A T O R | <-- generates a bubble at +Y
+
+    SEE JAPANESE PATENT:
+    JPA 1992074376-000000 / 特許出願公開 平4-74376  ;contains replicator/swap gate diagram
+    JPA 1989220199-000000 / 特許出願公開 平1-220199 ;explains bubble write procedure
+*/
 
 //absolute position counter
+reg     [11:0]  absolute_position_number = INITIAL_ABS_POSITION;
+assign ABSPOS = absolute_position_number;
+
 always @(posedge MCLK)
 begin
-    if(nEN == 1'b1) //시스템 시작이 안 됐다면, 초기값으로 설정
+    //143번째 pos엣지에서 half disk +Y방향 위치
+    if(MCLK_counter == 10'd568) 
     begin
-        absolute_position_number <= INITIAL_ABS_POSITION;
-    end
-    else
-    begin
-        //143번째 pos엣지에서 half disk +Y방향 위치
-        if(MCLK_counter == 10'd568) 
+        if(absolute_position_number < 12'd2052)
         begin
-            if(absolute_position_number < 12'd2052)
-            begin
-                absolute_position_number <= absolute_position_number + 12'd1;
-            end
-            else
-            begin
-                absolute_position_number <= 12'd0;
-            end
+            absolute_position_number <= absolute_position_number + 12'd1;
         end
-
-        //+Y 방향 빼고 나머지에서는
         else
         begin
-            absolute_position_number <= absolute_position_number;
+            absolute_position_number <= 12'd0;
         end
+    end
+    //+Y 방향 빼고 나머지에서는
+    else
+    begin
+        absolute_position_number <= absolute_position_number;
     end
 end
 
+//cycle counter
+reg     [6:0]   bout_propagation_delay_counter = 7'd127; //96 or 98
+reg     [9:0]   bout_page_cycle_counter = 10'd1023; //584
+reg     [12:0]  bout_bootloop_cycle_counter = {1'b0, INITIAL_ABS_POSITION}; //4106
 
-//half cycle counter
+//assign BOUTCYCLENUM = bout_page_cycle_counter[14:2];
+
 always @(posedge MCLK)
 begin
     //리셋상태
     if(MCLK_counter == 10'd0)
     begin
-        if(access_type == 3'b000)
+        if(access_type == RST) //리셋 시
         begin
-            if(nBOOTEN_intl == 1'b0) //부트로더 불러오기 전의 리셋
-            begin
-                bout_invalid_cycle_counter <= 10'd1023;
-                bout_valid_cycle_counter <= (absolute_position_number + 12'd98 > 12'd2052) ? 
-                                                 (((absolute_position_number + 12'd98) - 12'd2053) << 2) - 15'd1 : ((absolute_position_number + 12'd98) << 2) - 15'd1;
-                //68000측의 exception으로 컨트롤러가 부트로더를 다시 불러올 일이 생겨도 싱크를 잃어버리지 않게,
-                //에뮬레이터 내부 포지션이 계속 돌아가서 0이 됐을 시점과 synchronizing pattern을 출력하는 시점이 항상 일치하도록
-                //의도적으로 유효 싸이클 카운터의 시작시 초기값을 조정한다. 2비트 쉬프트는 *4와 같음.
-            end
-            else //유저 영역 리셋; 관계 없이 유효 사이클 카운터는 0부터 시작한다
-            begin
-                bout_invalid_cycle_counter <= 10'd1023;
-                bout_valid_cycle_counter <= 15'd32767;
-            end
+            BOUTCYCLENUM <= 13'd8191;
+
+            bout_propagation_delay_counter <= 7'd127;
+
+            bout_page_cycle_counter <= 10'd1023;
+
+            bout_bootloop_cycle_counter <= bout_bootloop_cycle_counter;
         end
-        else
+        else //그냥 다른 때는 그대로 유지
         begin
-            bout_invalid_cycle_counter <= bout_invalid_cycle_counter;
-            bout_valid_cycle_counter <= bout_valid_cycle_counter;
+            BOUTCYCLENUM <= BOUTCYCLENUM;
+
+            bout_propagation_delay_counter <= bout_propagation_delay_counter;
+
+            bout_page_cycle_counter <= bout_page_cycle_counter;
+
+            bout_bootloop_cycle_counter <= bout_bootloop_cycle_counter;
         end
     end
 
-    //버블 시작, -X, -Y, +X, +Y에서 한번씩 체크
-    else if(MCLK_counter == 10'd88 || MCLK_counter == 10'd208 || MCLK_counter == 10'd328 || MCLK_counter == 10'd448 || MCLK_counter == 10'd568) 
+    //+Y에서 한번씩 체크
+    else if(MCLK_counter == 10'd568) //magnetic field rotation activated
     begin
-        //실제 액세스 안 하면 리셋상태
-        if(access_type[1] == 1'b0)
+        if(access_type[1] == 1'b0) //IDLE 또는 SWAP: 실제로 데이터가 나가지 않음
         begin
-            nNOBUBBLE <= 1'b0;
+            //empty propagation line
+            BOUTCYCLENUM <= 13'd8191;
 
-            bout_invalid_cycle_counter <= bout_invalid_cycle_counter;
-            bout_valid_cycle_counter <= bout_valid_cycle_counter;
+            //reset state
+            bout_propagation_delay_counter <= 7'd127;
+
+            //reset state
+            bout_page_cycle_counter <= 10'd1023;
+
+            //count up
+            if(bout_bootloop_cycle_counter < 13'd4105)
+            begin
+                bout_bootloop_cycle_counter <= bout_bootloop_cycle_counter + 13'd1; //bootloop cycle counter는 계속 세기
+            end
+            else
+            begin
+                bout_bootloop_cycle_counter <= 13'd0;
+            end
         end
 
-        //싸이클 카운팅은 실제 액세스시에만 유효
-        else
+        else //BOOT 또는 USER
         begin
-            if(bout_invalid_cycle_counter == 10'd1023 || bout_invalid_cycle_counter < 10'd391) //부트로더, 페이지 모두 첫 98싸이클 무효
+            if(bout_propagation_delay_counter == 7'd127 || bout_propagation_delay_counter < 7'd97) //부트로더(초반 2비트가 씹힘)와 페이지 공히 첫 98싸이클 무효
             begin
-                nNOBUBBLE <= 1'b0;
+                //empty propagation line
+                BOUTCYCLENUM <= 13'd8191;
 
-                if(bout_invalid_cycle_counter < 10'd1023)
+                //count up
+                if(bout_propagation_delay_counter < 7'd127)
                 begin
-                    bout_invalid_cycle_counter <= bout_invalid_cycle_counter + 10'd1;
+                    bout_propagation_delay_counter <= bout_propagation_delay_counter + 7'd1;
                 end
                 else
                 begin
-                    bout_invalid_cycle_counter <= 10'd0;
+                    bout_propagation_delay_counter <= 7'd0;
                 end
-                bout_valid_cycle_counter <= bout_valid_cycle_counter;
-            end
-            else //99번째 싸이클부터
-            begin
-                nNOBUBBLE <= 1'b1;
 
-                if(access_type == 3'b110) //부트로더
+                //reset state
+                bout_page_cycle_counter <= 10'd1023;
+
+                //count up
+                if(bout_bootloop_cycle_counter < 13'd4105)
                 begin
-                    if(bout_valid_cycle_counter < 15'd16423) //부트로더는 2053*2*4-1 카운트
+                    bout_bootloop_cycle_counter <= bout_bootloop_cycle_counter + 13'd1; //bootloop cycle counter는 계속 세기
+                end
+                else
+                begin
+                    bout_bootloop_cycle_counter <= 13'd0;
+                end
+            end
+
+            else //98사이클 지난 후부터
+            begin
+                if(access_type[0] == 1'b0) //BOOT 액세스,
+                begin
+                    //hold
+                    bout_propagation_delay_counter <= bout_propagation_delay_counter;
+
+                    //reset state
+                    bout_page_cycle_counter <= 10'd1023;
+
+                    //count up
+                    if(bout_bootloop_cycle_counter < 13'd4105)
                     begin
-                        bout_invalid_cycle_counter <= bout_invalid_cycle_counter;
-                        bout_valid_cycle_counter <= bout_valid_cycle_counter + 15'd1; //+1
+                        bout_bootloop_cycle_counter <= bout_bootloop_cycle_counter + 13'd1; //bootloop cycle counter는 계속 세기
+                        BOUTCYCLENUM <= bout_bootloop_cycle_counter + 13'd1;
                     end
                     else
                     begin
-                        bout_invalid_cycle_counter <= bout_invalid_cycle_counter;
-                        bout_valid_cycle_counter <= 15'd0; //bootloop는 계속 루프
+                        bout_bootloop_cycle_counter <= 13'd0;
+                        BOUTCYCLENUM <= 13'd0;
                     end
                 end
-                else if(access_type == 3'b111) //페이지
+                else //USER 액세스
                 begin
-                    if(bout_valid_cycle_counter == 15'd32767 || bout_valid_cycle_counter < 15'd2335) //페이지는 584*4-1 카운트
+                    if(bout_page_cycle_counter == 10'd1023 || bout_page_cycle_counter < 10'd583) //페이지는 584-1 카운트
                     begin
-                        bout_invalid_cycle_counter <= bout_invalid_cycle_counter;
-                        if(bout_valid_cycle_counter < 15'd32767)
+                        //hold
+                        bout_propagation_delay_counter <= bout_propagation_delay_counter;
+
+                        //count up
+                        if(bout_page_cycle_counter < 10'd583)
                         begin
-                            bout_valid_cycle_counter <= bout_valid_cycle_counter + 15'd1;
+                            bout_page_cycle_counter <= bout_page_cycle_counter + 10'd1;
+                            BOUTCYCLENUM <= {3'b000, (bout_page_cycle_counter + 10'd1)};
                         end
                         else
                         begin
-                            bout_valid_cycle_counter <= 15'd0;
+                            bout_page_cycle_counter <= 10'd0;
+                            BOUTCYCLENUM <= 13'd0;
+                        end
+
+                        //count up
+                        if(bout_bootloop_cycle_counter < 13'd4105)
+                        begin
+                            bout_bootloop_cycle_counter <= bout_bootloop_cycle_counter + 13'd1; //bootloop cycle counter는 계속 세기
+                        end
+                        else
+                        begin
+                            bout_bootloop_cycle_counter <= 13'd0;
                         end
                     end
                     else
                     begin
-                        nNOBUBBLE <= 1'b0;
+                        //hold
+                        bout_propagation_delay_counter <= bout_propagation_delay_counter;
 
-                        bout_invalid_cycle_counter <= bout_invalid_cycle_counter;
-                        bout_valid_cycle_counter <= bout_valid_cycle_counter;
+                        //hold
+                        bout_page_cycle_counter <= bout_page_cycle_counter;
+
+                        //count up
+                        if(bout_bootloop_cycle_counter < 13'd4105)
+                        begin
+                            bout_bootloop_cycle_counter <= bout_bootloop_cycle_counter + 13'd1; //bootloop cycle counter는 계속 세기
+                        end
+                        else
+                        begin
+                            bout_bootloop_cycle_counter <= 13'd0;
+                        end
                     end
-                end
-                else //가능성 없음
-                begin
-                    bout_invalid_cycle_counter <= 10'd1023;
-                    bout_valid_cycle_counter <= 15'd32767;
                 end
             end
         end
-    end
-
-    //나머지 때에는 값 유지
-    else
-    begin
-        bout_invalid_cycle_counter <= bout_invalid_cycle_counter;
-        bout_valid_cycle_counter <= bout_valid_cycle_counter;
     end
 end
 
@@ -485,7 +540,7 @@ begin
         nBOUTCLKEN <= 1'b1;
     end
     //버블 -Y에서 체크
-    else if(MCLK_counter == 10'd328)
+    else if(MCLK_counter == 10'd328 - 10'd2) //propagation delay보상을 위해 신호를 15ns정도 일찍 보내기; 오래된 기판의 경우 LS244가 느려짐
     begin
         nBOUTCLKEN <= 1'b0;
     end
