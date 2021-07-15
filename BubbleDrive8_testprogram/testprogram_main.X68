@@ -22,13 +22,13 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         lea $14C, a0                                        ;bubble memory error map start address in the bootloader area
         lea $d00, a1                                        ;target address, does the BMC uses this data using DMA? not verified
         move.w #75, d0                                      ;repeat 76 times
-        ERRORMAPCOPY:                                       ;8*4*76=2432bits, FBM54DB needs 584bits of error map
+        COPYERRORMAP:                                       ;8*4*76=2432bits, FBM54DB needs 584bits of error map
             move.l (a0)+, (a1)+                             ;2432/4=608, 14 or 15bits of CRC(???) data should be supplied(by observation)
-            dbf d0, ERRORMAPCOPY                            ;without this valid data, the BMC ignores 1st, 2nd, 3rd page access request
+            dbf d0, COPYERRORMAP                            ;without this valid data, the BMC ignores 1st, 2nd, 3rd page access request
 
         move.w $78000, d0                                   ;expansion port diagnostic ROM base address
         cmpi.w #$5555, d0                                   ;check for 0x5555
-        bne.w JUMPTOEXTROM
+        beq.w JUMPTOEXTROM
 
         lea $40000, a0
         move.w #$0, $4(a0)                                  ;write 0 to 0x40004: bubble buffer DMA pointer initialization(???)
@@ -41,21 +41,21 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         move.w #$1, $2(a0)                                  ;READ
         move.b #1, $5E008                                   ;kick the Z80 watchdog
         move.b #0, $5E008
-        bsr.w BUBBLEWAIT
+        bsr.w BOOTLOADERBUBBLEWAIT
 
         move.w #$1, $0(a0)                                  ;load page 0x001
         nop
         move.w #$1, $2(a0)                                  ;READ
         move.b #1, $5E008                                   ;kick the Z80 watchdog
         move.b #0, $5E008
-        bsr.w BUBBLEWAIT
+        bsr.w BOOTLOADERBUBBLEWAIT
 
         move.w #$801, $0(a0)                                ;write to page 0x801
         nop
         move.w #$1, $2(a0)                                  ;WRITE
         move.b #1, $5E008                                   ;kick the Z80 watchdog
         move.b #0, $5E008
-        bsr.w BUBBLEWAIT
+        bsr.w BOOTLOADERBUBBLEWAIT
 
         move.w #0, $4(a0)                                   ;initialize controller
         move.w #$1, d1                                      ;set page 0x001 in D1
@@ -68,24 +68,24 @@ VECTORS dc.l $00001000                                      ;reset initial SP
             move.w #1, $2(a0)                               ;READ
             move.b #1, $5E008                               ;kick the Z80 watchdog
             move.b #0, $5E008
-            bsr.w BUBBLEWAIT
+            bsr.w BOOTLOADERBUBBLEWAIT
 
             move.w $0(a0), d2                               ;copy last 6 bits
             move.w d2, $F80                                 ;place last 5 bits on F80
             lea $F00, a2                                    ;set source address
             move.w #65, d3                                  ;repeat 66 times
-            SHIFTPAGE:
+            BOOTLOADERSHIFTPAGE:
                 move.l (a2), d2                             ;start shifting
                 lsl.l #6, d2
                 swap d2
                 move.w d2, (a2)+
-                dbf d3, SHIFTPAGE
+                dbf d3, BOOTLOADERSHIFTPAGE
 
             lea $F00, a2
             move.w #31, d3
-            COPYPAGE:
+            BOOTLOADERCOPYPAGE:
                 move.l (a2)+, (a1)+
-                dbf d3, COPYPAGE
+                dbf d3, BOOTLOADERCOPYPAGE
         
         addq.w #1, d1
 
@@ -97,11 +97,11 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         JUMPTOEXTROM:
             jmp $78002
 
-        BUBBLEWAIT:
-            move.w #$8000, d0                               ;signed -32768
-            WAITLOOP:
+        BOOTLOADERBUBBLEWAIT:
+            move.w #$8000, d7                               ;signed -32768
+            BOOTLOADERWAITLOOP:
                 nop
-                dbf d0, WAITLOOP
+                dbf d7, BOOTLOADERWAITLOOP
             rts
 
 
@@ -130,13 +130,14 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         nop
         move.b #1, $5E004
 
-                    
+        move.l #$0, d7                                      ;initialize d7
+
         move.w #1, -(sp)                                    ;palette RAM test
         move.l #$5A000, -(sp)
         move.l #$1000, -(sp)
         bsr.w RAMTEST
         move.w (sp)+, d2
-        or.w d2, d3                                         ;save test result in d3[0]
+        or.w d2, d7                                         ;save test result in d7[0]
         
         move.w #1, -(sp)                                    ;character RAM test
         move.l #$30000, -(sp)                
@@ -144,7 +145,7 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         bsr.w RAMTEST                  
         move.w (sp)+, d2
         lsl.w #1, d2                
-        or.w d2, d3                                         ;save test result in d3[1]
+        or.w d2, d7                                         ;save test result in d7[1]
         
         move.w #0, -(sp)                                    ;scroll RAM test
         move.l #$50000, -(sp)                
@@ -152,7 +153,7 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         bsr.w RAMTEST                  
         move.w (sp)+, d2
         lsl.w #2, d2           
-        or.w d2, d3                                         ;save test result in d3[2]
+        or.w d2, d7                                         ;save test result in d7[2]
 
         move.w #1, -(sp)                                    ;tilemap RAM test
         move.l #$52000, -(sp)                
@@ -160,7 +161,7 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         bsr.w RAMTEST
         move.w (sp)+, d2
         lsl.w #3, d2         
-        or.w d2, d3                                         ;save test result in d3[3]
+        or.w d2, d7                                         ;save test result in d7[3]
 
         move.w #0, -(sp)                                    ;tile color RAM test
         move.l #$52000, -(sp)                
@@ -168,7 +169,7 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         bsr.w RAMTEST                  
         move.w (sp)+, d2
         lsl.w #4, d2           
-        or.w d2, d3                                         ;save test result in d3[4]
+        or.w d2, d7                                         ;save test result in d7[4]
 
         move.w #0, -(sp)                                    ;Z80 RAM test
         move.l #$20000, -(sp)                
@@ -176,7 +177,7 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         bsr.w RAMTEST                  
         move.w (sp)+, d2
         lsl.w #5, d2           
-        or.w d2, d3                                         ;save test result in d3[5]
+        or.w d2, d7                                         ;save test result in d7[5]
 
         move.w #1, -(sp)                                    ;expansion RAM
         move.l #$70000, -(sp)                
@@ -184,9 +185,14 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         bsr.w RAMTEST                  
         move.w (sp)+, d2
         lsl.w #6, d2           
-        or.w d2, d3                                         ;save test result in d3[6]
+        or.w d2, d7                                         ;save test result in d7[6]
 
-        jmp $10000                                        ;goto work ram
+        move.l #$10000, -(sp)
+        move.w #32, -(sp)
+        move.w #7, -(sp)                                    ;from 0x380
+        bsr.w LOADBUBBLE
+
+        jmp $10000                                          ;goto work ram
 
 
         ;FUNCTION RAMTEST
@@ -260,45 +266,6 @@ VECTORS dc.l $00001000                                      ;reset initial SP
                     rts        
 
 
-    ORG    $10000
-    MAINTEST:   
-
-        move.l #$30000, -(sp)
-        move.w #36, -(sp)
-        move.w #0, -(sp)
-        bsr.w LOADBUBBLE
-
-        move.l #$5A000, -(sp)
-        move.w #1, -(sp)
-        move.w #36, -(sp)
-        bsr.w LOADBUBBLE
-
-
-        move.w #12, -(sp)
-        move.w #12, -(sp)
-        move.w #$F000, -(sp)
-        move.w #$0000, -(sp)
-        move.w #5, -(sp)
-        move.w #10, -(sp)
-        move.w #1, -(sp)
-        bsr.w DRAWTILEMAP
-            
-
-        END:
-        move.w #$20, d6
-        READWAIT0:
-            move.b #1, $5E008                               ;kick the watchdog
-            move.b #0, $5E008
-            move.w #$8000, d7
-            READWAIT1:
-                nop
-                dbf d7, READWAIT1                           ;loop
-            dbf d6, READWAIT0                               ;loop
-        jmp END     
-        
-
-        
-
         ;
         ;           FUNCTION LOADBUBBLE
         ;
@@ -315,7 +282,7 @@ VECTORS dc.l $00001000                                      ;reset initial SP
             lea $40000, a1                                  ;bubble memory controller register
             subi.l #1, d1                                   ;consecutive page length - 1 
 
-            READPAGE:
+            READ:
                 move.w #0, $4(a1)                           ;initialize controller
                 move.w d0, (a1)                             ;set page
                 nop
@@ -325,9 +292,9 @@ VECTORS dc.l $00001000                                      ;reset initial SP
                 move.b #0, $5E008
 
                 move.w #$8000, d7
-                READWAIT:
+                WAIT:
                     nop
-                    dbf d7, READWAIT                        ;loop
+                    dbf d7, WAIT                            ;loop
 
                 move.w (a1), d2                             ;move last byte to d2
                 move.w d2, $F80                             ;move last byte to F80
@@ -348,12 +315,86 @@ VECTORS dc.l $00001000                                      ;reset initial SP
                     dbf d7, COPY                            ;loop 32 times
 
                 addq.w #1, d0                               ;start page +1
-                dbf d1, READPAGE
+                dbf d1, READ
 
             move.l a3, -(sp)                                ;push return address
             rts 
 
 
+
+
+    ORG    $10000
+    MAINTEST:   
+        move.l #$30000, -(sp) ;copy tiles
+        move.w #52, -(sp)
+        move.w #1024, -(sp)
+        jsr LOADBUBBLE
+
+        move.l #$5A000, -(sp) ;copy palette
+        move.w #1, -(sp)
+        move.w #1023, -(sp)
+        jsr LOADBUBBLE
+
+
+        TITLEPROGRAM:
+            move.w #12, -(sp)
+            move.w #12, -(sp)
+            move.w #$F000, -(sp)
+            move.w #$0000, -(sp)
+            move.w #0, -(sp)
+            move.w #18, -(sp)
+            move.w #0, -(sp)
+            bsr.w DRAWTILEMAP
+
+            move.w #$F01F, -(sp)
+            move.w #$0001, -(sp)
+            move.w #1, -(sp)
+            bsr.w FILLTILEMAP      
+
+
+            move.w #0, d7
+            move.w #7, d6
+            DRAWMAINBANNER:
+                move.w #8, -(sp)
+                move.w #2, -(sp)
+                move.w #$F090, -(sp)
+                move.w #$0001, -(sp)
+                move.w d7, -(sp)
+                move.w #3, -(sp)
+                move.w #1, -(sp)
+                bsr.w DRAWTILEMAP
+                addi.w #8, d7
+                dbf d6, DRAWMAINBANNER
+
+            END:
+            move.w #$20, d6
+            READWAIT0:
+                move.b #1, $5E008                               ;kick the watchdog
+                move.b #0, $5E008
+                move.w #$8000, d7
+                READWAIT1:
+                    nop
+                    dbf d7, READWAIT1                           ;loop
+
+                lea $50431, a0
+                move.w #15, d0
+                SCROLL:
+                    move.b (a0), d1
+                    cmpi.b #$FF, d1
+                    beq.s SCROLLLOOP
+                    addq.b #1, d1
+                    bra.s SCROLLEND
+                    SCROLLLOOP:
+                        move.b #$00, d1
+                    SCROLLEND:
+                        move.b d1, (a0)
+                        add.l #2, a0
+                    dbf d0, SCROLL
+                dbf d6, READWAIT0                               ;loop
+            jmp END   
+
+        SHOWTESTRESULT:  
+        
         ;
         ;           DRAWTILEMAP
         ;
@@ -368,6 +409,14 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         DRAWTILEMAP:                                        
                                                             ;Width -> Height -> VRAM priority/flip/CHARRAMADDR
                                                             ;color RAM flip/palette -> Xpos -> Ypos -> tilemap A/B -> return address
+
+            move.l #0, d0                                   ;initialize
+            move.l #0, d1
+            move.l #0, d2
+            move.l #0, d3
+            move.l #0, d4
+            move.l #0, d5
+
             movea.l (sp)+, a2                               ;pop return address
 
             move.w (sp)+, d0                                ;pop tilemap A/B(0 = A, 1 = B)
@@ -396,25 +445,25 @@ VECTORS dc.l $00001000                                      ;reset initial SP
                 move.w (sp)+, d0                            ;pop VRAM priority/flip/CHARRAMADDR
 
             
-            move.w (sp)+, d3                                ;pop height
-            subi #1, d3                                     ;set loop counter
+            move.w (sp)+, d2                                ;pop height
+            subi #1, d2                                     ;set loop counter
 
-            move.l #64, d5                                  ;set full horizontal tile length(max 64 tiles)
-            sub.w (sp), d5                                  ;copy width
-            lsl.l #1, d5                                    ;width * 2
+            move.l #64, d4                                  ;set full horizontal tile length(max 64 tiles)
+            sub.w (sp), d4                                  ;copy width
+            lsl.l #1, d4                                    ;width * 2
             YDRAW:
-                move.w (sp), d4                             ;copy width
-                subi.w #1, d4                               ;set loop counter
+                move.w (sp), d3                             ;copy width
+                subi.w #1, d3                               ;set loop counter
                 XDRAW:
                     move.w d0, (a0)+                        ;write tile property to VRAM
                     move.w d1, (a1)+                        ;write tile color to COLORRAM
                     add.w #1, d0                            ;increase CHAR RAM pointer
-                    dbf d4, XDRAW
-                add.l d5, a0                                ;set next line start address
-                add.l d5, a1
-                dbf d3, YDRAW
+                    dbf d3, XDRAW
+                add.l d4, a0                                ;set next line start address
+                add.l d4, a1
+                dbf d2, YDRAW
 
-            addq.l #2, sp                                    ;move stack pointer
+            addq.l #2, sp                                   ;move stack pointer
             move.l a2, -(sp)                                ;push return address
             rts 
 
@@ -445,8 +494,8 @@ VECTORS dc.l $00001000                                      ;reset initial SP
                 lea $54000, a1                              ;ADDR offset + COLOR RAM 1 base address
 
             FILLTILES:
-            move.w (sp)+, d0                                ;pop VRAM properties
-            move.w (sp)+, d1                                ;pop color RAM properties
+            move.w (sp)+, d1                                ;pop VRAM properties
+            move.w (sp)+, d0                                ;pop color RAM properties
 
             move.w #$7FF, d2                                ;set RAM length(byte 000-FFF)
             FILLLOOP:
