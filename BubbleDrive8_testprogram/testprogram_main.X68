@@ -75,7 +75,7 @@ VECTORS dc.l $00001000                                      ;reset initial SP
             lea $F00, a2                                    ;set source address
             move.w #65, d3                                  ;repeat 66 times
             BOOTLOADERSHIFTPAGE:
-                move.l (a2), d2                             ;start shifting
+                move.l (a2), d2                             ;start shifting: same as the original Konami code
                 lsl.l #6, d2
                 swap d2
                 move.w d2, (a2)+
@@ -189,7 +189,7 @@ VECTORS dc.l $00001000                                      ;reset initial SP
 
         move.l #$10000, -(sp)
         move.w #32, -(sp)
-        move.w #7, -(sp)                                    ;from 0x380
+        move.w #16, -(sp)                                    ;from 0x380
         bsr.w LOADBUBBLE
 
         jmp $10000                                          ;goto work ram
@@ -208,6 +208,8 @@ VECTORS dc.l $00001000                                      ;reset initial SP
             btst.l #$0, d2                                  ;1 = WORDTEST 0 = BYTETEST
             beq.s BYTETEST                                  ;if 0(Z=1), go to BYTETEST if 1(Z=0) go to WORDTEST
 
+            move.w #0, d2                                   ;initialize d2
+
                 WORDTEST:       
                     move.w #$FFFF, d3
                     bsr.w FILLWORD
@@ -218,7 +220,7 @@ VECTORS dc.l $00001000                                      ;reset initial SP
                     move.w #$0000, d3
                     bsr.w FILLWORD
 
-                    move.w #0, -(sp)                        ;set ok flag
+                    move.w d2, -(sp)                        ;set ok/failed flag
                     move.l a2, -(sp)                        ;push return address
                     rts  
 
@@ -228,9 +230,13 @@ VECTORS dc.l $00001000                                      ;reset initial SP
                         WORDRWTEST:
                             move.w d3, (a0)                 ;write $FFFF, 5555, AAAA, 0000
                             cmp.w (a0)+, d3                 ;read and compare
-                            bne.w ERROR                     ;if not matches, goto ERROR
-                            dbf d0, WORDRWTEST              ;loop  
-                        rts        
+                            bne.s WORDERROR                 ;if not matches, goto ERROR
+                            dbf d0, WORDRWTEST              ;loop
+                        rts
+
+                        WORDERROR:
+                            bsr.s ERROR
+                            dbf d0, WORDRWTEST      
 
                 BYTETEST:
                     addq.l #1, a1                            ;start addr +1(BYTE ACCESS)   
@@ -244,7 +250,7 @@ VECTORS dc.l $00001000                                      ;reset initial SP
                     move.w #$00, d3
                     bsr.w FILLBYTE
 
-                    move.w #0, -(sp)                        ;set ok flag
+                    move.w d2, -(sp)                        ;set ok/failed flag
                     move.l a2, -(sp)                        ;push return address
                     rts
 
@@ -254,15 +260,17 @@ VECTORS dc.l $00001000                                      ;reset initial SP
                         BYTERWTEST:                    
                             move.b d3, (a0)                 ;write $FF, 55, AA, 00
                             cmp.b (a0), d3                  ;read and compare
-                            addq.l #2, a0                    ;+2 increment
-                            bne.w ERROR                     ;if not matches, goto ERROR
+                            addq.l #2, a0                   ;+2 increment
+                            bne.s BYTEERROR                 ;if not matches, goto ERROR
                             dbf d0, BYTERWTEST              ;loop
-                        rts  
+                        rts
 
-                ERROR:   
-                    addq.l #4, sp                            ;ignore "FILL" bsr.w address(4 bytes)            
-                    move.w #1, -(sp)                        ;set error flag
-                    move.l a2, -(sp)                        ;push return address
+                        BYTEERROR:
+                            bsr.s ERROR
+                            dbf d0, BYTERWTEST
+
+                ERROR:         
+                    move.w #1, d2                           ;set error flag
                     rts        
 
 
@@ -326,7 +334,7 @@ VECTORS dc.l $00001000                                      ;reset initial SP
     ORG    $10000
     MAINTEST:   
         move.l #$30000, -(sp) ;copy tiles
-        move.w #52, -(sp)
+        move.w #91, -(sp)
         move.w #1024, -(sp)
         jsr LOADBUBBLE
 
@@ -339,61 +347,141 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         TITLEPROGRAM:
             move.w #12, -(sp)
             move.w #12, -(sp)
-            move.w #$F000, -(sp)
+            move.w #$F060, -(sp)
             move.w #$0000, -(sp)
             move.w #0, -(sp)
             move.w #18, -(sp)
             move.w #0, -(sp)
             bsr.w DRAWTILEMAP
 
-            move.w #$F01F, -(sp)
-            move.w #$0001, -(sp)
+            move.w #$F05F, -(sp)
+            move.w #$0002, -(sp)
             move.w #1, -(sp)
             bsr.w FILLTILEMAP      
 
-
             move.w #0, d7
             move.w #7, d6
-            DRAWMAINBANNER:
+            DRAWUPPERTITLEBANNER:
                 move.w #8, -(sp)
                 move.w #2, -(sp)
-                move.w #$F090, -(sp)
+                move.w #$F0F0, -(sp)
                 move.w #$0001, -(sp)
                 move.w d7, -(sp)
                 move.w #3, -(sp)
                 move.w #1, -(sp)
                 bsr.w DRAWTILEMAP
                 addi.w #8, d7
-                dbf d6, DRAWMAINBANNER
+                dbf d6, DRAWUPPERTITLEBANNER
 
-            END:
-            move.w #$20, d6
-            READWAIT0:
+            move.w #0, d7
+            move.w #7, d6
+            DRAWLOWERTITLEBANNER:
+                move.w #8, -(sp)
+                move.w #2, -(sp)
+                move.w #$F0F0, -(sp)
+                move.w #$0001, -(sp)
+                move.w d7, -(sp)
+                move.w #27, -(sp)
+                move.w #1, -(sp)
+                bsr.w DRAWTILEMAP
+                addi.w #8, d7
+                dbf d6, DRAWLOWERTITLEBANNER
+
+            BBDLOGO:
+                move.w #18, -(sp)
+                move.w #6, -(sp)
+                move.w #$F100, -(sp)
+                move.w #$0000, -(sp)
+                move.w #7, -(sp)
+                move.w #8, -(sp)
+                move.w #0, -(sp)
+                bsr.w DRAWTILEMAP
+
+            lea TITLEMESSAGE2, a0
+            move.l a0, -(sp)
+            move.w #1, -(sp)
+            move.w #7, -(sp)
+            move.w #16, -(sp)
+            move.w #0, -(sp)
+            bsr.w PRINTTEXT
+
+            lea TITLEMESSAGE1, a0
+            move.l a0, -(sp)
+            move.w #1, -(sp)
+            move.w #16, -(sp)
+            move.w #23, -(sp)
+            move.w #0, -(sp)
+            bsr.w PRINTTEXT
+
+            lea TITLEMESSAGE3, a0
+            move.l a0, -(sp)
+            move.w #1, -(sp)
+            move.w #15, -(sp)
+            move.w #24, -(sp)
+            move.w #0, -(sp)
+            bsr.w PRINTTEXT
+
+            TITLEKEYINWAIT:
                 move.b #1, $5E008                               ;kick the watchdog
                 move.b #0, $5E008
-                move.w #$8000, d7
-                READWAIT1:
-                    nop
-                    dbf d7, READWAIT1                           ;loop
 
-                lea $50431, a0
+                move.w $5CC00, d0
+                btst.l #$3, d0
+                beq.s TESTMENU
+
+                move.w #$8000, d7
+                BANNERSCROLLDELAY:
+                    nop
+                    dbf d7, BANNERSCROLLDELAY                   ;loop
+
+                lea $50431, a0                                  ;TILEMAP-B
+                lea $505B1, a1                                  ;TILEMAP-B
                 move.w #15, d0
-                SCROLL:
+                BANNERSCROLL:
                     move.b (a0), d1
                     cmpi.b #$FF, d1
-                    beq.s SCROLLLOOP
+                    beq.s BANNERSCROLLLOOP
                     addq.b #1, d1
-                    bra.s SCROLLEND
-                    SCROLLLOOP:
+                    bra.s BANNERSCROLLINC
+                    BANNERSCROLLLOOP:
                         move.b #$00, d1
-                    SCROLLEND:
+                    BANNERSCROLLINC:
                         move.b d1, (a0)
+                        move.b d1, d2
+                        eori.b #$FF, d2                         ;reversed scroll direction
+                        move.b d2, (a1)
                         add.l #2, a0
-                    dbf d0, SCROLL
-                dbf d6, READWAIT0                               ;loop
-            jmp END   
+                        add.l #2, a1
+                    dbf d0, BANNERSCROLLINC
+                bra.s TITLEKEYINWAIT
 
-        SHOWTESTRESULT:  
+TITLEMESSAGE1   dc.w 'BubbleDrive8', $0000
+TITLEMESSAGE2   dc.w 'System Test Program', $0000
+TITLEMESSAGE3   dc.w '2020-2021 Raki', $0000
+
+            TESTMENU:
+                move.w #$F000, -(sp)                            ;erase tilemap A
+                move.w #$0001, -(sp)
+                move.w #0, -(sp)
+                bsr.w FILLTILEMAP 
+
+                move.w #$F05F, -(sp)                            ;erase tilemap B
+                move.w #$0002, -(sp)
+                move.w #1, -(sp)
+                bsr.w FILLTILEMAP  
+
+            TESTMENUKEYINWAIT:
+                move.b #1, $5E008                               ;kick the watchdog
+                move.b #0, $5E008
+
+                move.w #$8000, d7
+                TESTMENUKEYINDELAY:
+                    nop
+                    dbf d7, TESTMENUKEYINDELAY                  ;loop
+                bra.s TESTMENUKEYINWAIT  
+
+
+
         
         ;
         ;           DRAWTILEMAP
@@ -415,7 +503,6 @@ VECTORS dc.l $00001000                                      ;reset initial SP
             move.l #0, d2
             move.l #0, d3
             move.l #0, d4
-            move.l #0, d5
 
             movea.l (sp)+, a2                               ;pop return address
 
@@ -506,6 +593,77 @@ VECTORS dc.l $00001000                                      ;reset initial SP
             move.l a2, -(sp)                                ;push return address
             rts 
 
+
+        ;
+        ;           PRINTTEXT
+        ;
+        ;ARGS: STRING POINTER
+        ;      PALETTE CODE(7)
+        ;      XPOS
+        ;      YPOS
+        ;      TILEMAP A=0/B=1
+        ;JSR:  RETURN ADDRESS
+        PRINTTEXT:
+            movea.l (sp)+, a3                               ;pop return address
+
+            move.w (sp)+, d0                                ;pop tilemap A/B
+            btst.l #$0, d0                                  ;1 = TILEMAP-B 0 = TILEMAP-A
+            beq.s SETTMATEXTADDR
+
+            SETTMBTEXTADDR:
+                lea $53000, a0                              ;ADDR offset + VRAM 2 base address
+                lea $55000, a1                              ;ADDR offset + COLOR RAM 2 base address
+                bra SETTEXTPOSOFFSET
+
+            SETTMATEXTADDR:
+                lea $52000, a0                              ;ADDR offset + VRAM 1 base address
+                lea $54000, a1                              ;ADDR offset + COLOR RAM 1 base address
+
+            SETTEXTPOSOFFSET:
+                move.w (sp)+, d0                            ;pop Ypos
+                mulu.w #64, d0                              ;d0 = Ypos * 64
+                add.w (sp)+, d0                             ;pop Xpos and d0 = d0 + Xpos
+                lsl.l #1, d0                                ;offset * 2
+                add.l d0, a0                                ;a0 = VRAM, a1 = COLOR RAM
+                add.l d0, a1
+            
+            move.w (sp)+, d2                                ;pop color RAM flip/palette number
+            andi.w #$007F, d2                               ;delete flip value
+
+            movea.l (sp)+, a2                               ;pop string pointer
+
+            TYPELOOP:
+                ;letter 1
+                move.w (a2)+, d0                            ;get two letters
+                
+                ror.w #$8, d0                               ;8bit right rotation
+                cmpi.b #$00, d0                             ;if the ASCII code is $00
+                beq TYPEQUIT                                ;goto TYPEQUIT
+
+                subi #32, d0                                ;subtract 8'd32 to make the ASCII code to CHARRAM address
+                move.w #$F000, d1                           ;initialize d1
+                or.b d0, d1                                 ;write CHARRAM code
+
+                move.w d1, (a0)+
+                move.w d2, (a1)+
+
+                ;letter2 
+                lsr.w #$8, d0
+                cmpi.b #$00, d0
+                beq TYPEQUIT
+
+                subi #32, d0                                ;subtract 8'd32 to make the ASCII code to CHARRAM address
+                move.w #$F000, d1                           ;initialize d1
+                or.b d0, d1                                 ;write CHARRAM code
+
+                move.w d1, (a0)+
+                move.w d2, (a1)+
+
+                bra TYPELOOP
+
+                TYPEQUIT:
+                    move.l a3, -(sp)                                ;push return address
+                    rts
 
 
     SIMHALT             ; halt simulator
