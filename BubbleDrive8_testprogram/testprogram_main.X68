@@ -12,23 +12,23 @@ VECTORS dc.l $00001000                                      ;reset initial SP
     ORG     $8
     BOOTLOADER:
         move.w #4191, d0                                    ;repeat 4192 times
-        WAITFORCONTROLLER:
+        BOOTLOADER_WaitForController:
             nop                                             ;I don't know the internal program the BMC executes
-            dbf d0, WAITFORCONTROLLER                       ;Konami engineer added 4112 nop loops at that time
+            dbf d0, BOOTLOADER_WaitForController            ;Konami engineer added 4112 nop loops at that time
 
         move.b #1, $5E008                                   ;kick the Z80 watchdog
         move.b #0, $5E008                                   ;what circuitry acts as watchdog? idk
 
-        lea $14C, a0                                        ;bubble memory error map start address in the bootloader area
+        lea $14C, a0                                        ;bubble memory error map start address in the BOOTLOADER area
         lea $d00, a1                                        ;target address, does the BMC uses this data using DMA? not verified
         move.w #75, d0                                      ;repeat 76 times
-        COPYERRORMAP:                                       ;8*4*76=2432bits, FBM54DB needs 584bits of error map
+        BOOTLOADER_CopyErrormap:                            ;8*4*76=2432bits, FBM54DB needs 584bits of error map
             move.l (a0)+, (a1)+                             ;2432/4=608, 14 or 15bits of CRC(???) data should be supplied(by observation)
-            dbf d0, COPYERRORMAP                            ;without this valid data, the BMC ignores 1st, 2nd, 3rd page access request
+            dbf d0, BOOTLOADER_CopyErrormap                 ;without this valid data, the BMC ignores 1st, 2nd, 3rd page access request
 
         move.w $78000, d0                                   ;expansion port diagnostic ROM base address
         cmpi.w #$5555, d0                                   ;check for 0x5555
-        beq.w JUMPTOEXTROM
+        beq.w BOOTLOADER_Jump2ExpROM
 
         lea $40000, a0
         move.w #$0, $4(a0)                                  ;write 0 to 0x40004: bubble buffer DMA pointer initialization(???)
@@ -41,78 +41,76 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         move.w #$1, $2(a0)                                  ;READ
         move.b #1, $5E008                                   ;kick the Z80 watchdog
         move.b #0, $5E008
-        bsr.w BOOTLOADERBUBBLEWAIT
+        bsr.w BOOTLOADER_funcBubbleWait
 
         move.w #$1, $0(a0)                                  ;load page 0x001
         nop
         move.w #$1, $2(a0)                                  ;READ
         move.b #1, $5E008                                   ;kick the Z80 watchdog
         move.b #0, $5E008
-        bsr.w BOOTLOADERBUBBLEWAIT
+        bsr.w BOOTLOADER_funcBubbleWait
 
         move.w #$801, $0(a0)                                ;write to page 0x801
         nop
         move.w #$1, $2(a0)                                  ;WRITE
         move.b #1, $5E008                                   ;kick the Z80 watchdog
         move.b #0, $5E008
-        bsr.w BOOTLOADERBUBBLEWAIT
+        bsr.w BOOTLOADER_funcBubbleWait
 
         move.w #0, $4(a0)                                   ;initialize controller
         move.w #$1, d1                                      ;set page 0x001 in D1
         lea $A00, a1                                        ;copy pages from A00
         move.w #5, d0                                       ;consecutive 6 pages
-        LOADRAMTEST:
+        BOOTLOADER_LoadRAMTest:
             move.w #0, $4(a0)                               ;initialize controller
             move.w d1, $0(a0)                               ;set page
             nop
             move.w #1, $2(a0)                               ;READ
             move.b #1, $5E008                               ;kick the Z80 watchdog
             move.b #0, $5E008
-            bsr.w BOOTLOADERBUBBLEWAIT
+            bsr.w BOOTLOADER_funcBubbleWait_loop
 
             move.w $0(a0), d2                               ;copy last 6 bits
             move.w d2, $F80                                 ;place last 5 bits on F80
             lea $F00, a2                                    ;set source address
             move.w #65, d3                                  ;repeat 66 times
-            BOOTLOADERSHIFTPAGE:
+            BOOTLOADER_LoadRAMTest_ShiftPage:
                 move.l (a2), d2                             ;start shifting: same as the original Konami code
                 lsl.l #6, d2
                 swap d2
                 move.w d2, (a2)+
-                dbf d3, BOOTLOADERSHIFTPAGE
+                dbf d3, BOOTLOADER_LoadRAMTest_ShiftPage
 
             lea $F00, a2
             move.w #31, d3
-            BOOTLOADERCOPYPAGE:
+            BOOTLOADER_LoadRAMTest_CopyPage:
                 move.l (a2)+, (a1)+
-                dbf d3, BOOTLOADERCOPYPAGE
+                dbf d3, BOOTLOADER_LoadRAMTest_CopyPage
         
         addq.w #1, d1
 
-        dbf d0, LOADRAMTEST
+        dbf d0, BOOTLOADER_LoadRAMTest
 
         move.w #0, $4(a0)                                   ;initialize controller
         jmp $A00
 
-        JUMPTOEXTROM:
+        BOOTLOADER_Jump2ExpROM:
             jmp $78002
 
-        BOOTLOADERBUBBLEWAIT:
-            move.w #$8000, d7                               ;signed -32768
-            BOOTLOADERWAITLOOP:
+        BOOTLOADER_funcBubbleWait:
+            move.w #$8000, d4                               ;signed -32768
+            BOOTLOADER_funcBubbleWait_loop:
                 nop
-                dbf d7, BOOTLOADERWAITLOOP
+                dbf d4, BOOTLOADER_funcBubbleWait_loop
             rts
 
 
 
 
     ORG     $A00
-    INITIALTEST:                                            ;initial RAM test routines
+    INITIALIZATION:                                         ;initial RAM test routines
         lea $1000, sp                 
-        move.l #$0, d3                                      ;initialize d3
-        move.l #$0, d4                                      ;initialize d4
-
+        
         move.b #1, $5E008                                   ;kick the Z80 watchdog
         move.b #0, $5E008
         nop
@@ -120,29 +118,34 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         move.b #1, $5C001                                   ;morning music code latch
         nop
 
-        move.w #$8000, d7
-        DELAYLOOP:
+        move.w #$8000, d0
+        INITIALIZATION_DelayLoop:
             nop
-            dbf d7, DELAYLOOP                               ;initial delay
+            dbf d0, INITIALIZATION_DelayLoop                ;initial delay
 
         move.b #0, $5E004                                   ;Z80 interrupt
         nop
         nop
         move.b #1, $5E004
 
+        move.l #$0, d0                                      ;initialize d0
+        move.l #$0, d1                                      ;initialize d1
+        move.l #$0, d2                                      ;initialize d2
+        move.l #$0, d3                                      ;initialize d3
+        move.l #$0, d4                                      ;initialize d4
         move.l #$0, d7                                      ;initialize d7
 
         move.w #1, -(sp)                                    ;palette RAM test
         move.l #$5A000, -(sp)
         move.l #$1000, -(sp)
-        bsr.w RAMTEST
+        bsr.w funcRamTest
         move.w (sp)+, d2
         or.w d2, d7                                         ;save test result in d7[0]
         
         move.w #1, -(sp)                                    ;character RAM test
         move.l #$30000, -(sp)                
         move.l #$10000, -(sp)                   
-        bsr.w RAMTEST                  
+        bsr.w funcRamTest                  
         move.w (sp)+, d2
         lsl.w #1, d2                
         or.w d2, d7                                         ;save test result in d7[1]
@@ -150,7 +153,7 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         move.w #0, -(sp)                                    ;scroll RAM test
         move.l #$50000, -(sp)                
         move.l #$1000, -(sp)                   
-        bsr.w RAMTEST                  
+        bsr.w funcRamTest
         move.w (sp)+, d2
         lsl.w #2, d2           
         or.w d2, d7                                         ;save test result in d7[2]
@@ -158,15 +161,15 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         move.w #1, -(sp)                                    ;tilemap RAM test
         move.l #$52000, -(sp)                
         move.l #$2000, -(sp)                   
-        bsr.w RAMTEST
+        bsr.w funcRamTest
         move.w (sp)+, d2
         lsl.w #3, d2         
         or.w d2, d7                                         ;save test result in d7[3]
 
         move.w #0, -(sp)                                    ;tile color RAM test
-        move.l #$52000, -(sp)                
+        move.l #$54000, -(sp)                
         move.l #$2000, -(sp)                   
-        bsr.w RAMTEST                  
+        bsr.w funcRamTest
         move.w (sp)+, d2
         lsl.w #4, d2           
         or.w d2, d7                                         ;save test result in d7[4]
@@ -174,29 +177,39 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         move.w #0, -(sp)                                    ;Z80 RAM test
         move.l #$20000, -(sp)                
         move.l #$8000, -(sp)                   
-        bsr.w RAMTEST                  
+        bsr.w funcRamTest
         move.w (sp)+, d2
         lsl.w #5, d2           
         or.w d2, d7                                         ;save test result in d7[5]
 
-        move.w #1, -(sp)                                    ;expansion RAM
-        move.l #$70000, -(sp)                
-        move.l #$4000, -(sp)                   
-        bsr.w RAMTEST                  
+        move.w #0, -(sp)                                    ;sprite RAM test
+        move.l #$56000, -(sp)                
+        move.l #$1000, -(sp)                   
+        bsr.w funcRamTest
         move.w (sp)+, d2
         lsl.w #6, d2           
         or.w d2, d7                                         ;save test result in d7[6]
 
+        move.w #1, -(sp)                                    ;expansion RAM
+        move.l #$70000, -(sp)                
+        move.l #$4000, -(sp)                   
+        bsr.w funcRamTest
+        move.w (sp)+, d2
+        lsl.w #7, d2           
+        or.w d2, d7                                         ;save test result in d7[7]
+
+        move.w d7, $800                                     ;save RAM test result to 0x800
+
         move.l #$10000, -(sp)
-        move.w #32, -(sp)
-        move.w #16, -(sp)                                    ;from 0x380
-        bsr.w LOADBUBBLE
+        move.w #16, -(sp)
+        move.w #7, -(sp)                                   ;from 0x380
+        bsr.w funcLoadBubble
 
         jmp $10000                                          ;goto work ram
 
 
         ;FUNCTION RAMTEST
-        RAMTEST:                                            ;bit width flag -> start address -> test length -> return address
+        funcRamTest:                                        ;bit width flag -> start address -> test length -> return address
             movea.l (sp)+, a2                               ;pop return address
             move.l (sp)+, d1                                ;pop test length
             movea.l (sp)+, a1                               ;pop start address
@@ -281,7 +294,7 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         ;      CONSECUTIVE PAGE LENGTH
         ;      DESTINATION MEMORY ADDRESS   
         ;JSR:  RETURN ADDRESS 
-        LOADBUBBLE:                                         ;start page -> consecutive page length - > destination address -> return address
+        funcLoadBubble:                                     ;start page -> consecutive page length - > destination address -> return address
             movea.l (sp)+, a3                               ;pop return address
             move.w (sp)+, d0                                ;pop start page
             move.w (sp)+, d1                                ;pop consecutive page length
@@ -336,12 +349,12 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         move.l #$30000, -(sp) ;copy tiles
         move.w #91, -(sp)
         move.w #1024, -(sp)
-        jsr LOADBUBBLE
+        jsr funcLoadBubble
 
         move.l #$5A000, -(sp) ;copy palette
         move.w #1, -(sp)
         move.w #1023, -(sp)
-        jsr LOADBUBBLE
+        jsr funcLoadBubble
 
 
         TITLEPROGRAM:
@@ -470,17 +483,195 @@ TITLEMESSAGE3   dc.w '2020-2021 Raki', $0000
                 move.w #1, -(sp)
                 bsr.w FILLTILEMAP  
 
-            TESTMENUKEYINWAIT:
-                move.b #1, $5E008                               ;kick the watchdog
-                move.b #0, $5E008
+                lea TESTMENUITEM1, a0
+                move.l a0, -(sp)
+                move.w #1, -(sp)
+                move.w #4, -(sp)
+                move.w #8, -(sp)
+                move.w #0, -(sp)
+                bsr.w PRINTTEXT
 
-                move.w #$8000, d7
-                TESTMENUKEYINDELAY:
-                    nop
-                    dbf d7, TESTMENUKEYINDELAY                  ;loop
-                bra.s TESTMENUKEYINWAIT  
+                lea TESTMENUITEM2, a0
+                move.l a0, -(sp)
+                move.w #1, -(sp)
+                move.w #4, -(sp)
+                move.w #9, -(sp)
+                move.w #0, -(sp)
+                bsr.w PRINTTEXT
 
+                lea TESTMENUITEM3, a0
+                move.l a0, -(sp)
+                move.w #1, -(sp)
+                move.w #4, -(sp)
+                move.w #10, -(sp)
+                move.w #0, -(sp)
+                bsr.w PRINTTEXT
 
+                lea TESTMENUITEM4, a0
+                move.l a0, -(sp)
+                move.w #1, -(sp)
+                move.w #4, -(sp)
+                move.w #11, -(sp)
+                move.w #0, -(sp)
+                bsr.w PRINTTEXT
+
+                lea TESTMENUITEM5, a0
+                move.l a0, -(sp)
+                move.w #1, -(sp)
+                move.w #4, -(sp)
+                move.w #12, -(sp)
+                move.w #0, -(sp)
+                bsr.w PRINTTEXT
+
+                lea TESTMENUITEM6, a0
+                move.l a0, -(sp)
+                move.w #1, -(sp)
+                move.w #4, -(sp)
+                move.w #13, -(sp)
+                move.w #0, -(sp)
+                bsr.w PRINTTEXT
+
+                lea TESTMENUITEM7, a0
+                move.l a0, -(sp)
+                move.w #1, -(sp)
+                move.w #4, -(sp)
+                move.w #14, -(sp)
+                move.w #0, -(sp)
+                bsr.w PRINTTEXT
+
+                lea TESTMENUITEM8, a0
+                move.l a0, -(sp)
+                move.w #1, -(sp)
+                move.w #4, -(sp)
+                move.w #15, -(sp)
+                move.w #0, -(sp)
+                bsr.w PRINTTEXT
+
+                move.w #$FFFF, -(sp)                            ;initialize previous key input comparison register to FFFF
+                move.w #$FFFF, -(sp)                            ;initialize previous key input comparison register to FFFF
+                move.w #1, d6                                   ;menu item indicator register
+                move.w #8, d5                                   ;initialize cursor position
+                move.w #1, -(sp)                                ;draw cursor on 1st position
+                move.w #1, -(sp)
+                move.w #$F01E, -(sp)
+                move.w #$0000, -(sp)
+                move.w #3, -(sp)
+                move.w d5, -(sp)
+                move.w #0, -(sp)
+                bsr.w DRAWTILEMAP
+
+                TESTMENUKEYINWAIT:
+                    move.b #1, $5E008                           ;kick the watchdog
+                    move.b #0, $5E008
+
+                    move.w (sp)+, d0                            ;restore key in data
+                    move.w (sp)+, d1
+
+                    move.w $5CC02, d4                           ;get P1 button register
+                    btst.l #$4, d4                              ;check for power-up(gradius)
+                    beq TESTMENUSWITCHER
+
+                    move.w d1, d0                               ;move current value to old value register
+                    move.w $5CC02, d1                           ;get P1 button register
+                    not.w d0                                    ;invert previous key input data
+                    or.w d1, d0                                 ;negedge = ~previous || current
+
+                    move.w d1, -(sp)                            ;store key in data
+                    move.w d0, -(sp)
+  
+                    btst.l #$3, d0                              ;check for DOWN
+                    beq TESTMENUINCREASE
+                    btst.l #$2, d0                              ;check for UP
+                    beq TESTMENUDECREASE
+                    bra.s TESTMENUKEYINDELAY
+                   
+
+                    TESTMENUINCREASE:
+                        cmpi #8, d6                             ;if 8
+                        beq TESTMENUMOVECURSOR
+                        addq.w #1, d6
+                        bra.s TESTMENUMOVECURSOR
+                    TESTMENUDECREASE:
+                        cmpi #1, d6                             ;if 1
+                        beq TESTMENUMOVECURSOR
+                        subq.w #1, d6
+
+                    TESTMENUMOVECURSOR:
+                        move.w #1, -(sp)                        ;clear previous cursor
+                        move.w #1, -(sp)
+                        move.w #$F000, -(sp)
+                        move.w #$0000, -(sp)
+                        move.w #3, -(sp)
+                        move.w d5, -(sp)
+                        move.w #0, -(sp)
+                        bsr.w DRAWTILEMAP
+
+                        move.w d6, d5                           ;update cursor position
+                        addi.w #7, d5
+
+                        move.w #1, -(sp)                        ;redraw cursor on new position
+                        move.w #1, -(sp)
+                        move.w #$F01E, -(sp)
+                        move.w #$0000, -(sp)
+                        move.w #3, -(sp)
+                        move.w d5, -(sp)
+                        move.w #0, -(sp)
+                        bsr.w DRAWTILEMAP
+
+                    TESTMENUKEYINDELAY:
+                        move.w #$8000, d7
+                        TESTMENUDELAY:
+                            nop
+                            dbf d7, TESTMENUDELAY              ;loop
+                        bra.w TESTMENUKEYINWAIT  
+
+TESTMENUITEM1   dc.w '1.Show RAM test result', $0000
+TESTMENUITEM2   dc.w '2.Screen test', $0000
+TESTMENUITEM3   dc.w '3.Button/DIPSW input test', $0000
+TESTMENUITEM4   dc.w '4.RF2 IO board test', $0000
+TESTMENUITEM5   dc.w '5.Jump to 0x78002', $0000
+TESTMENUITEM6   dc.w '6.Show CHARRAM data', $0000
+TESTMENUITEM7   dc.w '7.Return to title screen', $0000
+TESTMENUITEM8   dc.w '8.Contributors', $0000
+
+                TESTMENUSWITCHER:
+                    cmpi #1, d6
+                    beq testRoutine_RAM
+                    cmpi #2, d6
+                    beq testRoutine_Screen
+                    cmpi #3, d6
+                    beq testRoutine_Input
+                    cmpi #4, d6
+                    beq testRoutine_RF2IO
+                    cmpi #5, d6
+                    beq testRoutine_JMP
+                    cmpi #6, d6
+                    beq testRoutine_CHARRAM
+                    cmpi #7, d6
+                    beq testRoutine_Return
+                    cmpi #8, d6
+                    beq testRoutine_Contributors
+                    bra.w TESTMENUKEYINWAIT
+
+                testRoutine_RAM:
+                testRoutine_Screen:
+                testRoutine_Input:
+                testRoutine_RF2IO:
+                testRoutine_JMP:
+                testRoutine_CHARRAM:
+                testRoutine_Return:
+                testRoutine_Contributors:
+                    move.w #$F000, -(sp)                        ;clear tilemap A
+                    move.w #$0000, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w FILLTILEMAP
+
+                    move.w #$F05F, -(sp)                        ;clear tilemap B
+                    move.w #$0002, -(sp)
+                    move.w #1, -(sp)
+                    bsr.w FILLTILEMAP 
+
+                    bra.w TITLEPROGRAM                          ;return to title screen
 
         
         ;
