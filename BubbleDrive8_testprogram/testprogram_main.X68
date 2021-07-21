@@ -135,74 +135,93 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         move.l #$0, d4                                      ;initialize d4
         move.l #$0, d7                                      ;initialize d7
 
-        move.w #1, -(sp)                                    ;palette RAM test
+        ;bit 0: WORK RAM
+        ;bit 1: Z80 RAM
+        ;bit 2: Palette RAM
+        ;bit 3: Expansion RAM
+        ;bit 4: Scroll RAM
+        ;bit 5: TM Code RAM
+        ;bit 6: TM Color RAM
+        ;bit 7: OBJ List RAM
+        ;bit 8: Character RAM
+
+        move.w #1, -(sp)                                    ;Palette RAM test
         move.l #$5A000, -(sp)
         move.l #$1000, -(sp)
         bsr.w funcRamTest
         move.w (sp)+, d2
-        or.w d2, d7                                         ;save test result in d7[0]
-        
-        move.w #1, -(sp)                                    ;character RAM test
-        move.l #$30000, -(sp)                
-        move.l #$10000, -(sp)                   
-        bsr.w funcRamTest                  
-        move.w (sp)+, d2
-        lsl.w #1, d2                
-        or.w d2, d7                                         ;save test result in d7[1]
-        
-        move.w #0, -(sp)                                    ;scroll RAM test
-        move.l #$50000, -(sp)                
-        move.l #$1000, -(sp)                   
-        bsr.w funcRamTest
-        move.w (sp)+, d2
-        lsl.w #2, d2           
+        lsl.w #2, d2
         or.w d2, d7                                         ;save test result in d7[2]
 
-        move.w #1, -(sp)                                    ;tilemap RAM test
-        move.l #$52000, -(sp)                
-        move.l #$2000, -(sp)                   
+        move.w #1, -(sp)                                    ;Work RAM test
+        move.l #$10000, -(sp)
+        move.l #$10000, -(sp)
         bsr.w funcRamTest
-        move.w (sp)+, d2
-        lsl.w #3, d2         
-        or.w d2, d7                                         ;save test result in d7[3]
-
-        move.w #0, -(sp)                                    ;tile color RAM test
-        move.l #$54000, -(sp)                
-        move.l #$2000, -(sp)                   
-        bsr.w funcRamTest
-        move.w (sp)+, d2
-        lsl.w #4, d2           
-        or.w d2, d7                                         ;save test result in d7[4]
+        move.w (sp)+, d2   
+        or.w d2, d7                                         ;save test result in d7[0]
 
         move.w #0, -(sp)                                    ;Z80 RAM test
         move.l #$20000, -(sp)                
         move.l #$8000, -(sp)                   
         bsr.w funcRamTest
         move.w (sp)+, d2
-        lsl.w #5, d2           
-        or.w d2, d7                                         ;save test result in d7[5]
-
-        move.w #0, -(sp)                                    ;sprite RAM test
-        move.l #$56000, -(sp)                
-        move.l #$1000, -(sp)                   
-        bsr.w funcRamTest
-        move.w (sp)+, d2
-        lsl.w #6, d2           
-        or.w d2, d7                                         ;save test result in d7[6]
+        lsl.w #1, d2           
+        or.w d2, d7                                         ;save test result in d7[1]
 
         move.w #1, -(sp)                                    ;expansion RAM
         move.l #$70000, -(sp)                
         move.l #$4000, -(sp)                   
         bsr.w funcRamTest
         move.w (sp)+, d2
+        lsl.w #3, d2           
+        or.w d2, d7                                         ;save test result in d7[3]
+
+
+        move.w #0, -(sp)                                    ;scroll RAM test
+        move.l #$50000, -(sp)                
+        move.l #$1000, -(sp)                   
+        bsr.w funcRamTest
+        move.w (sp)+, d2
+        lsl.w #4, d2           
+        or.w d2, d7                                         ;save test result in d7[4]
+
+        move.w #1, -(sp)                                    ;tilemap RAM test
+        move.l #$52000, -(sp)                
+        move.l #$2000, -(sp)                   
+        bsr.w funcRamTest
+        move.w (sp)+, d2
+        lsl.w #5, d2         
+        or.w d2, d7                                         ;save test result in d7[5]
+
+        move.w #0, -(sp)                                    ;tile color RAM test
+        move.l #$54000, -(sp)                
+        move.l #$2000, -(sp)                   
+        bsr.w funcRamTest
+        move.w (sp)+, d2
+        lsl.w #6, d2           
+        or.w d2, d7                                         ;save test result in d7[6]
+
+        move.w #0, -(sp)                                    ;sprite RAM test
+        move.l #$56000, -(sp)                
+        move.l #$1000, -(sp)                   
+        bsr.w funcRamTest
+        move.w (sp)+, d2
         lsl.w #7, d2           
         or.w d2, d7                                         ;save test result in d7[7]
+
+        move.w #1, -(sp)                                    ;Character RAM test
+        move.l #$30000, -(sp)                
+        move.l #$10000, -(sp)                   
+        bsr.w funcRamTest                  
+        move.w (sp)+, d2
+        lsl.w #8, d2                
+        or.w d2, d7                                         ;save test result in d7[8]
 
         move.w d7, $800                                     ;save RAM test result to 0x800
 
         move.l #$10000, -(sp)
-        move.w #16, -(sp)
-        move.w #7, -(sp)                                   ;from 0x380
+        move.w #64, -(sp)
+        move.w #7, -(sp)                                    ;from 0x380
         bsr.w funcLoadBubble
 
         jmp $10000                                          ;goto work ram
@@ -472,206 +491,261 @@ TITLEMESSAGE1   dc.w 'BubbleDrive8', $0000
 TITLEMESSAGE2   dc.w 'System Test Program', $0000
 TITLEMESSAGE3   dc.w '2020-2021 Raki', $0000
 
-            TESTMENU:
-                move.w #$F000, -(sp)                            ;erase tilemap A
-                move.w #$0001, -(sp)
-                move.w #0, -(sp)
-                bsr.w FILLTILEMAP 
+        TESTMENU:
+            move.w #$F000, -(sp)                            ;erase tilemap A
+            move.w #$0001, -(sp)
+            move.w #0, -(sp)
+            bsr.w FILLTILEMAP 
 
-                move.w #$F05F, -(sp)                            ;erase tilemap B
-                move.w #$0002, -(sp)
-                move.w #1, -(sp)
-                bsr.w FILLTILEMAP  
+            move.w #$F05F, -(sp)                            ;erase tilemap B
+            move.w #$0002, -(sp)
+            move.w #1, -(sp)
+            bsr.w FILLTILEMAP  
 
-                lea TESTMENUITEM1, a0
-                move.l a0, -(sp)
+            move.w #7, d6                                   ;print test menu items: 8 lines
+            move.w #8, d7                                   ;YPOS of first line
+            lea TESTMENUITEM1, a4
+            TESTMENU_PrintList:
+                move.l a4, -(sp)
                 move.w #1, -(sp)
                 move.w #4, -(sp)
-                move.w #8, -(sp)
+                move.w d7, -(sp)
                 move.w #0, -(sp)
                 bsr.w PRINTTEXT
 
-                lea TESTMENUITEM2, a0
-                move.l a0, -(sp)
-                move.w #1, -(sp)
-                move.w #4, -(sp)
-                move.w #9, -(sp)
-                move.w #0, -(sp)
-                bsr.w PRINTTEXT
+                addq.w #1, d7
+                add.l #28, a4                               ;get a new string from addr+28
 
-                lea TESTMENUITEM3, a0
-                move.l a0, -(sp)
-                move.w #1, -(sp)
-                move.w #4, -(sp)
-                move.w #10, -(sp)
-                move.w #0, -(sp)
-                bsr.w PRINTTEXT
+                dbf  d6, TESTMENU_PrintList
 
-                lea TESTMENUITEM4, a0
-                move.l a0, -(sp)
-                move.w #1, -(sp)
-                move.w #4, -(sp)
-                move.w #11, -(sp)
-                move.w #0, -(sp)
-                bsr.w PRINTTEXT
+            move.w #$FFFF, -(sp)                            ;initialize previous key input comparison register to FFFF
+            move.w #$FFFF, -(sp)                            ;initialize previous key input comparison register to FFFF
 
-                lea TESTMENUITEM5, a0
-                move.l a0, -(sp)
-                move.w #1, -(sp)
-                move.w #4, -(sp)
-                move.w #12, -(sp)
-                move.w #0, -(sp)
-                bsr.w PRINTTEXT
+            move.w #1, d6                                   ;menu item indicator register
+            move.w #8, d5                                   ;initialize cursor position
 
-                lea TESTMENUITEM6, a0
-                move.l a0, -(sp)
-                move.w #1, -(sp)
-                move.w #4, -(sp)
-                move.w #13, -(sp)
-                move.w #0, -(sp)
-                bsr.w PRINTTEXT
+            move.w #1, -(sp)                                ;draw cursor on 1st position
+            move.w #1, -(sp)
+            move.w #$F01E, -(sp)
+            move.w #$0000, -(sp)
+            move.w #3, -(sp)
+            move.w d5, -(sp)
+            move.w #0, -(sp)
+            bsr.w DRAWTILEMAP
 
-                lea TESTMENUITEM7, a0
-                move.l a0, -(sp)
-                move.w #1, -(sp)
-                move.w #4, -(sp)
-                move.w #14, -(sp)
-                move.w #0, -(sp)
-                bsr.w PRINTTEXT
+            TESTMENUKEYINWAIT:
+                move.w (sp)+, d0                            ;restore key in data
+                move.w (sp)+, d1
 
-                lea TESTMENUITEM8, a0
-                move.l a0, -(sp)
-                move.w #1, -(sp)
-                move.w #4, -(sp)
-                move.w #15, -(sp)
-                move.w #0, -(sp)
-                bsr.w PRINTTEXT
+                move.w $5CC02, d4                           ;get P1 button register
+                btst.l #$4, d4                              ;check for power-up(gradius)
+                beq TESTMENUSWITCHER
 
-                move.w #$FFFF, -(sp)                            ;initialize previous key input comparison register to FFFF
-                move.w #$FFFF, -(sp)                            ;initialize previous key input comparison register to FFFF
-                move.w #1, d6                                   ;menu item indicator register
-                move.w #8, d5                                   ;initialize cursor position
-                move.w #1, -(sp)                                ;draw cursor on 1st position
-                move.w #1, -(sp)
-                move.w #$F01E, -(sp)
-                move.w #$0000, -(sp)
-                move.w #3, -(sp)
-                move.w d5, -(sp)
-                move.w #0, -(sp)
-                bsr.w DRAWTILEMAP
+                move.w d1, d0                               ;move current value to old value register
+                move.w $5CC02, d1                           ;get P1 button register
+                not.w d0                                    ;invert previous key input data
+                or.w d1, d0                                 ;negedge = ~previous || current
 
-                TESTMENUKEYINWAIT:
-                    move.b #1, $5E008                           ;kick the watchdog
-                    move.b #0, $5E008
+                move.w d1, -(sp)                            ;store key in data
+                move.w d0, -(sp)
 
-                    move.w (sp)+, d0                            ;restore key in data
-                    move.w (sp)+, d1
+                btst.l #$3, d0                              ;check for DOWN
+                beq TESTMENUINCREASE
+                btst.l #$2, d0                              ;check for UP
+                beq TESTMENUDECREASE
+                bra.s TESTMENUKEYINDELAY
+                
 
-                    move.w $5CC02, d4                           ;get P1 button register
-                    btst.l #$4, d4                              ;check for power-up(gradius)
-                    beq TESTMENUSWITCHER
+                TESTMENUINCREASE:
+                    cmpi #8, d6                             ;if 8
+                    beq TESTMENUMOVECURSOR
+                    addq.w #1, d6
+                    bra.s TESTMENUMOVECURSOR
+                TESTMENUDECREASE:
+                    cmpi #1, d6                             ;if 1
+                    beq TESTMENUMOVECURSOR
+                    subq.w #1, d6
 
-                    move.w d1, d0                               ;move current value to old value register
-                    move.w $5CC02, d1                           ;get P1 button register
-                    not.w d0                                    ;invert previous key input data
-                    or.w d1, d0                                 ;negedge = ~previous || current
+                TESTMENUMOVECURSOR:
+                    move.w #1, -(sp)                        ;clear previous cursor
+                    move.w #1, -(sp)
+                    move.w #$F000, -(sp)
+                    move.w #$0000, -(sp)
+                    move.w #3, -(sp)
+                    move.w d5, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w DRAWTILEMAP
 
-                    move.w d1, -(sp)                            ;store key in data
-                    move.w d0, -(sp)
-  
-                    btst.l #$3, d0                              ;check for DOWN
-                    beq TESTMENUINCREASE
-                    btst.l #$2, d0                              ;check for UP
-                    beq TESTMENUDECREASE
-                    bra.s TESTMENUKEYINDELAY
-                   
+                    move.w d6, d5                           ;update cursor position
+                    addi.w #7, d5
 
-                    TESTMENUINCREASE:
-                        cmpi #8, d6                             ;if 8
-                        beq TESTMENUMOVECURSOR
-                        addq.w #1, d6
-                        bra.s TESTMENUMOVECURSOR
-                    TESTMENUDECREASE:
-                        cmpi #1, d6                             ;if 1
-                        beq TESTMENUMOVECURSOR
-                        subq.w #1, d6
+                    move.w #1, -(sp)                        ;redraw cursor on new position
+                    move.w #1, -(sp)
+                    move.w #$F01E, -(sp)
+                    move.w #$0000, -(sp)
+                    move.w #3, -(sp)
+                    move.w d5, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w DRAWTILEMAP
+                TESTMENUKEYINDELAY:
+                    jsr funcFixedDelay
+                    bra.w TESTMENUKEYINWAIT  
 
-                    TESTMENUMOVECURSOR:
-                        move.w #1, -(sp)                        ;clear previous cursor
-                        move.w #1, -(sp)
-                        move.w #$F000, -(sp)
-                        move.w #$0000, -(sp)
-                        move.w #3, -(sp)
-                        move.w d5, -(sp)
-                        move.w #0, -(sp)
-                        bsr.w DRAWTILEMAP
-
-                        move.w d6, d5                           ;update cursor position
-                        addi.w #7, d5
-
-                        move.w #1, -(sp)                        ;redraw cursor on new position
-                        move.w #1, -(sp)
-                        move.w #$F01E, -(sp)
-                        move.w #$0000, -(sp)
-                        move.w #3, -(sp)
-                        move.w d5, -(sp)
-                        move.w #0, -(sp)
-                        bsr.w DRAWTILEMAP
-
-                    TESTMENUKEYINDELAY:
-                        move.w #$8000, d7
-                        TESTMENUDELAY:
-                            nop
-                            dbf d7, TESTMENUDELAY              ;loop
-                        bra.w TESTMENUKEYINWAIT  
-
-TESTMENUITEM1   dc.w '1.Show RAM test result', $0000
-TESTMENUITEM2   dc.w '2.Screen test', $0000
+TESTMENUITEM1   dc.w '1.Show RAM test result   ', $0000
+TESTMENUITEM2   dc.w '2.Screen test            ', $0000
 TESTMENUITEM3   dc.w '3.Button/DIPSW input test', $0000
-TESTMENUITEM4   dc.w '4.RF2 IO board test', $0000
-TESTMENUITEM5   dc.w '5.Jump to 0x78002', $0000
-TESTMENUITEM6   dc.w '6.Show CHARRAM data', $0000
-TESTMENUITEM7   dc.w '7.Return to title screen', $0000
-TESTMENUITEM8   dc.w '8.Contributors', $0000
+TESTMENUITEM4   dc.w '4.RF2 IO board test      ', $0000
+TESTMENUITEM5   dc.w '5.Jump to 0x78002        ', $0000
+TESTMENUITEM6   dc.w '6.Show CHARRAM data      ', $0000
+TESTMENUITEM7   dc.w '7.Return to title screen ', $0000
+TESTMENUITEM8   dc.w '8.Contributors           ', $0000
 
                 TESTMENUSWITCHER:
                     cmpi #1, d6
-                    beq testRoutine_RAM
+                    beq TESTROUTINE_RAM
                     cmpi #2, d6
-                    beq testRoutine_Screen
+                    beq TESTROUTINE_Screen
                     cmpi #3, d6
-                    beq testRoutine_Input
+                    beq TESTROUTINE_Input
                     cmpi #4, d6
-                    beq testRoutine_RF2IO
+                    beq TESTROUTINE_RF2IO
                     cmpi #5, d6
-                    beq testRoutine_JMP
+                    beq TESTROUTINE_JMP
                     cmpi #6, d6
-                    beq testRoutine_CHARRAM
+                    beq TESTROUTINE_CHARRAM
                     cmpi #7, d6
-                    beq testRoutine_Return
+                    beq TESTROUTINE_Return
                     cmpi #8, d6
-                    beq testRoutine_Contributors
+                    beq TESTROUTINE_Contributors
                     bra.w TESTMENUKEYINWAIT
 
-                testRoutine_RAM:
-                testRoutine_Screen:
-                testRoutine_Input:
-                testRoutine_RF2IO:
-                testRoutine_JMP:
-                testRoutine_CHARRAM:
-                testRoutine_Return:
-                testRoutine_Contributors:
-                    move.w #$F000, -(sp)                        ;clear tilemap A
-                    move.w #$0000, -(sp)
-                    move.w #0, -(sp)
-                    bsr.w FILLTILEMAP
+        TESTROUTINE_RAM:
+            move.w #$F000, -(sp)                        ;clear tilemap A
+            move.w #$0000, -(sp)
+            move.w #0, -(sp)
+            bsr.w FILLTILEMAP
 
-                    move.w #$F05F, -(sp)                        ;clear tilemap B
-                    move.w #$0002, -(sp)
+            move.w #$F05F, -(sp)                        ;clear tilemap B
+            move.w #$0002, -(sp)
+            move.w #1, -(sp)
+            bsr.w FILLTILEMAP 
+
+            lea RAMTESTMESSAGE1, a0
+            move.l a0, -(sp)
+            move.w #1, -(sp)
+            move.w #11, -(sp)
+            move.w #4, -(sp)
+            move.w #0, -(sp)
+            bsr.w PRINTTEXT
+
+            lea RAMTESTMESSAGE2, a0
+            move.l a0, -(sp)
+            move.w #1, -(sp)
+            move.w #42, -(sp)
+            move.w #4, -(sp)
+            move.w #0, -(sp)
+            bsr.w PRINTTEXT
+
+            move.w #1, d6                               ;repeat 2 times
+            move.w #1, d4                               ;xpos
+            move.w #7, d5                               ;ypos
+            lea RAM1A, a4
+            TESTROUTINE_RAM_PrintCPUAddrList:
+                move.w #4, d7
+                TESTROUTINE_RAM_PrintCPUAddrList_left:
+                    move.l a4, -(sp)
                     move.w #1, -(sp)
-                    bsr.w FILLTILEMAP 
+                    move.w d4, -(sp)
+                    move.w d5, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w PRINTTEXT
 
-                    bra.w TITLEPROGRAM                          ;return to title screen
+                    addq.w #3, d5
+                    add.l #32, a4
+
+                    dbf  d7, TESTROUTINE_RAM_PrintCPUAddrList_left
+
+                    move.w #7, d5                       ;reset ypos to draw right side
+                    addi.w #32, d4
+                dbf d6, TESTROUTINE_RAM_PrintCPUAddrList
+
+            move.w #1, d6                               ;repeat 2 times
+            move.w #4, d4                               ;xpos
+            move.w #8, d5                               ;ypos
+            lea RAM1B, a4
+            TESTROUTINE_RAM_PrintCPUChipList:
+                move.w #4, d7
+                TESTROUTINE_RAM_PrintCPUChipList_left:
+                    move.l a4, -(sp)
+                    move.w #1, -(sp)
+                    move.w d4, -(sp)
+                    move.w d5, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w PRINTTEXT
+
+                    addq.w #3, d5
+                    add.l #14, a4
+
+                    dbf  d7, TESTROUTINE_RAM_PrintCPUChipList_left
+
+                    move.w #8, d5                       ;reset ypos to draw right side
+                    addi.w #32, d4
+                dbf d6, TESTROUTINE_RAM_PrintCPUChipList
+
+            TESTROUTINE_RAM_KeyInDelay:
+                jsr funcFixedDelay
+            bra.w TESTROUTINE_RAM_KeyInDelay
+
+
+
+
+RAMTESTMESSAGE1 dc.w 'CPU BOARD'
+RAMTESTMESSAGE2 dc.w 'VIDEO BOARD'
+
+RAM1A           dc.w '0x00000-0x00FFF Shared RAM   ', $0000
+RAM2A           dc.w '0x10000-0x1FFFF Work RAM     ', $0000
+RAM3A           dc.w '0x20000-0x27FFF Z80 RAM      ', $0000
+RAM4A           dc.w '0x5A000-0x5AFFF Palette RAM  ', $0000
+RAM5A           dc.w '0x70000-0x73FFF Expansion RAM', $0000
+RAM6A           dc.w '0x50000-0x50FFF TM Scroll RAM', $0000
+RAM7A           dc.w '0x52000-0x53FFF TM Code RAM  ', $0000
+RAM8A           dc.w '0x54000-0x55FFF TM Color RAM ', $0000
+RAM9A           dc.w '0x56000-0x56FFF OBJ List RAM ', $0000
+RAM10A          dc.w '0x30000-0x3FFFF Character RAM', $0000
+
+RAM1B           dc.w '      6116*2', $0000
+RAM2B           dc.w '      4416*8', $0000
+RAM3B           dc.w '      4416*2', $0000
+RAM4B           dc.w '      6116*2', $0000
+RAM5B           dc.w '      6264*2', $0000
+RAM6B           dc.w '  22D 6116*1', $0000
+RAM7B           dc.w ' 15BC 6264*2', $0000
+RAM8B           dc.w '  15D 6264*1', $0000
+RAM9B           dc.w '  25D 6116*1', $0000
+RAM10B          dc.w '2-7AB 4416*8', $0000
+
+RAMTESTUNTESTED dc.w 'UNTESTED'
+RAMTESTPASSED   dc.w 'PASSED'
+RAMTESTFAILED   dc.w 'FAILED'
+
+        TESTROUTINE_Screen:
+        TESTROUTINE_Input:
+        TESTROUTINE_RF2IO:
+        TESTROUTINE_JMP:
+        TESTROUTINE_CHARRAM:
+        TESTROUTINE_Return:
+        TESTROUTINE_Contributors:
+            move.w #$F000, -(sp)                        ;clear tilemap A
+            move.w #$0000, -(sp)
+            move.w #0, -(sp)
+            bsr.w FILLTILEMAP
+
+            move.w #$F05F, -(sp)                        ;clear tilemap B
+            move.w #$0002, -(sp)
+            move.w #1, -(sp)
+            bsr.w FILLTILEMAP 
+
+            bra.w TITLEPROGRAM                          ;return to title screen
 
         
         ;
@@ -855,6 +929,19 @@ TESTMENUITEM8   dc.w '8.Contributors', $0000
                 TYPEQUIT:
                     move.l a3, -(sp)                                ;push return address
                     rts
+
+
+        ;
+        ;           funcFixedDelay
+        ;
+        funcFixedDelay:
+            move.b #1, $5E008                           ;kick the watchdog
+            move.b #0, $5E008
+            move.w #$8000, d7
+            funcFixedDelay_delayloop:
+                nop
+                dbf d7, funcFixedDelay_delayloop        ;loop
+            rts
 
 
     SIMHALT             ; halt simulator
