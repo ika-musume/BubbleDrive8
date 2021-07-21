@@ -160,14 +160,6 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         move.w (sp)+, d2   
         or.w d2, d7                                         ;save test result in d7[0]
 
-        move.w #0, -(sp)                                    ;Z80 RAM test
-        move.l #$20000, -(sp)                
-        move.l #$8000, -(sp)                   
-        bsr.w funcRamTest
-        move.w (sp)+, d2
-        lsl.w #1, d2           
-        or.w d2, d7                                         ;save test result in d7[1]
-
         move.w #1, -(sp)                                    ;expansion RAM
         move.l #$70000, -(sp)                
         move.l #$4000, -(sp)                   
@@ -216,6 +208,14 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         move.w (sp)+, d2
         lsl.w #8, d2                
         or.w d2, d7                                         ;save test result in d7[8]
+        
+        move.w #0, -(sp)                                    ;Z80 RAM test
+        move.l #$20000, -(sp)                
+        move.l #$8000, -(sp)                   
+        bsr.w funcRamTest
+        move.w (sp)+, d2
+        lsl.w #1, d2           
+        or.w d2, d7                                         ;save test result in d7[1]
 
         move.w d7, $800                                     ;save RAM test result to 0x800
 
