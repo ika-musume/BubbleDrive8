@@ -134,90 +134,93 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         move.l #$0, d3                                      ;initialize d3
         move.l #$0, d4                                      ;initialize d4
         move.l #$0, d7                                      ;initialize d7
-
-        ;bit 0: WORK RAM
-        ;bit 1: Z80 RAM
-        ;bit 2: Palette RAM
-        ;bit 3: Expansion RAM
-        ;bit 4: Scroll RAM
-        ;bit 5: TM Code RAM
-        ;bit 6: TM Color RAM
-        ;bit 7: OBJ List RAM
-        ;bit 8: Character RAM
+        bset.l #$0, d7                                      ;set bit 0 flag
+        
+        ;bit 0: shared RAM
+        ;bit 1: WORK RAM
+        ;bit 2: Z80 RAM
+        ;bit 3: Palette RAM
+        ;bit 4: Expansion RAM
+        ;bit 5: Scroll RAM
+        ;bit 6: TM Code RAM
+        ;bit 7: TM Color RAM
+        ;bit 8: OBJ List RAM
+        ;bit 9: Character RAM
 
         move.w #1, -(sp)                                    ;Palette RAM test
         move.l #$5A000, -(sp)
         move.l #$1000, -(sp)
         bsr.w funcRamTest
         move.w (sp)+, d2
-        lsl.w #2, d2
-        or.w d2, d7                                         ;save test result in d7[2]
+        lsl.w #3, d2
+        or.w d2, d7                                         ;save test result in d7[3]
 
         move.w #1, -(sp)                                    ;Work RAM test
         move.l #$10000, -(sp)
         move.l #$10000, -(sp)
         bsr.w funcRamTest
-        move.w (sp)+, d2   
-        or.w d2, d7                                         ;save test result in d7[0]
+        move.w (sp)+, d2
+        lsl.w #1, d2
+        or.w d2, d7                                         ;save test result in d7[1]
 
         move.w #1, -(sp)                                    ;expansion RAM
         move.l #$70000, -(sp)                
         move.l #$4000, -(sp)                   
         bsr.w funcRamTest
         move.w (sp)+, d2
-        lsl.w #3, d2           
-        or.w d2, d7                                         ;save test result in d7[3]
-
+        lsl.w #4, d2           
+        or.w d2, d7                                         ;save test result in d7[4]
 
         move.w #0, -(sp)                                    ;scroll RAM test
         move.l #$50000, -(sp)                
         move.l #$1000, -(sp)                   
         bsr.w funcRamTest
         move.w (sp)+, d2
-        lsl.w #4, d2           
-        or.w d2, d7                                         ;save test result in d7[4]
+        lsl.w #5, d2           
+        or.w d2, d7                                         ;save test result in d7[5]
 
         move.w #1, -(sp)                                    ;tilemap RAM test
         move.l #$52000, -(sp)                
         move.l #$2000, -(sp)                   
         bsr.w funcRamTest
         move.w (sp)+, d2
-        lsl.w #5, d2         
-        or.w d2, d7                                         ;save test result in d7[5]
+        lsl.w #6, d2         
+        or.w d2, d7                                         ;save test result in d7[6]
 
         move.w #0, -(sp)                                    ;tile color RAM test
         move.l #$54000, -(sp)                
         move.l #$2000, -(sp)                   
         bsr.w funcRamTest
         move.w (sp)+, d2
-        lsl.w #6, d2           
-        or.w d2, d7                                         ;save test result in d7[6]
+        lsl.w #7, d2           
+        or.w d2, d7                                         ;save test result in d7[7]
 
         move.w #0, -(sp)                                    ;sprite RAM test
         move.l #$56000, -(sp)                
         move.l #$1000, -(sp)                   
         bsr.w funcRamTest
         move.w (sp)+, d2
-        lsl.w #7, d2           
-        or.w d2, d7                                         ;save test result in d7[7]
+        lsl.w #8, d2           
+        or.w d2, d7                                         ;save test result in d7[8]
 
         move.w #1, -(sp)                                    ;Character RAM test
         move.l #$30000, -(sp)                
         move.l #$10000, -(sp)                   
         bsr.w funcRamTest                  
         move.w (sp)+, d2
-        lsl.w #8, d2                
-        or.w d2, d7                                         ;save test result in d7[8]
+        lsl.w #8, d2
+        lsl.w #1, d2                
+        or.w d2, d7                                         ;save test result in d7[9]
         
         move.w #0, -(sp)                                    ;Z80 RAM test
         move.l #$20000, -(sp)                
         move.l #$8000, -(sp)                   
         bsr.w funcRamTest
         move.w (sp)+, d2
-        lsl.w #1, d2           
-        or.w d2, d7                                         ;save test result in d7[1]
+        lsl.w #2, d2           
+        or.w d2, d7                                         ;save test result in d7[2]
 
-        move.w d7, $800                                     ;save RAM test result to 0x800
+        move.l d7, $800                                     ;save RAM test result to 0x800
 
         move.l #$10000, -(sp)
         move.w #64, -(sp)
@@ -371,10 +374,12 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         jsr funcLoadBubble
 
         move.l #$5A000, -(sp) ;copy palette
-        move.w #1, -(sp)
-        move.w #1023, -(sp)
+        move.w #2, -(sp)
+        move.w #1022, -(sp)
         jsr funcLoadBubble
 
+        move.w #$FFFF, -(sp)                            ;initialize previous key input comparison register to FFFF
+        move.w #$FFFF, -(sp)                            ;initialize previous key input comparison register to FFFF
 
         TITLEPROGRAM:
             move.w #12, -(sp)
@@ -457,17 +462,18 @@ VECTORS dc.l $00001000                                      ;reset initial SP
                 move.b #1, $5E008                               ;kick the watchdog
                 move.b #0, $5E008
 
-                move.w $5CC00, d0
-                btst.l #$3, d0
-                beq.s TESTMENU
+                bsr.w funcCheckInput                        ;check P1 button input
+                move.w (sp), d0                             ;get latest input 
+                btst.l #$4, d0                              ;check for power-up(gradius) or fire(twinbee)
+                beq TESTMENU
 
                 move.w #$8000, d7
                 BANNERSCROLLDELAY:
                     nop
                     dbf d7, BANNERSCROLLDELAY                   ;loop
 
-                lea $50431, a0                                  ;TILEMAP-B
-                lea $505B1, a1                                  ;TILEMAP-B
+                lea $50431, a0                                  ;TILEMAP-B upper banner
+                lea $505B1, a1                                  ;TILEMAP-B lower banner
                 move.w #15, d0
                 BANNERSCROLL:
                     move.b (a0), d1
@@ -492,6 +498,14 @@ TITLEMESSAGE2   dc.w 'System Test Program', $0000
 TITLEMESSAGE3   dc.w '2020-2021 Raki', $0000
 
         TESTMENU:
+            lea $50001, a0
+            move.w #255, d1                                 ;vloop 256 times
+            move.w #0, d0
+            TESTMENU_scrollreset:
+                move.b d0, (a0)                             ;move scroll value
+                add.l #2, a0                                ;addr+2
+                dbf d1, TESTMENU_scrollreset
+
             move.w #$F000, -(sp)                            ;erase tilemap A
             move.w #$0001, -(sp)
             move.w #0, -(sp)
@@ -518,9 +532,6 @@ TITLEMESSAGE3   dc.w '2020-2021 Raki', $0000
 
                 dbf  d6, TESTMENU_PrintList
 
-            move.w #$FFFF, -(sp)                            ;initialize previous key input comparison register to FFFF
-            move.w #$FFFF, -(sp)                            ;initialize previous key input comparison register to FFFF
-
             move.w #1, d6                                   ;menu item indicator register
             move.w #8, d5                                   ;initialize cursor position
 
@@ -534,21 +545,10 @@ TITLEMESSAGE3   dc.w '2020-2021 Raki', $0000
             bsr.w DRAWTILEMAP
 
             TESTMENUKEYINWAIT:
-                move.w (sp)+, d0                            ;restore key in data
-                move.w (sp)+, d1
-
-                move.w $5CC02, d4                           ;get P1 button register
-                btst.l #$4, d4                              ;check for power-up(gradius)
+                bsr.w funcCheckInput                        ;check P1 button input
+                move.w (sp), d0                             ;get latest input 
+                btst.l #$4, d0                              ;check for power-up(gradius) or fire(twinbee)
                 beq TESTMENUSWITCHER
-
-                move.w d1, d0                               ;move current value to old value register
-                move.w $5CC02, d1                           ;get P1 button register
-                not.w d0                                    ;invert previous key input data
-                or.w d1, d0                                 ;negedge = ~previous || current
-
-                move.w d1, -(sp)                            ;store key in data
-                move.w d0, -(sp)
-
                 btst.l #$3, d0                              ;check for DOWN
                 beq TESTMENUINCREASE
                 btst.l #$2, d0                              ;check for UP
@@ -646,6 +646,9 @@ TESTMENUITEM8   dc.w '8.Contributors           ', $0000
             move.w #0, -(sp)
             bsr.w PRINTTEXT
 
+            ;
+            ;displays RAM address list
+            ;
             move.w #1, d6                               ;repeat 2 times
             move.w #1, d4                               ;xpos
             move.w #7, d5                               ;ypos
@@ -665,10 +668,14 @@ TESTMENUITEM8   dc.w '8.Contributors           ', $0000
 
                     dbf  d7, TESTROUTINE_RAM_PrintCPUAddrList_left
 
-                    move.w #7, d5                       ;reset ypos to draw right side
-                    addi.w #32, d4
+                move.w #7, d5                           ;reset ypos to draw right side
+                addi.w #32, d4
+
                 dbf d6, TESTROUTINE_RAM_PrintCPUAddrList
 
+            ;
+            ;displays RAM chip list
+            ;
             move.w #1, d6                               ;repeat 2 times
             move.w #4, d4                               ;xpos
             move.w #8, d5                               ;ypos
@@ -688,16 +695,93 @@ TESTMENUITEM8   dc.w '8.Contributors           ', $0000
 
                     dbf  d7, TESTROUTINE_RAM_PrintCPUChipList_left
 
-                    move.w #8, d5                       ;reset ypos to draw right side
-                    addi.w #32, d4
+                move.w #8, d5                           ;reset ypos to draw right side
+                addi.w #32, d4
+
                 dbf d6, TESTROUTINE_RAM_PrintCPUChipList
+            
+            ;
+            ;displays RAM test result
+            ;
+            move.w #1, d6                               ;repeat 2 times
+            move.w #17, d4                              ;xpos
+            move.w #8, d5                               ;ypos
+            move.w #0, d3                               ;initialize bit select reg
+            TESTROUTINE_RAM_PrintTestResult:
+                move.w #4, d7
+                TESTROUTINE_RAM_PrintTestResult_left:
+                    move.l $800, d0                     ;get test result
+                    tst.w d3                            ;check shared RAM
+                    beq TESTROUTINE_RAM_PrintTestResult_exception
 
-            TESTROUTINE_RAM_KeyInDelay:
+                    btst.l d3, d0
+                    bne TESTROUTINE_RAM_PrintTestResult_setfailed           ;set failed/passed branch
+
+                    lea RAMTESTPASSED, a0                                   ;set passed flag
+                    move.w #3, d0
+                    bra.s TESTROUTINE_RAM_PrintTestResult_print
+
+                    TESTROUTINE_RAM_PrintTestResult_setfailed:              ;set failed flag
+                    lea RAMTESTFAILED, a0
+                    move.w #4, d0
+                    bra.s TESTROUTINE_RAM_PrintTestResult_print
+
+                    TESTROUTINE_RAM_PrintTestResult_exception:              ;set untested flag
+                    lea RAMTESTUNTESTED, a0
+                    move.w #5, d0
+
+                    TESTROUTINE_RAM_PrintTestResult_print:
+                        move.l a0, -(sp)
+                        move.w d0, -(sp)                                    ;palette
+                        move.w d4, -(sp)                                    ;xpos
+                        move.w d5, -(sp)                                    ;ypos
+                        move.w #0, -(sp)
+                        bsr.w PRINTTEXT
+
+                    addq.w #3, d5
+                    addq.w #1, d3
+
+                    dbf  d7, TESTROUTINE_RAM_PrintTestResult_left
+
+                move.w #8, d5                           ;reset ypos to draw right side
+                addi.w #32, d4
+
+                dbf d6, TESTROUTINE_RAM_PrintTestResult
+            
+            TESTROUTINE_RAM_KeyInDelay_a:
+                bsr.w funcCheckInput                    ;check P1 button input
+                move.w (sp), d0                         ;get latest input 
+                btst.l #$4, d0                          ;power-up(gradius) or fire(twinbee)
+                beq.s TESTROUTINE_RAM_SwitchScrn
                 jsr funcFixedDelay
-            bra.w TESTROUTINE_RAM_KeyInDelay
+                bra.s TESTROUTINE_RAM_KeyInDelay_a
 
-
-
+            TESTROUTINE_RAM_SwitchScrn:
+                move.w #0, d0                           ;initialize scroll value register
+                move.w #255, d2                         ;hloop 256 times
+                TESTROUTINE_RAM_SwitchScrn_hloop:
+                    lea $50001, a0
+                    move.w #255, d1                     ;vloop 256 times
+                    TESTROUTINE_RAM_SwitchScrn_vloop:
+                        move.b d0, (a0)                 ;move scroll value
+                        add.l #2, a0                    ;addr+2
+                        dbf d1, TESTROUTINE_RAM_SwitchScrn_vloop
+                    addq #1, d0
+                    move.b #1, $5E008                                       ;kick the watchdog
+                    move.b #0, $5E008
+                    move.w #$800, d7
+                    TESTROUTINE_RAM_SwitchScrn_scrolldelay:
+                        nop
+                        dbf d7, TESTROUTINE_RAM_SwitchScrn_scrolldelay      ;loop
+                    dbf d2, TESTROUTINE_RAM_SwitchScrn_hloop
+            
+            TESTROUTINE_RAM_KeyInDelay_b:
+                bsr.w funcCheckInput                    ;check P1 button input
+                move.w (sp), d0                         ;get latest input 
+                btst.l #$4, d0                          ;power-up(gradius) or fire(twinbee)
+                beq.w TESTMENU
+                jsr funcFixedDelay
+                bra.s TESTROUTINE_RAM_KeyInDelay_b
 
 RAMTESTMESSAGE1 dc.w 'CPU BOARD'
 RAMTESTMESSAGE2 dc.w 'VIDEO BOARD'
@@ -724,9 +808,9 @@ RAM8B           dc.w '  15D 6264*1', $0000
 RAM9B           dc.w '  25D 6116*1', $0000
 RAM10B          dc.w '2-7AB 4416*8', $0000
 
-RAMTESTUNTESTED dc.w 'UNTESTED'
-RAMTESTPASSED   dc.w 'PASSED'
-RAMTESTFAILED   dc.w 'FAILED'
+RAMTESTUNTESTED dc.w 'UNTESTED', $0000
+RAMTESTPASSED   dc.w 'PASSED', $0000
+RAMTESTFAILED   dc.w 'FAILED', $0000
 
         TESTROUTINE_Screen:
         TESTROUTINE_Input:
@@ -941,6 +1025,24 @@ RAMTESTFAILED   dc.w 'FAILED'
             funcFixedDelay_delayloop:
                 nop
                 dbf d7, funcFixedDelay_delayloop        ;loop
+            rts
+
+        ;
+        ;           funcCheckInput
+        ;
+        funcCheckInput:
+            move.l (sp)+, a0                            ;pop return address
+            move.w (sp)+, d0                            ;restore key in data
+            move.w (sp)+, d1
+
+            move.w d1, d0                               ;move current value to old value register
+            move.w $5CC02, d1                           ;get P1 button register
+            not.w d0                                    ;invert previous key input data
+            or.w d1, d0                                 ;negedge = ~previous || current
+
+            move.w d1, -(sp)                            ;store key in data
+            move.w d0, -(sp)
+            move.l a0, -(sp)                            ;push return address
             rts
 
 
