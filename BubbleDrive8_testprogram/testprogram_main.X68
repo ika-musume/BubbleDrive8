@@ -381,6 +381,13 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         move.w #$FFFF, -(sp)                            ;initialize previous key input comparison register to FFFF
         move.w #$FFFF, -(sp)                            ;initialize previous key input comparison register to FFFF
 
+
+        *--------------------------------------------------------
+        *
+        *       TITLE SCREEN
+        *
+        *--------------------------------------------------------
+
         TITLEPROGRAM:
             move.w #12, -(sp)
             move.w #12, -(sp)
@@ -497,24 +504,23 @@ TITLEMESSAGE1   dc.w 'BubbleDrive8', $0000
 TITLEMESSAGE2   dc.w 'System Test Program', $0000
 TITLEMESSAGE3   dc.w '2020-2021 Raki', $0000
 
+
+        *--------------------------------------------------------
+        *
+        *       TESTMENU list page
+        *
+        *--------------------------------------------------------
+
         TESTMENU:
             lea $50001, a0
-            move.w #255, d1                                 ;vloop 256 times
+            move.w #511, d1                                 ;vloop 256 times
             move.w #0, d0
             TESTMENU_scrollreset:
                 move.b d0, (a0)                             ;move scroll value
                 add.l #2, a0                                ;addr+2
                 dbf d1, TESTMENU_scrollreset
 
-            move.w #$F000, -(sp)                            ;erase tilemap A
-            move.w #$0001, -(sp)
-            move.w #0, -(sp)
-            bsr.w FILLTILEMAP 
-
-            move.w #$F05F, -(sp)                            ;erase tilemap B
-            move.w #$0002, -(sp)
-            move.w #1, -(sp)
-            bsr.w FILLTILEMAP  
+            jsr funcClearTilemap
 
             move.w #7, d6                                   ;print test menu items: 8 lines
             move.w #8, d7                                   ;YPOS of first line
@@ -597,38 +603,37 @@ TESTMENUITEM3   dc.w '3.Button/DIPSW input test', $0000
 TESTMENUITEM4   dc.w '4.RF2 IO board test      ', $0000
 TESTMENUITEM5   dc.w '5.Jump to 0x78002        ', $0000
 TESTMENUITEM6   dc.w '6.Show CHARRAM data      ', $0000
-TESTMENUITEM7   dc.w '7.Return to title screen ', $0000
-TESTMENUITEM8   dc.w '8.Contributors           ', $0000
+TESTMENUITEM7   dc.w '7.Contributors           ', $0000
+TESTMENUITEM8   dc.w '8.Return to title screen ', $0000
 
                 TESTMENUSWITCHER:
                     cmpi #1, d6
-                    beq TESTROUTINE_RAM
+                    beq TSTRTNE_RAM
                     cmpi #2, d6
-                    beq TESTROUTINE_Screen
+                    beq TSTRTNE_Screen
                     cmpi #3, d6
-                    beq TESTROUTINE_Input
+                    beq TSTRTNE_Input
                     cmpi #4, d6
-                    beq TESTROUTINE_RF2IO
+                    beq TSTRTNE_RF2IO
                     cmpi #5, d6
-                    beq TESTROUTINE_JMP
+                    beq TSTRTNE_JMP
                     cmpi #6, d6
-                    beq TESTROUTINE_CHARRAM
+                    beq TSTRTNE_CHARRAM
                     cmpi #7, d6
-                    beq TESTROUTINE_Return
+                    beq TSTRTNE_Contributors
                     cmpi #8, d6
-                    beq TESTROUTINE_Contributors
+                    beq TSTRTNE_Return
                     bra.w TESTMENUKEYINWAIT
 
-        TESTROUTINE_RAM:
-            move.w #$F000, -(sp)                        ;clear tilemap A
-            move.w #$0000, -(sp)
-            move.w #0, -(sp)
-            bsr.w FILLTILEMAP
 
-            move.w #$F05F, -(sp)                        ;clear tilemap B
-            move.w #$0002, -(sp)
-            move.w #1, -(sp)
-            bsr.w FILLTILEMAP 
+        *--------------------------------------------------------
+        *
+        *       TESTMENU_RAM test subroutine
+        *
+        *--------------------------------------------------------
+
+        TSTRTNE_RAM:
+            jsr funcClearTilemap
 
             lea RAMTESTMESSAGE1, a0
             move.l a0, -(sp)
@@ -647,15 +652,15 @@ TESTMENUITEM8   dc.w '8.Contributors           ', $0000
             bsr.w PRINTTEXT
 
             ;
-            ;displays RAM address list
+            ;   displays RAM address list
             ;
             move.w #1, d6                               ;repeat 2 times
             move.w #1, d4                               ;xpos
             move.w #7, d5                               ;ypos
             lea RAM1A, a4
-            TESTROUTINE_RAM_PrintCPUAddrList:
+            TSTRTNE_RAM_PrintCPUAddrList:
                 move.w #4, d7
-                TESTROUTINE_RAM_PrintCPUAddrList_left:
+                TSTRTNE_RAM_PrintCPUAddrList_left:
                     move.l a4, -(sp)
                     move.w #1, -(sp)
                     move.w d4, -(sp)
@@ -666,23 +671,23 @@ TESTMENUITEM8   dc.w '8.Contributors           ', $0000
                     addq.w #3, d5
                     add.l #32, a4
 
-                    dbf  d7, TESTROUTINE_RAM_PrintCPUAddrList_left
+                    dbf  d7, TSTRTNE_RAM_PrintCPUAddrList_left
 
                 move.w #7, d5                           ;reset ypos to draw right side
                 addi.w #32, d4
 
-                dbf d6, TESTROUTINE_RAM_PrintCPUAddrList
+                dbf d6, TSTRTNE_RAM_PrintCPUAddrList
 
             ;
-            ;displays RAM chip list
+            ;   displays RAM chip list
             ;
             move.w #1, d6                               ;repeat 2 times
             move.w #4, d4                               ;xpos
             move.w #8, d5                               ;ypos
             lea RAM1B, a4
-            TESTROUTINE_RAM_PrintCPUChipList:
+            TSTRTNE_RAM_PrintCPUChipList:
                 move.w #4, d7
-                TESTROUTINE_RAM_PrintCPUChipList_left:
+                TSTRTNE_RAM_PrintCPUChipList_left:
                     move.l a4, -(sp)
                     move.w #1, -(sp)
                     move.w d4, -(sp)
@@ -693,44 +698,44 @@ TESTMENUITEM8   dc.w '8.Contributors           ', $0000
                     addq.w #3, d5
                     add.l #14, a4
 
-                    dbf  d7, TESTROUTINE_RAM_PrintCPUChipList_left
+                    dbf  d7, TSTRTNE_RAM_PrintCPUChipList_left
 
                 move.w #8, d5                           ;reset ypos to draw right side
                 addi.w #32, d4
 
-                dbf d6, TESTROUTINE_RAM_PrintCPUChipList
+                dbf d6, TSTRTNE_RAM_PrintCPUChipList
             
             ;
-            ;displays RAM test result
+            ;   displays RAM test result
             ;
             move.w #1, d6                               ;repeat 2 times
             move.w #17, d4                              ;xpos
             move.w #8, d5                               ;ypos
             move.w #0, d3                               ;initialize bit select reg
-            TESTROUTINE_RAM_PrintTestResult:
+            TSTRTNE_RAM_PrintTestResult:
                 move.w #4, d7
-                TESTROUTINE_RAM_PrintTestResult_left:
+                TSTRTNE_RAM_PrintTestResult_left:
                     move.l $800, d0                     ;get test result
                     tst.w d3                            ;check shared RAM
-                    beq TESTROUTINE_RAM_PrintTestResult_exception
+                    beq TSTRTNE_RAM_PrintTestResult_exception
 
                     btst.l d3, d0
-                    bne TESTROUTINE_RAM_PrintTestResult_setfailed           ;set failed/passed branch
+                    bne TSTRTNE_RAM_PrintTestResult_setfailed           ;set failed/passed branch
 
                     lea RAMTESTPASSED, a0                                   ;set passed flag
                     move.w #3, d0
-                    bra.s TESTROUTINE_RAM_PrintTestResult_print
+                    bra.s TSTRTNE_RAM_PrintTestResult_print
 
-                    TESTROUTINE_RAM_PrintTestResult_setfailed:              ;set failed flag
+                    TSTRTNE_RAM_PrintTestResult_setfailed:              ;set failed flag
                     lea RAMTESTFAILED, a0
                     move.w #4, d0
-                    bra.s TESTROUTINE_RAM_PrintTestResult_print
+                    bra.s TSTRTNE_RAM_PrintTestResult_print
 
-                    TESTROUTINE_RAM_PrintTestResult_exception:              ;set untested flag
+                    TSTRTNE_RAM_PrintTestResult_exception:              ;set untested flag: only for shared RAM
                     lea RAMTESTUNTESTED, a0
                     move.w #5, d0
 
-                    TESTROUTINE_RAM_PrintTestResult_print:
+                    TSTRTNE_RAM_PrintTestResult_print:
                         move.l a0, -(sp)
                         move.w d0, -(sp)                                    ;palette
                         move.w d4, -(sp)                                    ;xpos
@@ -741,47 +746,47 @@ TESTMENUITEM8   dc.w '8.Contributors           ', $0000
                     addq.w #3, d5
                     addq.w #1, d3
 
-                    dbf  d7, TESTROUTINE_RAM_PrintTestResult_left
+                    dbf  d7, TSTRTNE_RAM_PrintTestResult_left
 
                 move.w #8, d5                           ;reset ypos to draw right side
                 addi.w #32, d4
 
-                dbf d6, TESTROUTINE_RAM_PrintTestResult
+                dbf d6, TSTRTNE_RAM_PrintTestResult
             
-            TESTROUTINE_RAM_KeyInDelay_a:
+            TSTRTNE_RAM_KeyInDelay_a:
                 bsr.w funcCheckInput                    ;check P1 button input
                 move.w (sp), d0                         ;get latest input 
                 btst.l #$4, d0                          ;power-up(gradius) or fire(twinbee)
-                beq.s TESTROUTINE_RAM_SwitchScrn
+                beq.s TSTRTNE_RAM_SwitchScrn
                 jsr funcFixedDelay
-                bra.s TESTROUTINE_RAM_KeyInDelay_a
+                bra.s TSTRTNE_RAM_KeyInDelay_a
 
-            TESTROUTINE_RAM_SwitchScrn:
+            TSTRTNE_RAM_SwitchScrn:
                 move.w #0, d0                           ;initialize scroll value register
                 move.w #255, d2                         ;hloop 256 times
-                TESTROUTINE_RAM_SwitchScrn_hloop:
+                TSTRTNE_RAM_SwitchScrn_hloop:
                     lea $50001, a0
                     move.w #255, d1                     ;vloop 256 times
-                    TESTROUTINE_RAM_SwitchScrn_vloop:
+                    TSTRTNE_RAM_SwitchScrn_vloop:
                         move.b d0, (a0)                 ;move scroll value
                         add.l #2, a0                    ;addr+2
-                        dbf d1, TESTROUTINE_RAM_SwitchScrn_vloop
+                        dbf d1, TSTRTNE_RAM_SwitchScrn_vloop
                     addq #1, d0
                     move.b #1, $5E008                                       ;kick the watchdog
                     move.b #0, $5E008
                     move.w #$800, d7
-                    TESTROUTINE_RAM_SwitchScrn_scrolldelay:
+                    TSTRTNE_RAM_SwitchScrn_scrolldelay:
                         nop
-                        dbf d7, TESTROUTINE_RAM_SwitchScrn_scrolldelay      ;loop
-                    dbf d2, TESTROUTINE_RAM_SwitchScrn_hloop
+                        dbf d7, TSTRTNE_RAM_SwitchScrn_scrolldelay      ;loop
+                    dbf d2, TSTRTNE_RAM_SwitchScrn_hloop
             
-            TESTROUTINE_RAM_KeyInDelay_b:
+            TSTRTNE_RAM_KeyInDelay_b:
                 bsr.w funcCheckInput                    ;check P1 button input
                 move.w (sp), d0                         ;get latest input 
                 btst.l #$4, d0                          ;power-up(gradius) or fire(twinbee)
                 beq.w TESTMENU
                 jsr funcFixedDelay
-                bra.s TESTROUTINE_RAM_KeyInDelay_b
+                bra.s TSTRTNE_RAM_KeyInDelay_b
 
 RAMTESTMESSAGE1 dc.w 'CPU BOARD'
 RAMTESTMESSAGE2 dc.w 'VIDEO BOARD'
@@ -812,29 +817,318 @@ RAMTESTUNTESTED dc.w 'UNTESTED', $0000
 RAMTESTPASSED   dc.w 'PASSED', $0000
 RAMTESTFAILED   dc.w 'FAILED', $0000
 
-        TESTROUTINE_Screen:
-        TESTROUTINE_Input:
-        TESTROUTINE_RF2IO:
-        TESTROUTINE_JMP:
-        TESTROUTINE_CHARRAM:
-        TESTROUTINE_Return:
-        TESTROUTINE_Contributors:
-            move.w #$F000, -(sp)                        ;clear tilemap A
-            move.w #$0000, -(sp)
-            move.w #0, -(sp)
-            bsr.w FILLTILEMAP
+        TSTRTNE_Screen:
 
-            move.w #$F05F, -(sp)                        ;clear tilemap B
-            move.w #$0002, -(sp)
+        *--------------------------------------------------------
+        *
+        *       TESTMENU_INPUT subroutine
+        *
+        *--------------------------------------------------------
+
+        TSTRTNE_Input:
+            jsr funcClearTilemap
+
+            move.w #2, d6                               ;repeat 3 times
+            move.w #8, d4                               ;xpos
+            move.w #19, d5                              ;ypos
+            lea DIPSW0, a4
+            TSTRTNE_Input_PrintSWList_loop:
+                move.l a4, -(sp)
+                move.w #1, -(sp)
+                move.w d4, -(sp)
+                move.w d5, -(sp)
+                move.w #0, -(sp)
+                bsr.w PRINTTEXT
+
+                addq.w #1, d5
+                add.l #8, a4
+
+                dbf d6, TSTRTNE_Input_PrintSWList_loop
+
+            move.w #9, d6                                   ;repeat 10 times
+            move.w #3, d4                                   ;xpos
+            move.w #6, d5                                   ;ypos
+            lea BTNLEFT, a4
+            TSTRTNE_Input_PrintBtnList_loop:
+                move.l a4, -(sp)
+                move.w #1, -(sp)
+                move.w d4, -(sp)
+                move.w d5, -(sp)
+                move.w #0, -(sp)
+                bsr.w PRINTTEXT
+
+                addq.w #1, d5
+                add.l #8, a4
+
+                dbf d6, TSTRTNE_Input_PrintBtnList_loop
+
+            lea PLAYERLIST, a0
+            move.l a0, -(sp)
             move.w #1, -(sp)
-            bsr.w FILLTILEMAP 
+            move.w #11, -(sp)
+            move.w #5, -(sp)
+            move.w #0, -(sp)
+            bsr.w PRINTTEXT
 
+            lea $50051, a0
+            move.w #7, d1                       ;PLAYER LIST shift, shift 8 lines
+            TSTRTNE_Input_PlayerList_shift:
+                move.b #4, (a0)                 ;move scroll value
+                add.l #2, a0                    ;addr+2
+                dbf d1, TSTRTNE_Input_PlayerList_shift
+
+            lea INTESTMESSAGE, a0
+            move.l a0, -(sp)
+            move.w #0, -(sp)
+            move.w #4, -(sp)
+            move.w #26, -(sp)
+            move.w #0, -(sp)
+            bsr.w PRINTTEXT
+
+            TSTRTNE_Input_ChkAll:
+                move.w #3, d7                               ;button set x4
+                move.w #10, d4                              ;xpos
+                move.w #12, d5                              ;ypos
+                lea $5CC02, a5                              ;1P bank
+                TSTRTNE_Input_ChkAll_btn:
+                    move.w #6, d6                           ;check 7 buttons
+                    TSTRTNE_Input_ChkAll_btn_bt:
+                        move.w (a5), d0
+                        btst.l d6, d0
+                        bne.s TSTRTNE_Input_ChkAll_btn_bt_off
+
+                        lea BTNON, a4                                       ;button on
+                        move.w #4, d1                                       ;red text
+                        bra.s TSTRTNE_Input_ChkAll_btn_bt_prntbt
+
+                        TSTRTNE_Input_ChkAll_btn_bt_off:
+                        lea BTNOFF, a4                                      ;button off
+                        move.w #6, d1                                       ;grey text
+
+                        TSTRTNE_Input_ChkAll_btn_bt_prntbt:
+                            move.l a4, -(sp)
+                            move.w d1, -(sp)
+                            move.w d4, -(sp)
+                            move.w d5, -(sp)
+                            move.w #0, -(sp)
+                            bsr.w PRINTTEXT
+
+                        subq.w #1, d5
+                        dbf d6, TSTRTNE_Input_ChkAll_btn_bt
+
+                    move.w #12, d5                                          ;reset ypos
+                    addq.w #5, d4                                           ;next xpos
+                    add.l #2, a5                                            ;next dip switch addr
+
+                    dbf d7, TSTRTNE_Input_ChkAll_btn
+
+
+                move.w #2, d7                               ;dipsw x3
+                move.w #23, d4                              ;xpos
+                move.w #19, d5                              ;ypos
+                lea $5C402, a5                              ;DIPSW0
+                TSTRTNE_Input_ChkAll_sw:
+                    move.w #7, d6                           ;check 8 switches
+                    TSTRTNE_Input_ChkAll_sw_bt:
+                        move.w (a5), d0
+                        btst.l d6, d0
+                        bne.s TSTRTNE_Input_ChkAll_sw_bt_lo
+
+                        lea DIPSWH, a4                                      ;dip sw high
+                        bra.s TSTRTNE_Input_ChkAll_sw_bt_prntbt
+
+                        TSTRTNE_Input_ChkAll_sw_bt_lo:
+                        lea DIPSWL, a4                                      ;dip sw low
+
+                        TSTRTNE_Input_ChkAll_sw_bt_prntbt:
+                            move.l a4, -(sp)
+                            move.w #1, -(sp)
+                            move.w d4, -(sp)
+                            move.w d5, -(sp)
+                            move.w #0, -(sp)
+                            bsr.w PRINTTEXT
+
+                        subq.w #1, d4
+                        dbf d6, TSTRTNE_Input_ChkAll_sw_bt
+
+                    move.w #23, d4                                          ;reset xpos
+                    addq.w #1, d5                                           ;ypos + 1
+                    add.l #2, a5                                            ;next dip switch addr
+
+                    dbf d7, TSTRTNE_Input_ChkAll_sw
+
+                move.w #3, d7                               ;start button x4
+                move.w #25, d4                              ;xpos
+                TSTRTNE_Input_ChkAll_st:
+                    move.w d7, d0                           ;get loop counter
+                    addq.w #3, d0                           ;P1(d3), P2(d4), P3(d5??)...
+                    move.w $5CC00, d1
+                    btst.l d0, d1
+                    bne.s TSTRTNE_Input_ChkAll_st_off
+
+                    lea BTNON, a0                           ;START button ON(pressed)
+                    move.w #4, d0
+                    bra.s TSTRTNE_Input_ChkAll_st_prntbt
+
+                    TSTRTNE_Input_ChkAll_st_off:
+                        lea BTNOFF, a0                      ;START button OFF
+                        move.w #6, d0
+
+                    TSTRTNE_Input_ChkAll_st_prntbt:
+                        move.l a0, -(sp)
+                        move.w d0, -(sp)
+                        move.w d4, -(sp)
+                        move.w #13, -(sp)
+                        move.w #0, -(sp)
+                        bsr.w PRINTTEXT
+
+                    subq.w #5, d4                                           ;xpos - 5
+                    dbf d7, TSTRTNE_Input_ChkAll_st
+
+                move.w #1, d7                               ;coin slot x2
+                move.w #15, d4                              ;xpos
+                TSTRTNE_Input_ChkAll_coin:
+                    move.w d7, d0                           ;get loop counter
+                    move.w $5CC00, d1
+                    btst.l d0, d1
+                    bne.s TSTRTNE_Input_ChkAll_coin_off
+
+                    lea BTNON, a0                           ;START button ON(pressed)
+                    move.w #4, d0
+                    bra.s TSTRTNE_Input_ChkAll_coin_prntbt
+
+                    TSTRTNE_Input_ChkAll_coin_off:
+                        lea BTNOFF, a0                      ;START button OFF
+                        move.w #6, d0
+
+                    TSTRTNE_Input_ChkAll_coin_prntbt:
+                        move.l a0, -(sp)
+                        move.w d0, -(sp)
+                        move.w d4, -(sp)
+                        move.w #14, -(sp)
+                        move.w #0, -(sp)
+                        bsr.w PRINTTEXT
+
+                    subq.w #5, d4                                           ;xpos - 5
+                    dbf d7, TSTRTNE_Input_ChkAll_coin
+
+                move.w $5CC00, d0
+                btst.l #2, d0
+                bne.s TSTRTNE_Input_ChkAll_svc_off
+
+                lea BTNON, a0                           ;START button ON(pressed)
+                move.w #4, d0
+                bra.s TSTRTNE_Input_ChkAll_svc_prntbt
+
+                TSTRTNE_Input_ChkAll_svc_off:
+                    lea BTNOFF, a0                      ;START button OFF
+                    move.w #6, d0
+
+                TSTRTNE_Input_ChkAll_svc_prntbt:
+                    move.l a0, -(sp)
+                    move.w d0, -(sp)
+                    move.w #10, -(sp)
+                    move.w #15, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w PRINTTEXT
+
+            TSTRTNE_Input_MsgShift:
+                move.w #0, d0                           ;initialize registers
+                move.w #0, d1
+                lea $501A1, a0                          ;scroll value LSBs
+                lea $503A1, a1                          ;scroll value MSB
+
+                move.b (a1), d1                         ;get MSB
+                lsl.w #8, d1                            ;place MSB bit in correct place
+                move.b (a0), d0                         ;get LSBs
+                or.w d1, d0                             ;merge
+
+                cmpi.w #$1FF, d0                        ;full shift
+                beq.s TSTRTNE_Input_MsgShift_rst
+
+                cmpi.w #$FF, d0                         ;toggle MSB
+                beq.s TSTRTNE_Input_MsgShift_msb
+
+                move.w #7, d1
+                TSTRTNE_Input_MsgShift_inc_loop:
+                    move.b (a0), d0
+                    addq.b #1, d0
+                    move.b d0, (a0)
+                    add.l #2, a0
+                    dbf d1, TSTRTNE_Input_MsgShift_inc_loop
+                bra.s TSTRTNE_Input_KeyInDelay
+
+                TSTRTNE_Input_MsgShift_rst:
+                    move.w #7, d1
+                    TSTRTNE_Input_MsgShift_rst_loop:
+                        move.b #0, (a1)
+                        move.b #0, (a0)
+                        add.l #2, a1
+                        add.l #2, a0
+                        dbf d1, TSTRTNE_Input_MsgShift_rst_loop
+                bra.s TSTRTNE_Input_KeyInDelay
+
+                TSTRTNE_Input_MsgShift_msb:
+                    move.w #7, d1
+                    TSTRTNE_Input_MsgShift_msb_loop:
+                        move.b #1, (a1)
+                        move.b #0, (a0)
+                        add.l #2, a1
+                        add.l #2, a0
+                        dbf d1, TSTRTNE_Input_MsgShift_msb_loop
+
+            TSTRTNE_Input_KeyInDelay:
+                bsr.w funcCheckInput                    ;check P1 button input
+                move.w (sp), d0                         ;get latest input 
+                move.w $5CC02, d0
+                cmpi.b #$EE, d0
+                beq.w TESTMENU
+                jsr funcFixedDelay
+                bra.w TSTRTNE_Input_ChkAll
+
+
+
+DIPSW0          dc.w 'DIPSW1', $0000
+DIPSW1          dc.w 'DIPSW2', $0000
+DIPSW2          dc.w 'DIPSW3', $0000
+DIPSWH          dc.w 'U', $0000
+DIPSWL          dc.w 'D', $0000 
+PLAYERLIST      dc.w '1P   2P   3P   4P', $0000
+BTNLEFT         dc.w ' LEFT', $0000
+BTNRIGHT        dc.w 'RIGHT', $0000
+BTNUP           dc.w '   UP', $0000
+BTNDOWN         dc.w ' DOWN', $0000
+BTNA            dc.w '    A', $0000
+BTNB            dc.w '    B', $0000
+BTNC            dc.w '    C', $0000
+BTNSTART        dc.w 'START', $0000
+BTNCOIN         dc.w ' COIN', $0000
+BTNSERVICE      dc.w '  SVC', $0000
+BTNOFF          dc.w 'OFF', $0000
+BTNON           dc.w 'ON ', $0000
+INTESTMESSAGE   dc.w 'Press A+LEFT(1P) to exit back to menu screen', $0000
+
+
+
+        TSTRTNE_RF2IO:
+        TSTRTNE_JMP:
+        TSTRTNE_CHARRAM:
+        TSTRTNE_Contributors:
+        TSTRTNE_Return:
+            jsr funcClearTilemap
             bra.w TITLEPROGRAM                          ;return to title screen
 
+
+
+
+
         
-        ;
-        ;           DRAWTILEMAP
-        ;
+        *--------------------------------------------------------
+        *
+        *       function: DrawTilemap
+        *
+        *--------------------------------------------------------
+
         ;ARGS: GRAPHIC WIDTH
         ;      GRAPHIC HEIGHT
         ;      VRAM: PR(4), FLIP(1), CHARRAM ADDRESS(11)
@@ -904,9 +1198,12 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
             rts 
 
 
-        ;
-        ;           FILLTILEMAP
-        ;
+        *--------------------------------------------------------
+        *
+        *       function: FillTilemap
+        *
+        *--------------------------------------------------------
+
         ;ARGS: VRAM: PR(4), FLIP(1), CHARRAM ADDRESS(11)
         ;      COLORRAM: FLIP(1), PALETTE CODE(7)
         ;      TILEMAP A=0/B=1
@@ -943,9 +1240,12 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
             rts 
 
 
-        ;
-        ;           PRINTTEXT
-        ;
+        *--------------------------------------------------------
+        *
+        *       function: PrintText
+        *
+        *--------------------------------------------------------
+
         ;ARGS: STRING POINTER
         ;      PALETTE CODE(7)
         ;      XPOS
@@ -1015,9 +1315,12 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
                     rts
 
 
-        ;
-        ;           funcFixedDelay
-        ;
+        *--------------------------------------------------------
+        *
+        *       function: FixedDelay
+        *
+        *--------------------------------------------------------
+
         funcFixedDelay:
             move.b #1, $5E008                           ;kick the watchdog
             move.b #0, $5E008
@@ -1027,9 +1330,12 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
                 dbf d7, funcFixedDelay_delayloop        ;loop
             rts
 
-        ;
-        ;           funcCheckInput
-        ;
+        *--------------------------------------------------------
+        *
+        *       function: CheckInput
+        *
+        *--------------------------------------------------------
+
         funcCheckInput:
             move.l (sp)+, a0                            ;pop return address
             move.w (sp)+, d0                            ;restore key in data
@@ -1043,6 +1349,26 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
             move.w d1, -(sp)                            ;store key in data
             move.w d0, -(sp)
             move.l a0, -(sp)                            ;push return address
+
+            rts
+
+        *--------------------------------------------------------
+        *
+        *       function: ClearTilemap
+        *
+        *--------------------------------------------------------
+
+        funcClearTilemap:
+            move.w #$F000, -(sp)                        ;clear tilemap A
+            move.w #$0000, -(sp)
+            move.w #0, -(sp)
+            bsr.w FILLTILEMAP
+
+            move.w #$F05F, -(sp)                        ;clear tilemap B
+            move.w #$0002, -(sp)
+            move.w #1, -(sp)
+            bsr.w FILLTILEMAP 
+
             rts
 
 
