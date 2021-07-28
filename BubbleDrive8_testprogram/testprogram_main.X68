@@ -367,15 +367,15 @@ VECTORS dc.l $00001000                                      ;reset initial SP
 
 
     ORG    $10000
-    MAINTEST:   
-        move.l #$30000, -(sp) ;copy tiles
-        move.w #108, -(sp)
-        move.w #1024, -(sp)
-        jsr funcLoadBubble
-
+    MAINTEST:
         move.l #$5A000, -(sp) ;copy palette
         move.w #2, -(sp)
         move.w #1022, -(sp)
+        jsr funcLoadBubble
+
+        move.l #$30000, -(sp) ;copy tiles
+        move.w #128, -(sp)
+        move.w #1024, -(sp)
         jsr funcLoadBubble
 
         move.w #$FFFF, -(sp)                            ;initialize previous key input comparison register to FFFF
@@ -1125,8 +1125,8 @@ INTESTMESSAGE   dc.w 'Press A+LEFT(1P) to exit back to menu screen', $0000
             bsr.w DRAWTILEMAP
 
             move.w #16, -(sp)
-            move.w #1, -(sp)
-            move.w #$F1A0, -(sp)                            ;brake
+            move.w #2, -(sp)
+            move.w #$F1B0, -(sp)                            ;brake
             move.w #$0006, -(sp)
             move.w #8, -(sp)
             move.w #14, -(sp)
@@ -1134,7 +1134,7 @@ INTESTMESSAGE   dc.w 'Press A+LEFT(1P) to exit back to menu screen', $0000
             bsr.w DRAWTILEMAP
 
             move.w #16, -(sp)
-            move.w #1, -(sp)
+            move.w #2, -(sp)
             move.w #$F190, -(sp)                            ;accel
             move.w #$0006, -(sp)
             move.w #8, -(sp)
@@ -1577,8 +1577,8 @@ RF2NEEDLE       dc.w '|', $0000
     SIMHALT             ; halt simulator
 
 *RF2 steering: 0x22E00
-*RF2 acc: 0x23200
-*RF2 brake: 0x23400
+*RF2 acc: 0x23200(+400)
+*RF2 brake: 0x23600(+400)
 
 * Put variables and constants here
 
