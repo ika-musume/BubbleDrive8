@@ -369,7 +369,7 @@ VECTORS dc.l $00001000                                      ;reset initial SP
     ORG    $10000
     MAINTEST:   
         move.l #$30000, -(sp) ;copy tiles
-        move.w #91, -(sp)
+        move.w #108, -(sp)
         move.w #1024, -(sp)
         jsr funcLoadBubble
 
@@ -513,7 +513,7 @@ TITLEMESSAGE3   dc.w '2020-2021 Raki', $0000
 
         TESTMENU:
             lea $50001, a0
-            move.w #511, d1                                 ;vloop 256 times
+            move.w #1023, d1                                ;vloop 512 times * 2
             move.w #0, d0
             TESTMENU_scrollreset:
                 move.b d0, (a0)                             ;move scroll value
@@ -871,10 +871,10 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
             bsr.w PRINTTEXT
 
             lea $50051, a0
-            move.w #7, d1                       ;PLAYER LIST shift, shift 8 lines
+            move.w #7, d1                                   ;PLAYER LIST shift, shift 8 lines
             TSTRTNE_Input_PlayerList_shift:
-                move.b #4, (a0)                 ;move scroll value
-                add.l #2, a0                    ;addr+2
+                move.b #4, (a0)                             ;move scroll value
+                add.l #2, a0                                ;addr+2
                 dbf d1, TSTRTNE_Input_PlayerList_shift
 
             lea INTESTMESSAGE, a0
@@ -1086,8 +1086,6 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
                 jsr funcFixedDelay
                 bra.w TSTRTNE_Input_ChkAll
 
-
-
 DIPSW0          dc.w 'DIPSW1', $0000
 DIPSW1          dc.w 'DIPSW2', $0000
 DIPSW2          dc.w 'DIPSW3', $0000
@@ -1108,17 +1106,221 @@ BTNOFF          dc.w 'OFF', $0000
 BTNON           dc.w 'ON ', $0000
 INTESTMESSAGE   dc.w 'Press A+LEFT(1P) to exit back to menu screen', $0000
 
-
+        *--------------------------------------------------------
+        *
+        *       TESTMENU_RF2IO subroutine
+        *
+        *--------------------------------------------------------
 
         TSTRTNE_RF2IO:
+            jsr funcClearTilemap
+
+            move.w #16, -(sp)
+            move.w #2, -(sp)
+            move.w #$F170, -(sp)                            ;steering wheel
+            move.w #$0005, -(sp)
+            move.w #8, -(sp)
+            move.w #8, -(sp)
+            move.w #1, -(sp)
+            bsr.w DRAWTILEMAP
+
+            move.w #16, -(sp)
+            move.w #1, -(sp)
+            move.w #$F1A0, -(sp)                            ;brake
+            move.w #$0006, -(sp)
+            move.w #8, -(sp)
+            move.w #14, -(sp)
+            move.w #0, -(sp)
+            bsr.w DRAWTILEMAP
+
+            move.w #16, -(sp)
+            move.w #1, -(sp)
+            move.w #$F190, -(sp)                            ;accel
+            move.w #$0006, -(sp)
+            move.w #8, -(sp)
+            move.w #20, -(sp)
+            move.w #0, -(sp)
+            bsr.w DRAWTILEMAP
+
+            lea RF2NEEDLE, a0
+            move.l a0, -(sp)
+            move.w #0, -(sp)
+            move.w #31, -(sp)
+            move.w #8, -(sp)
+            move.w #0, -(sp)
+            bsr.w PRINTTEXT
+
+            lea $50081, a0
+            move.w #7, d1                                   ;steering needle shift
+            TSTRTNE_RF2IO_Needle_set:
+                move.b #124, (a0)                           ;move scroll value(center)
+                add.l #2, a0                                ;addr+2
+                dbf d1, TSTRTNE_RF2IO_Needle_set
+
+            move.w #2, d6                                   ;repeat 3 times
+            move.w #6, d5                                   ;ypos
+            lea RF2STEERING, a4
+            TSTRTNE_RF2IO_PrntInList_loop:
+                move.l a4, -(sp)
+                move.w #1, -(sp)
+                move.w #7, -(sp)                            ;xpos fixed
+                move.w d5, -(sp)
+                move.w #0, -(sp)
+                bsr.w PRINTTEXT
+
+                addq.w #6, d5
+                add.l #14, a4
+
+                dbf d6, TSTRTNE_RF2IO_PrntInList_loop
+
+            TSTRTNE_RF2IO_ChkAll:
+                *   Steering wheel
+                *
+                move.w $70000,d6                            ;get IO board data
+                move.w d6, d5             
+                not.w d5                                    ;invert the value(left:0x00 center:0x40 right:0x7F)
+                andi.w #$007F, d5                           ;get D[6:0]
+                bsr.w TSTRTNE_RF2IO_Needle_max
+                addi.w #61, d5                              ;add 61 to get scroll value(~0x40 + 0x3D = 0x7C)
+
+                lea $50081, a0                              ;set scorll register base address
+                move.w #7, d1                               ;steering needle shift: 8 times
+                TSTRTNE_RF2IO_Needle_shift:
+                    move.b d5, (a0)                         ;move scroll value(center)
+                    add.l #2, a0                            ;addr+2
+                    dbf d1, TSTRTNE_RF2IO_Needle_shift
+
+                *   Brake pedal
+                *      
+                move.w d6, d5                               ;copy data to d5
+                andi.w #$0300, d5                           ;get D[9:8]
+                lsr.w #6, d5                                ;move to D[3:2]
+                or.w #$0003, d5                             ;write 1 on D[1:0]
+
+                move.w #15, d7                              ;repeat 16 times
+                TSTRTNE_RF2IO_ChkAll_brk:
+                    move.w #8, d0                           ;set x pos
+                    add.w d7, d0                            ;add loop value(write from the right)
+                    cmp.w d5, d7                            ;d7(loop value) - d5
+                    beq.s TSTRTNE_RF2IO_ChkAll_brk_full
+                    bpl.s TSTRTNE_RF2IO_ChkAll_brk_empty    ;draw empty tile
+                    
+                    TSTRTNE_RF2IO_ChkAll_brk_full:
+                    move.w #4, d1                           ;full tile
+                    bra.s TSTRTNE_RF2IO_ChkAll_brk_draw
+
+                    TSTRTNE_RF2IO_ChkAll_brk_empty:
+                        move.w #2, d1                           ;empty tile
+
+                    TSTRTNE_RF2IO_ChkAll_brk_draw:
+                        move.w #1, -(sp)
+                        move.w #1, -(sp)
+                        move.w #$F05F, -(sp)                    ;empty tile
+                        move.w d1, -(sp)
+                        move.w d0, -(sp)
+                        move.w #14, -(sp)
+                        move.w #1, -(sp)
+                        bsr.w DRAWTILEMAP
+
+                    dbf d7, TSTRTNE_RF2IO_ChkAll_brk
+
+
+                *   Accel pedal
+                *      
+                move.w d6, d5                               ;copy data to d5
+                andi.w #$E000, d5                           ;get D[15:13]
+                lsr.w #8, d5                                ;move to D[7:5]
+                lsr.w #4, d5                                ;move to D[3:1]
+                or.w #$0001, d5                             ;write 1 on D[0]
+
+                move.w #15, d7                              ;repeat 16 times
+                TSTRTNE_RF2IO_ChkAll_accel:
+                    move.w #8, d0                           ;set x pos
+                    add.w d7, d0                            ;add loop value(write from the right)
+                    cmp.w d5, d7                            ;d7(loop value) - d5
+                    beq.s TSTRTNE_RF2IO_ChkAll_accel_full
+                    bpl.s TSTRTNE_RF2IO_ChkAll_accel_empty    ;draw empty tile
+                    
+                    TSTRTNE_RF2IO_ChkAll_accel_full:
+                    move.w #3, d1                           ;full tile
+                    bra.s TSTRTNE_RF2IO_ChkAll_accel_draw
+
+                    TSTRTNE_RF2IO_ChkAll_accel_empty:
+                        move.w #2, d1                           ;empty tile
+
+                    TSTRTNE_RF2IO_ChkAll_accel_draw:
+                        move.w #1, -(sp)
+                        move.w #1, -(sp)
+                        move.w #$F05F, -(sp)                    ;empty tile
+                        move.w d1, -(sp)
+                        move.w d0, -(sp)
+                        move.w #20, -(sp)
+                        move.w #1, -(sp)
+                        bsr.w DRAWTILEMAP
+
+                    dbf d7, TSTRTNE_RF2IO_ChkAll_accel
+
+
+                
+                
+
+
+            TSTRTNE_RF2IO_KeyInDelay:
+                bsr.w funcCheckInput                    ;check P1 button input
+                move.w (sp), d0                         ;get latest input 
+                move.w $5CC02, d0
+                cmpi.b #$EE, d0
+                beq.w TESTMENU
+                jsr funcFixedDelay
+                bra.w TSTRTNE_RF2IO_ChkAll
+
+            TSTRTNE_RF2IO_Needle_max:
+                    cmpi.w #$0000, d5
+                    beq.s TSTRTNE_RF2IO_Needle_max_draw
+                    cmpi.w #$007F, d5
+                    beq.s TSTRTNE_RF2IO_Needle_max_draw
+
+                    lea RF2STEERINGNOM, a0
+                    move.l a0, -(sp)
+                    move.w #4, -(sp)
+                    move.w #21, -(sp)
+                    move.w #6, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w PRINTTEXT
+                    rts
+
+                    TSTRTNE_RF2IO_Needle_max_draw:
+                        lea RF2STEERINGMAX, a0
+                        move.l a0, -(sp)
+                        move.w #4, -(sp)
+                        move.w #21, -(sp)
+                        move.w #6, -(sp)
+                        move.w #0, -(sp)
+                        bsr.w PRINTTEXT
+                        rts
+
+RF2STEERING     dc.w 'Steering   ', $0000
+RF2BRAKE        dc.w 'Brake      ', $0000
+RF2ACC          dc.w 'Accelerator', $0000
+RF2STEERINGMAX  dc.w 'MAX', $0000
+RF2STEERINGNOM  dc.w '   ', $0000
+RF2NEEDLE       dc.w '|', $0000
+
         TSTRTNE_JMP:
         TSTRTNE_CHARRAM:
         TSTRTNE_Contributors:
+
+        *--------------------------------------------------------
+        *
+        *       TESTMENU_Return subroutine
+        *
+        *--------------------------------------------------------
+
         TSTRTNE_Return:
             jsr funcClearTilemap
             bra.w TITLEPROGRAM                          ;return to title screen
 
-
+            
 
 
 
@@ -1374,7 +1576,9 @@ INTESTMESSAGE   dc.w 'Press A+LEFT(1P) to exit back to menu screen', $0000
 
     SIMHALT             ; halt simulator
 
-
+*RF2 steering: 0x22E00
+*RF2 acc: 0x23200
+*RF2 brake: 0x23400
 
 * Put variables and constants here
 
