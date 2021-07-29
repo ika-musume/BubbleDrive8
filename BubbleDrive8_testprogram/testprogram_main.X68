@@ -522,7 +522,7 @@ TITLEMESSAGE3   dc.w '2020-2021 Raki', $0000
 
             jsr funcClearTilemap
 
-            move.w #7, d6                                   ;print test menu items: 8 lines
+            move.w #8, d6                                   ;print test menu items: 9 lines
             move.w #8, d7                                   ;YPOS of first line
             lea TESTMENUITEM1, a4
             TESTMENU_PrintList:
@@ -563,13 +563,13 @@ TITLEMESSAGE3   dc.w '2020-2021 Raki', $0000
                 
 
                 TESTMENUINCREASE:
-                    cmpi #8, d6                             ;if 8
-                    beq TESTMENUMOVECURSOR
+                    cmpi #9, d6                             ;if 9
+                    beq TESTMENUKEYINDELAY
                     addq.w #1, d6
                     bra.s TESTMENUMOVECURSOR
                 TESTMENUDECREASE:
                     cmpi #1, d6                             ;if 1
-                    beq TESTMENUMOVECURSOR
+                    beq TESTMENUKEYINDELAY
                     subq.w #1, d6
 
                 TESTMENUMOVECURSOR:
@@ -593,6 +593,7 @@ TITLEMESSAGE3   dc.w '2020-2021 Raki', $0000
                     move.w d5, -(sp)
                     move.w #0, -(sp)
                     bsr.w DRAWTILEMAP
+
                 TESTMENUKEYINDELAY:
                     jsr funcFixedDelay
                     bra.w TESTMENUKEYINWAIT  
@@ -603,8 +604,18 @@ TESTMENUITEM3   dc.w '3.Button/DIPSW input test', $0000
 TESTMENUITEM4   dc.w '4.RF2 IO board test      ', $0000
 TESTMENUITEM5   dc.w '5.Jump to 0x78002        ', $0000
 TESTMENUITEM6   dc.w '6.Show CHARRAM data      ', $0000
-TESTMENUITEM7   dc.w '7.Contributors           ', $0000
-TESTMENUITEM8   dc.w '8.Return to title screen ', $0000
+TESTMENUITEM7   dc.w '7.Priority test          ', $0000
+TESTMENUITEM8   dc.w '8.Contributors           ', $0000
+TESTMENUITEM9   dc.w '9.Return to title screen ', $0000
+
+
+
+
+        *--------------------------------------------------------
+        *
+        *       TESTMENUSWITCHER
+        *
+        *--------------------------------------------------------
 
                 TESTMENUSWITCHER:
                     cmpi #1, d6
@@ -620,10 +631,18 @@ TESTMENUITEM8   dc.w '8.Return to title screen ', $0000
                     cmpi #6, d6
                     beq TSTRTNE_CHARRAM
                     cmpi #7, d6
-                    beq TSTRTNE_Contributors
+                    beq TSTRTNE_Pr
                     cmpi #8, d6
+                    beq TSTRTNE_Contributors
+                    cmpi #9, d6
                     beq TSTRTNE_Return
                     bra.w TESTMENUKEYINWAIT
+
+
+
+
+
+
 
 
         *--------------------------------------------------------
@@ -817,7 +836,26 @@ RAMTESTUNTESTED dc.w 'UNTESTED', $0000
 RAMTESTPASSED   dc.w 'PASSED', $0000
 RAMTESTFAILED   dc.w 'FAILED', $0000
 
+
+
+
+
+
+
+        *--------------------------------------------------------
+        *
+        *       TESTMENU_Screen subroutine
+        *
+        *--------------------------------------------------------
+
         TSTRTNE_Screen:
+
+
+
+
+
+
+
 
         *--------------------------------------------------------
         *
@@ -877,7 +915,7 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
                 add.l #2, a0                                ;addr+2
                 dbf d1, TSTRTNE_Input_PlayerList_shift
 
-            lea INTESTMESSAGE, a0
+            lea EXITMESSAGE, a0
             move.l a0, -(sp)
             move.w #0, -(sp)
             move.w #4, -(sp)
@@ -1032,50 +1070,7 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
                     move.w #0, -(sp)
                     bsr.w PRINTTEXT
 
-            TSTRTNE_Input_MsgShift:
-                move.w #0, d0                           ;initialize registers
-                move.w #0, d1
-                lea $501A1, a0                          ;scroll value LSBs
-                lea $503A1, a1                          ;scroll value MSB
-
-                move.b (a1), d1                         ;get MSB
-                lsl.w #8, d1                            ;place MSB bit in correct place
-                move.b (a0), d0                         ;get LSBs
-                or.w d1, d0                             ;merge
-
-                cmpi.w #$1FF, d0                        ;full shift
-                beq.s TSTRTNE_Input_MsgShift_rst
-
-                cmpi.w #$FF, d0                         ;toggle MSB
-                beq.s TSTRTNE_Input_MsgShift_msb
-
-                move.w #7, d1
-                TSTRTNE_Input_MsgShift_inc_loop:
-                    move.b (a0), d0
-                    addq.b #1, d0
-                    move.b d0, (a0)
-                    add.l #2, a0
-                    dbf d1, TSTRTNE_Input_MsgShift_inc_loop
-                bra.s TSTRTNE_Input_KeyInDelay
-
-                TSTRTNE_Input_MsgShift_rst:
-                    move.w #7, d1
-                    TSTRTNE_Input_MsgShift_rst_loop:
-                        move.b #0, (a1)
-                        move.b #0, (a0)
-                        add.l #2, a1
-                        add.l #2, a0
-                        dbf d1, TSTRTNE_Input_MsgShift_rst_loop
-                bra.s TSTRTNE_Input_KeyInDelay
-
-                TSTRTNE_Input_MsgShift_msb:
-                    move.w #7, d1
-                    TSTRTNE_Input_MsgShift_msb_loop:
-                        move.b #1, (a1)
-                        move.b #0, (a0)
-                        add.l #2, a1
-                        add.l #2, a0
-                        dbf d1, TSTRTNE_Input_MsgShift_msb_loop
+            jsr funcScrExitMessage
 
             TSTRTNE_Input_KeyInDelay:
                 bsr.w funcCheckInput                    ;check P1 button input
@@ -1104,7 +1099,13 @@ BTNCOIN         dc.w ' COIN', $0000
 BTNSERVICE      dc.w '  SVC', $0000
 BTNOFF          dc.w 'OFF', $0000
 BTNON           dc.w 'ON ', $0000
-INTESTMESSAGE   dc.w 'Press A+LEFT(1P) to exit back to menu screen', $0000
+
+
+
+
+
+
+
 
         *--------------------------------------------------------
         *
@@ -1260,16 +1261,10 @@ INTESTMESSAGE   dc.w 'Press A+LEFT(1P) to exit back to menu screen', $0000
 
                     dbf d7, TSTRTNE_RF2IO_ChkAll_accel
 
-
-                
-                
-
-
             TSTRTNE_RF2IO_KeyInDelay:
                 bsr.w funcCheckInput                    ;check P1 button input
                 move.w (sp), d0                         ;get latest input 
-                move.w $5CC02, d0
-                cmpi.b #$EE, d0
+                btst.l #$4, d0                          ;power-up(gradius) or fire(twinbee)
                 beq.w TESTMENU
                 jsr funcFixedDelay
                 bra.w TSTRTNE_RF2IO_ChkAll
@@ -1306,9 +1301,216 @@ RF2STEERINGMAX  dc.w 'MAX', $0000
 RF2STEERINGNOM  dc.w '   ', $0000
 RF2NEEDLE       dc.w '|', $0000
 
+
+
+
+
+
+
+
+        *--------------------------------------------------------
+        *
+        *       TESTMENU_JMP subroutine
+        *
+        *--------------------------------------------------------
+
         TSTRTNE_JMP:
+            lea JMPGOODBYE, a0
+            move.l a0, -(sp)
+            move.w #0, -(sp)
+            move.w #11, -(sp)
+            move.w #20, -(sp)
+            move.w #0, -(sp)
+            bsr.w PRINTTEXT
+
+            jmp $78002
+
+JMPGOODBYE      dc.w 'Good bye!', $0000
+
+
+
         TSTRTNE_CHARRAM:
+
+
+
+
+
+
+
+
+        *--------------------------------------------------------
+        *
+        *       TESTMENU_Pr subroutine
+        *
+        *--------------------------------------------------------
+
+        TSTRTNE_Pr:
+            move.w #0, -(sp)                                    ;initialize PR bit number reg
+            move.w #$00FF, -(sp)                                ;initialize PR bit reg
+                                                                ; MSB <- BBBB/BBBB -> LSB (TM-B, TM-A)
+
+            jsr funcClearTilemap
+
+            lea EXITMESSAGE, a0
+            move.l a0, -(sp)
+            move.w #0, -(sp)
+            move.w #4, -(sp)
+            move.w #26, -(sp)
+            move.w #0, -(sp)
+            bsr.w PRINTTEXT
+
+            lea PRTILEMAPA, a0
+            move.l a0, -(sp)
+            move.w #0, -(sp)
+            move.w #11, -(sp)
+            move.w #6, -(sp)
+            move.w #0, -(sp)
+            bsr.w PRINTTEXT
+
+            lea PRTILEMAPB, a0
+            move.l a0, -(sp)
+            move.w #0, -(sp)
+            move.w #17, -(sp)
+            move.w #6, -(sp)
+            move.w #0, -(sp)
+            bsr.w PRINTTEXT
+
+            TSTRTNE_Pr_ChkVal:                                  ;check key input
+                move.w (sp)+, d7                                ;pop PR bit reg
+                move.w (sp)+, d6                                ;pop PR bit number reg
+                                                                ;now sp is $FFC
+
+                bsr.w funcCheckInput                            ;check P1 button input
+                move.w (sp), d0                                 ;get latest input 
+                btst.l #$4, d0                                  ;check for power-up(gradius) or fire(twinbee)
+                beq.s TSTRTNE_Pr_apply
+                btst.l #$3, d0                                  ;check for DOWN
+                beq.s TSTRTNE_Pr_bitvalzero
+                btst.l #$2, d0                                  ;check for UP
+                beq.s TSTRTNE_Pr_bitvalone
+                btst.l #$1, d0                                  ;check for RIGHT
+                beq.s TSTRTNE_Pr_bitnumdec
+                btst.l #$0, d0                                  ;check for LEFT
+                beq.s TSTRTNE_Pr_bitnuminc
+
+                bra.s TSTRTNE_Pr_PrntVal                        ;nothing changes
+
+
+            TSTRTNE_Pr_bitvalzero:
+                bclr.l d6, d7                                   ;clear bit
+                bra.s TSTRTNE_Pr_PrntVal
+
+            TSTRTNE_Pr_bitvalone:
+                bset.l d6, d7                                   ;set bit
+                bra.s TSTRTNE_Pr_PrntVal
+
+            TSTRTNE_Pr_bitnumdec:
+                cmpi.w #0, d6                                   ;test 0
+                bne.s TSTRTNE_Pr_bitnumdec_sub
+                
+                TSTRTNE_Pr_bitnumdec_hold:                      ;hold
+                bra.s TSTRTNE_Pr_PrntVal
+
+                TSTRTNE_Pr_bitnumdec_sub:
+                subq.w #1, d6                                   ;bitnum - 1
+                bra.s TSTRTNE_Pr_bitnumdec_hold                 ;goto hold
+
+            TSTRTNE_Pr_bitnuminc:
+                cmpi.w #7, d6                                   ;test 0
+                bne.s TSTRTNE_Pr_bitnuminc_add
+                
+                TSTRTNE_Pr_bitnuminc_hold:                      ;hold
+                bra.s TSTRTNE_Pr_PrntVal
+
+                TSTRTNE_Pr_bitnuminc_add:
+                addq.w #1, d6                                   ;bitnum - 1
+                bra.s TSTRTNE_Pr_bitnuminc_hold                 ;goto hold
+
+
+
+
+            TSTRTNE_Pr_Apply:                                   ;apply change on tilemaps
+
+
+
+            TSTRTNE_Pr_PrntVal:
+                move.w d6, -(sp)                                ;push PR bit number reg
+                move.w d7, -(sp)                                ;push PR bit reg
+
+
+                move.w #7, d5                                   ;repeat 8 times
+                move.w #11, d4                                  ;set xpos
+                TSTRTNE_Pr_PrntVal_prntloop:
+                    cmp.w d5, d6                                ;check that the value of the loop counter is equal to the currently selected bit
+                    beq.s TSTRTNE_Pr_PrntVal_prntloop_redtxt    ;if same, use red
+
+                    move.w #1, d0                               ;if not, use light blue
+                    bra.s TSTRTNE_Pr_PrntVal_prntloop_chkbt
+
+                    TSTRTNE_Pr_PrntVal_prntloop_redtxt:
+                        move.w #4, d0
+
+                    TSTRTNE_Pr_PrntVal_prntloop_chkbt:
+                        btst.l d5, d7                               ;check bit value
+                        bne.s TSTRTNE_Pr_PrntVal_prntloop_one
+                        lea PRBITZERO, a0
+                        bra.s TSTRTNE_Pr_PrntVal_prntloop_prnt
+
+                        TSTRTNE_Pr_PrntVal_prntloop_one:
+                            lea PRBITONE, a0
+
+                        TSTRTNE_Pr_PrntVal_prntloop_prnt:
+                            move.l a0, -(sp)
+                            move.w d0, -(sp)
+                            move.w d4, -(sp)
+                            move.w #7, -(sp)
+                            move.w #0, -(sp)
+                            bsr.w PRINTTEXT
+
+                        cmpi.w #4, d5                               ;if loop counter is 4
+                        bne.s TSTRTNE_Pr_PrntVal_prntloop_incpos
+                        addq.w #3, d4                               ;add 3 to xpos
+                        dbf d5, TSTRTNE_Pr_PrntVal_prntloop         ;loop
+
+                        TSTRTNE_Pr_PrntVal_prntloop_incpos:
+                        addq.w #1, d4                               ;add 1 to xpos
+                        dbf d5, TSTRTNE_Pr_PrntVal_prntloop         ;loop
+
+            jsr funcScrExitMessage
+
+            TSTRTNE_Pr_KeyInDelay:
+                move.w $5CC02, d0
+                cmpi.b #$EE, d0
+                beq.w TESTMENU
+                jsr funcFixedDelay
+                bra.w TSTRTNE_Pr_ChkVal
+
+
+PRTILEMAPA      dc.w 'TM-A', $0000
+PRTILEMAPB      dc.w 'TM-B', $0000
+PRBITZERO       dc.w '0', $0000
+PRBITONE        dc.w '1', $0000
+PRTESTZONE      dc.w 'Test Zone', $0000
+
+
+
+
+
+
+        *--------------------------------------------------------
+        *
+        *       TESTMENU_Contributors subroutine
+        *
+        *--------------------------------------------------------
+
         TSTRTNE_Contributors:
+
+
+
+
+
+
+
 
         *--------------------------------------------------------
         *
@@ -1320,7 +1522,27 @@ RF2NEEDLE       dc.w '|', $0000
             jsr funcClearTilemap
             bra.w TITLEPROGRAM                          ;return to title screen
 
-            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1572,6 +1794,61 @@ RF2NEEDLE       dc.w '|', $0000
             bsr.w FILLTILEMAP 
 
             rts
+
+
+        *--------------------------------------------------------
+        *
+        *       function: ScrExitMessage
+        *
+        *--------------------------------------------------------
+
+        funcScrExitMessage:
+            move.w #0, d0                           ;initialize registers
+            move.w #0, d1
+            lea $501A1, a0                          ;scroll value LSBs
+            lea $503A1, a1                          ;scroll value MSB
+
+            move.b (a1), d1                         ;get MSB
+            lsl.w #8, d1                            ;place MSB bit in correct place
+            move.b (a0), d0                         ;get LSBs
+            or.w d1, d0                             ;merge
+
+            cmpi.w #$1FF, d0                        ;full shift
+            beq.s funcScrExitMessage_MsgShift_rst
+
+            cmpi.w #$FF, d0                         ;toggle MSB
+            beq.s funcScrExitMessage_MsgShift_msb
+
+            move.w #7, d1
+            funcScrExitMessage_MsgShift_inc_loop:
+                move.b (a0), d0
+                addq.b #1, d0
+                move.b d0, (a0)
+                add.l #2, a0
+                dbf d1, funcScrExitMessage_MsgShift_inc_loop
+                rts
+
+            funcScrExitMessage_MsgShift_rst:
+                move.w #7, d1
+                funcScrExitMessage_MsgShift_rst_loop:
+                    move.b #0, (a1)
+                    move.b #0, (a0)
+                    add.l #2, a1
+                    add.l #2, a0
+                    dbf d1, funcScrExitMessage_MsgShift_rst_loop
+                    rts
+
+            funcScrExitMessage_MsgShift_msb:
+                move.w #7, d1
+                funcScrExitMessage_MsgShift_msb_loop:
+                    move.b #1, (a1)
+                    move.b #0, (a0)
+                    add.l #2, a1
+                    add.l #2, a0
+                    dbf d1, funcScrExitMessage_MsgShift_msb_loop
+                    rts
+
+EXITMESSAGE   dc.w 'Press A+LEFT(1P) to exit back to menu screen', $0000
 
 
     SIMHALT             ; halt simulator
