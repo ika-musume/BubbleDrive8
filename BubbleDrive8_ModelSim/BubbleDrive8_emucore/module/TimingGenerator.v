@@ -41,7 +41,7 @@ module TimingGenerator
 
 (
     //48MHz input clock
-    input   wire            MCLK,
+    input   wire            MCLK,   
 
     //4MHz output clock
     output  reg             CLKOUT = 1'b1,
@@ -71,44 +71,97 @@ localparam  INITIAL_ABS_POSITION = 12'd1951; //0-2052
 /*
     GLOBAL NET/REGS
 */
-wire            nBSS_intl;
-wire            nBSEN_intl;
-wire            nREPEN_intl;
-wire            nBOOTEN_intl;
-wire            nSWAPEN_intl;
+reg             nBSS_intl;
+reg             nBSEN_intl;
+reg             nREPEN_intl;
+reg             nBOOTEN_intl;
+reg             nSWAPEN_intl;
 
 
 
 /*
     CLOCK DIVIDER
 */
-reg     [2:0]   divide12 = 3'd0;
+
+/*
+                                                         1 1 1 1 1 1 1 1 1 1 2 2 2 2
+                                     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 0 1 2 3 4 ...
+                                                                             1   1 
+                                     0   1   2   3   4   5   6   7   8   9   0   1   0
+    48MHz             ¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|¯|_|
+    12MHz             _______|¯¯¯¯¯¯¯|_______|¯¯¯¯¯¯¯|_______|¯¯¯¯¯¯¯|_______|¯¯¯¯¯¯¯|_______|¯¯¯¯¯¯¯|_______|¯¯¯¯¯¯¯|_______|¯¯¯¯¯¯¯|
+    4MHz              ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|_______________________|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|_______________________|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|
+
+    BMC signals       ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|_______________________________________________|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+                                             |---------> sampled
+
+
+    synchronization                                  |---|           |---|
+    determine current access state                       |---|           |---|
+    MCLK counting                                            |---------------|----------------->
+
+    This block generates 12MHz ref clk, and 4MHz BMC clock. BMC always launches
+    its signal at a "falling edge" of 4MHz. I don't know if it's synchronized
+    to 4MHz or if they added a simple buffer delay. Anyway, all control signals
+    arrives at a negative edge of the departing 4MHz.
+    MB14506 starts to rotate magnetic field 23*12Mclk(about 83.33ns*23) later 
+    just after nBSEN is sampled.
+*/
+
+reg     [4:0]   counter12 = 4'd0;
+reg             ref_clk12m = 1'b0;
 
 always @(posedge MCLK)
 begin
-    if(divide12 >= 3'd5)
+    if(counter12 == 4'd1)
     begin
-        divide12 <= 3'd0;
-        CLKOUT <= ~CLKOUT;
+        ref_clk12m <= 1'b1;
+        counter12 <= counter12 + 4'd1;
+    end
+    else if(counter12 == 4'd3)
+    begin
+        ref_clk12m <= 1'b0;
+        counter12 <= counter12 + 4'd1;
+    end
+    else if(counter12 == 4'd5)
+    begin
+        ref_clk12m <= 1'b1;
+        CLKOUT <= 1'b1;
+        counter12 <= counter12 + 4'd1;
+    end
+    else if(counter12 == 4'd7)
+    begin
+        ref_clk12m <= 1'b0;
+        counter12 <= counter12 + 4'd1;
+    end
+    else if(counter12 == 4'd9)
+    begin
+        ref_clk12m <= 1'b1;
+        counter12 <= counter12 + 4'd1;
+    end
+    else if(counter12 == 4'd11)
+    begin
+        ref_clk12m <= 1'b0;
+        CLKOUT <= 1'b0;
+        counter12 <= 4'd0;
     end
     else
     begin
-        divide12 <= divide12 + 3'd1;
+        counter12 <= counter12 + 4'd1;
     end
 end
 
 
 
 /*
-    SYNCHRONIZER CHAIN
+    BUFFER CHAIN
 */
 reg     [4:0]   step1 = 5'b11110;
 reg     [4:0]   step2 = 5'b11110;
 reg     [4:0]   step3 = 5'b11110;
 reg     [4:0]   step4 = 5'b11110;
-assign {nSWAPEN_intl, nBSS_intl, nBSEN_intl, nREPEN_intl, nBOOTEN_intl} = step4;
 
-always @(posedge MCLK)
+always @(posedge MCLK or negedge MCLK)
 begin
     step1[4] <= nEN | nSWAPEN;
     step1[3] <= nEN | nBSS;
@@ -121,6 +174,22 @@ begin
     step4 <= step3;
 end
 
+
+
+/*
+    SYNCHRONIZER
+*/
+always @(posedge MCLK)
+begin
+    if(counter12 == 4'd3 || counter12 == 4'd7)
+    begin
+        nSWAPEN_intl    <= step4[4];
+        nBSS_intl       <= step4[3];
+        nBSEN_intl      <= step4[2]; 
+        nREPEN_intl     <= step4[1];
+        nBOOTEN_intl    <= step4[0];
+    end
+end
 
 
 /*
@@ -263,7 +332,8 @@ end
 */
 //12MHz 1 bubble cycle = 120clks
 //48MHz 1 bubble cycle = 480clks
-//48MHz 4클럭 또는 12MHz 1클럭 씹힘
+//12MHz 1.5클럭이 씹힌 후에 계산, 만약 BMC신호가 38ns 이상 지연되면 1클럭 추가로 씹힘
+//1.5클럭 씹힌 후 22클럭이 지난 직후 -X자기장 생성 시작
 
 reg     [9:0]   MCLK_counter = 10'd0; //마스터 카운터는 세기 쉽게 1부터 시작 0아님!!
 
@@ -333,12 +403,35 @@ end
                              / \   / \   / \   / \   / \   / \               / \   / \                    2     1
                             /-O-\-/-O-\-/-O-\-/-O-\-/-O-\-/-O-\-            /-O-\-/-O-\---O-----O   ...   O-----O
                               626   625   624   623   622   621               42    41    40    39              |
-                                                                                                      __________^_0________
-                                                                                                      | G E N E R A T O R | <-- generates a bubble at +Y
+                                                                                        ↑             __________^_0________
+                                                                                   -Y position        | G E N E R A T O R | <-- generates a bubble at +Y
 
     SEE JAPANESE PATENT:
     JPA 1992074376-000000 / 特許出願公開 平4-74376  ;contains replicator/swap gate diagram
     JPA 1989220199-000000 / 特許出願公開 平1-220199 ;explains bubble write procedure
+
+    !!!! IMPORTANT NOTE !!!!
+    Note that FBM54DB is organized with EVEN HALF and ODD HALF. The EVEN HALF
+    has 1 even bootloop + 292 even minor loops and the ODD HALF has the same
+    but they are odd numbered loops. Due to the physical width of minor loop,
+    there is one position between a position and a position on read/write
+    track. That is, there is one bubble for every two positions, like a diagram
+    below:
+
+        P   P   P   P   P   P   P   P
+        O---*---O---*---O---*---O---*
+        bubble  bubble  bubble  bubble
+
+    Bubble moves one position every 10us, so in this case, 1 bit of data is
+    transferred every 20us. Developers wanted to speed things up. So, they
+    made another half that can be "interleaved". FBM54DB has two detectors
+    and two MB3908 sense amplifiers. Each SA launches data 50kbps anyway 
+    but its open collector(negative logic) outputs are interleaved outside,
+    therefore the user can get 100kbps data. The BMC inverts negative logic
+    data internally.
+
+    I merged the EVEN HALF and the ODD HALF in the diagaram above, for my
+    convenience.
 */
 
 //absolute position counter
