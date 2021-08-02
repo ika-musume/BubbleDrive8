@@ -181,7 +181,7 @@ end
 */
 always @(posedge MCLK)
 begin
-    if(counter12 == 4'd3 || counter12 == 4'd7)
+    if(counter12 == 4'd3 || counter12 == 4'd7 || counter12 == 4'd11)
     begin
         nSWAPEN_intl    <= step4[4];
         nBSS_intl       <= step4[3];
