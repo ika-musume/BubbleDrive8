@@ -512,13 +512,17 @@ TITLEMESSAGE3   dc.w '2020-2021 Raki', $0000
         *--------------------------------------------------------
 
         TESTMENU:
-            lea $50001, a0
-            move.w #1023, d1                                ;vloop 512 times * 2
-            move.w #0, d0
+            lea $50000, a0
+            move.w #1023, d0                                ;vloop 512 times * 2
             TESTMENU_scrollreset:
-                move.b d0, (a0)                             ;move scroll value
-                add.l #2, a0                                ;addr+2
-                dbf d1, TESTMENU_scrollreset
+                move.w #$0000, (a0)+                        ;move scroll value
+                dbf d0, TESTMENU_scrollreset
+
+            lea $56000, a0
+            move.w #23, d0
+            TESTMENU_objreset:
+                move.w #$0000, (a0)+
+                dbf d0, TESTMENU_objreset
 
             jsr funcClearTilemap
 
@@ -1345,8 +1349,8 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
         *--------------------------------------------------------
 
         TSTRTNE_Pr:
-            move.w #0, -(sp)                                    ;initialize PR bit number reg
-            move.w #$00FF, -(sp)                                ;initialize PR bit reg
+            move.w #0, d6                                       ;initialize PR bit number reg
+            move.w #$00FF, d7                                   ;initialize PR bit reg
                                                                 ; MSB <- BBBB/BBBB -> LSB (TM-B, TM-A)
 
             jsr funcClearTilemap
@@ -1375,15 +1379,67 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
             move.w #0, -(sp)
             bsr.w PRINTTEXT
 
-            TSTRTNE_Pr_ChkVal:                                  ;check key input
-                move.w (sp)+, d7                                ;pop PR bit reg
-                move.w (sp)+, d6                                ;pop PR bit number reg
-                                                                ;now sp is $FFC
+            move.w #3, d6                                       ;repeat 4 times
+            move.w #16, d5                                      ;ypos
+            lea PRMESSAGE0, a4
+            TSTRTNE_Pr_PrntMsg_loop:
+                move.l a4, -(sp)
+                move.w #0, -(sp)
+                move.w #4, -(sp)                                ;xpos fixed
+                move.w d5, -(sp)
+                move.w #0, -(sp)
+                bsr.w PRINTTEXT
 
+                addq.w #1, d5
+                add.l #26, a4
+
+                dbf d6, TSTRTNE_Pr_PrntMsg_loop
+
+            move.w #2, -(sp)
+            move.w #2, -(sp)
+            move.w #$F1D0, -(sp)                                ;vertical tile
+            move.w #$0004, -(sp)                                ;red
+            move.w #15, -(sp)
+            move.w #10, -(sp)
+            move.w #0, -(sp)
+            bsr.w DRAWTILEMAP
+
+            move.w #2, -(sp)
+            move.w #2, -(sp)
+            move.w #$F1D4, -(sp)                                ;horizontal tile
+            move.w #$0003, -(sp)                                ;green
+            move.w #15, -(sp)
+            move.w #10, -(sp)
+            move.w #1, -(sp)
+            bsr.w DRAWTILEMAP
+
+            lea $56000, a0                                      ;sprite RAM
+
+            ;SPRITE 1
+            move.w #$00EF, (a0)+                                ;0: reletive priority
+            move.w #$0020, (a0)+                                ;2: 8*8 = size 3'b100
+            move.w #$0080, (a0)+                                ;4: no zoom
+            move.w #$00EC, (a0)+                                ;6: 8*8 filled block
+            move.w #$000A, (a0)+                                ;8: xpos MSB
+            move.w #$0078, (a0)+                                ;A: 120px
+            move.w #$0050, (a0)+                                ;C: 80px
+            move.w #$0000, (a0)+                                ;E: not used
+            
+            ;SPRITE 2
+            move.w #$00AF, (a0)+                                ;0: reletive priority
+            move.w #$0020, (a0)+                                ;2: 8*8 = size 3'b100
+            move.w #$0080, (a0)+                                ;4: no zoom
+            move.w #$00EC, (a0)+                                ;6: 8*8 filled block
+            move.w #$000A, (a0)+                                ;8: xpos MSB
+            move.w #$0078, (a0)+                                ;A: 120px
+            move.w #$0058, (a0)+                                ;C: 88px
+            move.w #$0000, (a0)+                                ;E: not used
+
+            TSTRTNE_Pr_ChkVal:                                  ;check key input
                 bsr.w funcCheckInput                            ;check P1 button input
                 move.w (sp), d0                                 ;get latest input 
                 btst.l #$4, d0                                  ;check for power-up(gradius) or fire(twinbee)
-                beq.s TSTRTNE_Pr_apply
+                beq.s TSTRTNE_Pr_Apply
                 btst.l #$3, d0                                  ;check for DOWN
                 beq.s TSTRTNE_Pr_bitvalzero
                 btst.l #$2, d0                                  ;check for UP
@@ -1394,7 +1450,6 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
                 beq.s TSTRTNE_Pr_bitnuminc
 
                 bra.s TSTRTNE_Pr_PrntVal                        ;nothing changes
-
 
             TSTRTNE_Pr_bitvalzero:
                 bclr.l d6, d7                                   ;clear bit
@@ -1426,18 +1481,39 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
                 addq.w #1, d6                                   ;bitnum - 1
                 bra.s TSTRTNE_Pr_bitnuminc_hold                 ;goto hold
 
-
-
-
             TSTRTNE_Pr_Apply:                                   ;apply change on tilemaps
+                move.w d7, d0                                   ;copy PR bits data
+                andi.w #$00F0, d0                               ;get TM-A data(0x00F0)
+                lsl.w #8, d0                                    ;shift left 8 bits
+                move.w #$1D0, d1                                ;load 0x1D0(TM-A test pattern)
+                or.w d0, d1                                     ;merge d0 and d1
 
+                move.w #2, -(sp)
+                move.w #2, -(sp)
+                move.w d1, -(sp)                                ;empty tile
+                move.w #$0004, -(sp)                            ;red
+                move.w #15, -(sp)
+                move.w #10, -(sp)
+                move.w #0, -(sp)
+                bsr.w DRAWTILEMAP
 
+                move.w d7, d0                                   ;copy PR bits data
+                andi.w #$000F, d0                               ;get TM-B data(0x000F)
+                lsl.w #8, d0                                    ;shift left 8 bits
+                lsl.w #4, d0                                    ;shift left 4 bits
+                move.w #$1D4, d1                                ;load 0x1D4(TM-B test pattern)
+                or.w d0, d1                                     ;merge d0 and d1
+
+                move.w #2, -(sp)
+                move.w #2, -(sp)
+                move.w d1, -(sp)                                ;empty tile
+                move.w #$0003, -(sp)                            ;green
+                move.w #15, -(sp)
+                move.w #10, -(sp)
+                move.w #1, -(sp)
+                bsr.w DRAWTILEMAP
 
             TSTRTNE_Pr_PrntVal:
-                move.w d6, -(sp)                                ;push PR bit number reg
-                move.w d7, -(sp)                                ;push PR bit reg
-
-
                 move.w #7, d5                                   ;repeat 8 times
                 move.w #11, d4                                  ;set xpos
                 TSTRTNE_Pr_PrntVal_prntloop:
@@ -1490,7 +1566,10 @@ PRTILEMAPA      dc.w 'TM-A', $0000
 PRTILEMAPB      dc.w 'TM-B', $0000
 PRBITZERO       dc.w '0', $0000
 PRBITONE        dc.w '1', $0000
-PRTESTZONE      dc.w 'Test Zone', $0000
+PRMESSAGE0      dc.w '  Vertical block   TM-A ', $0000
+PRMESSAGE1      dc.w ' Horizontal block  TM-B ', $0000
+PRMESSAGE2      dc.w '  I-shaped block    OBJ ', $0000
+PRMESSAGE3      dc.w 'Press A to apply changes', $0000
 
 
 
@@ -1748,10 +1827,10 @@ PRTESTZONE      dc.w 'Test Zone', $0000
         funcFixedDelay:
             move.b #1, $5E008                           ;kick the watchdog
             move.b #0, $5E008
-            move.w #$8000, d7
+            move.w #$8000, d0
             funcFixedDelay_delayloop:
                 nop
-                dbf d7, funcFixedDelay_delayloop        ;loop
+                dbf d0, funcFixedDelay_delayloop        ;loop
             rts
 
         *--------------------------------------------------------
@@ -1783,12 +1862,12 @@ PRTESTZONE      dc.w 'Test Zone', $0000
         *--------------------------------------------------------
 
         funcClearTilemap:
-            move.w #$F000, -(sp)                        ;clear tilemap A
+            move.w #$3000, -(sp)                        ;clear tilemap A
             move.w #$0000, -(sp)
             move.w #0, -(sp)
             bsr.w FILLTILEMAP
 
-            move.w #$F05F, -(sp)                        ;clear tilemap B
+            move.w #$E05F, -(sp)                        ;clear tilemap B
             move.w #$0002, -(sp)
             move.w #1, -(sp)
             bsr.w FILLTILEMAP 
@@ -1856,6 +1935,8 @@ EXITMESSAGE   dc.w 'Press A+LEFT(1P) to exit back to menu screen', $0000
 *RF2 steering: 0x22E00
 *RF2 acc: 0x23200(+400)
 *RF2 brake: 0x23600(+400)
+*TM-A test pattern: 0x23A00
+*TM-B test pattern: 0x23A80
 
 * Put variables and constants here
 
