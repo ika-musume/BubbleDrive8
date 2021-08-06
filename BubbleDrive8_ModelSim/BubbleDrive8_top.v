@@ -75,8 +75,17 @@ assign nHOLD = 1'bZ;
 assign DOUT2 = 1'b1;
 assign DOUT3 = 1'b1;
 
-reg         emucore_en = 1'b1;
-reg         tempsense_en = 1'b1;
+reg             emucore_en = 1'b1;
+reg             tempsense_en = 1'b1;
+reg             usb_en = 1'b1;
+
+wire            nFIFOEN;
+wire            nFIFOBUFWRCLKEN;
+wire    [12:0]  FIFOBUFWRADDR;
+wire            FIFOBUFWRDATA;
+wire            nFIFOSENDBOOT;
+wire            nFIFOSENDUSER;
+wire    [11:0]  FIFOCURRPAGE;
 
 
 BubbleDrive8_emucore BubbleDrive8_emucore_0
@@ -102,6 +111,14 @@ BubbleDrive8_emucore BubbleDrive8_emucore_0
     .ROMMISO        (ROMMISO        ),
     .ROMCLK         (ROMCLK         ),
 
+    .nFIFOEN        (nFIFOEN        ),
+    .nFIFOBUFWRCLKEN(nFIFOBUFWRCLKEN),
+    .FIFOBUFWRADDR  (FIFOBUFWRADDR  ),
+    .FIFOBUFWRDATA  (FIFOBUFWRDATA  ),
+    .nFIFOSENDBOOT  (nFIFOSENDBOOT  ),
+    .nFIFOSENDUSER  (nFIFOSENDUSER  ),
+    .FIFOCURRPAGE   (FIFOCURRPAGE   ),
+
     .nACC           (nLED_ACC       )
 );
 
@@ -121,6 +138,31 @@ BubbleDrive8_tempsense BubbleDrive8_tempsense_0
     .nTEMPCS        (nTEMPCS        ),
     .TEMPSIO        (TEMPSIO        ),
     .TEMPCLK        (TEMPCLK        )
+);
+
+BubbleDrive8_usb BubbleDrive8_usb_0
+(
+    .MCLK           (MCLK           ),
+
+    .PWRSTAT        (PWRSTAT        ),
+    .nEN            (usb_en         ),
+
+    .nFIFOEN        (nFIFOEN        ),
+    .nFIFOBUFWRCLKEN(nFIFOBUFWRCLKEN),
+    .FIFOBUFWRADDR  (FIFOBUFWRADDR  ),
+    .FIFOBUFWRDATA  (FIFOBUFWRDATA  ),
+    .nFIFOSENDBOOT  (nFIFOSENDBOOT  ),
+    .nFIFOSENDUSER  (nFIFOSENDUSER  ),
+    .FIFOCURRPAGE   (FIFOCURRPAGE   ),
+
+    .nMPSSEON       (               ),
+    .MPSSECLK       (               ),
+    .MPSSEMOSI      (               ),
+    .MPSSEMISO      (               ),
+    .nMPSSECS       (               ),
+
+    .ADBUS          (               ),
+    .ACBUS          (               )
 );
 
 /*
@@ -262,6 +304,7 @@ begin
         begin
             emucore_en <= 1'b1;
             tempsense_en <= 1'b1;
+            usb_en <= 1'b1;
             led_pwrok <= 1'b1;
             blinker_stop <= 1'b0;
             blinker_start <= 1'b1;
@@ -279,11 +322,13 @@ begin
             led_pwrok <= 1'b0;
             emucore_en <= 1'b0;
             tempsense_en <= 1'b0;
+            usb_en <= 1'b0;
         end
 
         MPSSE_STANDBY_S0:
         begin
             led_pwrok <= 1'b0;
+            usb_en <= 1'b0;
         end
 
         ERROR_S0:

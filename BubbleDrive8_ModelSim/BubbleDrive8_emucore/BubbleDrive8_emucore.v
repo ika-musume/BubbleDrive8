@@ -30,6 +30,15 @@ module BubbleDrive8_emucore
     output  wire            ROMMOSI,
     input   wire            ROMMISO,
     output  wire            ROMCLK,
+
+    //FIFO buffer
+    output  wire            nFIFOEN,
+    output  wire            nFIFOBUFWRCLKEN,
+    output  wire    [12:0]  FIFOBUFWRADDR,
+    output  wire            FIFOBUFWRDATA,
+    output  wire            nFIFOSENDBOOT,
+    output  wire            nFIFOSENDUSER,
+    output  wire    [11:0]  FIFOCURRPAGE,
     
     //BUBBLE ACC LED
     output  wire            nACC
@@ -41,7 +50,6 @@ wire    [12:0]  BOUTCYCLENUM;
 wire    [11:0]  ABSPOS;
 wire            nBINCLKEN;
 wire            nBOUTCLKEN;
-wire    [11:0]  CURRPAGE;
 
 //SPILoader -> BubbleInterface
 wire            nOUTBUFWRCLKEN;
@@ -103,7 +111,7 @@ SPILoader SPILoader_0
 
     .ACCTYPE        (ACCTYPE        ),
     .ABSPOS         (ABSPOS         ),
-    .CURRPAGE       (CURRPAGE       ),
+    .CURRPAGE       (FIFOCURRPAGE   ),
 
     .nOUTBUFWRCLKEN (nOUTBUFWRCLKEN ),
     .OUTBUFWRADDR   (OUTBUFWRADDR   ),
@@ -112,7 +120,14 @@ SPILoader SPILoader_0
     .nCS            (nROMCS         ),
     .MOSI           (ROMMOSI        ),
     .MISO           (ROMMISO        ),
-    .CLK            (ROMCLK         )
+    .CLK            (ROMCLK         ),
+
+    .nFIFOEN        (nFIFOEN        ),
+    .nFIFOBUFWRCLKEN(nFIFOBUFWRCLKEN),
+    .FIFOBUFWRADDR  (FIFOBUFWRADDR  ),
+    .FIFOBUFWRDATA  (FIFOBUFWRDATA  ),
+    .nFIFOSENDBOOT  (nFIFOSENDBOOT  ),
+    .nFIFOSENDUSER  (nFIFOSENDUSER  )
 );
 
 

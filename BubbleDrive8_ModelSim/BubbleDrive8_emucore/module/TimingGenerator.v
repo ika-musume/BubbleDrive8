@@ -159,9 +159,8 @@ end
 reg     [4:0]   step1 = 5'b11110;
 reg     [4:0]   step2 = 5'b11110;
 reg     [4:0]   step3 = 5'b11110;
-reg     [4:0]   step4 = 5'b11110;
 
-always @(posedge MCLK or negedge MCLK)
+always @(negedge MCLK)
 begin
     step1[4] <= nEN | nSWAPEN;
     step1[3] <= nEN | nBSS;
@@ -171,7 +170,6 @@ begin
 
     step2 <= step1;
     step3 <= step2;
-    step4 <= step3;
 end
 
 
@@ -183,11 +181,11 @@ always @(posedge MCLK)
 begin
     if(counter12 == 4'd3 || counter12 == 4'd7 || counter12 == 4'd11)
     begin
-        nSWAPEN_intl    <= step4[4];
-        nBSS_intl       <= step4[3];
-        nBSEN_intl      <= step4[2]; 
-        nREPEN_intl     <= step4[1];
-        nBOOTEN_intl    <= step4[0];
+        nSWAPEN_intl    <= step3[4];
+        nBSS_intl       <= step3[3];
+        nBSEN_intl      <= step3[2]; 
+        nREPEN_intl     <= step3[1];
+        nBOOTEN_intl    <= step3[0];
     end
 end
 
@@ -630,7 +628,7 @@ begin
     //리셋상태
     if(MCLK_counter == 10'd0)
     begin
-        nBOUTCLKEN <= 1'b1;
+        nBOUTCLKEN <= 1'b0;
     end
     //버블 -Y에서 체크
     else if(MCLK_counter == 10'd328 - 10'd2) //propagation delay보상을 위해 신호를 15ns정도 일찍 보내기; 오래된 기판의 경우 LS244가 느려짐
