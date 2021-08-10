@@ -1,4 +1,4 @@
-module MSGROM
+module TEXTROM
 (
     input   wire            MCLK,
     input   wire            nCLKEN,
@@ -6,19 +6,19 @@ module MSGROM
     output  reg     [7:0]   DATA
 );
 
-reg     [7:0]   message_rom[127:0];
+reg     [7:0]   text_rom[127:0];
 
 always @(negedge MCLK) //read 
 begin   
     if(nCLKEN == 1'b0)
     begin
-        DATA <= message_rom[ADDR];
+        DATA <= text_rom[ADDR];
     end
 end
 
 initial
 begin
-    $readmemh("ASCII_message.txt", message_rom);
+    $readmemh("ASCII_message.txt", text_rom);
 end
 
 endmodule

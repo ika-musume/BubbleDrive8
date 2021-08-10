@@ -93,7 +93,7 @@ reg             nSWAPEN_intl;
     4MHz              ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|_______________________|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|_______________________|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|
 
     BMC signals       ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|_______________________________________________|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-                                             |---------> sampled
+                                           |---------> sampled
 
 
     synchronization                                  |---|           |---|
@@ -416,9 +416,13 @@ end
     track. That is, there is one bubble for every two positions, like a diagram
     below:
 
-        P   P   P   P   P   P   P   P
-        O---*---O---*---O---*---O---*
-        bubble  bubble  bubble  bubble
+            P   P   P   P   P   P   P   P
+    ODD     O---*---O---*---O---*---O---*
+            bubble  bubble  bubble  bubble
+
+            P   P   P   P   P   P   P   P
+    EVEN    *---O---*---O---*---O---*---O
+                bubble  bubble  bubble  bubble
 
     Bubble moves one position every 10us, so in this case, 1 bit of data is
     transferred every 20us. Developers wanted to speed things up. So, they
@@ -458,7 +462,7 @@ begin
 end
 
 //cycle counter
-reg     [6:0]   bout_propagation_delay_counter = 7'd127; //96 or 98
+reg     [6:0]   bout_propagation_delay_counter = 7'd127; //98
 reg     [9:0]   bout_page_cycle_counter = 10'd1023; //584
 reg     [12:0]  bout_bootloop_cycle_counter = {1'b0, INITIAL_ABS_POSITION}; //4106
 

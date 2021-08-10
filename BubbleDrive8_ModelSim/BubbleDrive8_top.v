@@ -88,6 +88,13 @@ wire            nFIFOSENDUSER;
 wire    [11:0]  FIFOCURRPAGE;
 
 
+wire    [7:0]   ADBUS;
+wire    [5:0]   ACBUS;
+assign ACBUS[5] = 1'b1;
+assign ACBUS[4:2] = 3'bZZZ;
+assign ACBUS[1:0] = 2'b00;
+
+
 BubbleDrive8_emucore BubbleDrive8_emucore_0
 (
     .MCLK           (MCLK           ),
@@ -155,15 +162,20 @@ BubbleDrive8_usb BubbleDrive8_usb_0
     .nFIFOSENDUSER  (nFIFOSENDUSER  ),
     .FIFOCURRPAGE   (FIFOCURRPAGE   ),
 
-    .nMPSSEON       (               ),
     .MPSSECLK       (               ),
     .MPSSEMOSI      (               ),
     .MPSSEMISO      (               ),
     .nMPSSECS       (               ),
 
-    .ADBUS          (               ),
-    .ACBUS          (               )
+    .ADBUS          (ADBUS          ),
+    .ACBUS          (ACBUS          )
 );
+
+
+
+
+
+
 
 /*
     BLINKER
