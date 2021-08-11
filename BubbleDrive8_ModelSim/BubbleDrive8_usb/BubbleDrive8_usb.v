@@ -69,17 +69,17 @@ begin
         2'b00: begin fifo_output_driver_enable <= nEN | 1'b1; mpsse_connection_enable <= nEN | 1'b1; end //illegal access(enabling MPSSE while FIFO accessing)
         2'b01: begin fifo_output_driver_enable <= nEN | 1'b0; mpsse_connection_enable <= nEN | 1'b1; end //stable FIFO
         2'b10: begin fifo_output_driver_enable <= nEN | 1'b1; mpsse_connection_enable <= nEN | 1'b0; end //stable MPSSE
-        2'b11: begin fifo_output_driver_enable <= nEN | 1'b1; mpsse_connection_enable <= nEN | 1'b1; end //standby(FIFO, MPSSE is not reconfigured by a host PC)
+        2'b11: begin fifo_output_driver_enable <= nEN | 1'b1; mpsse_connection_enable <= nEN | 1'b1; end //standby(FIFO, MPSSE is not reconfigured by a host PC yet)
     endcase
 end
 
 //declare fifo variables
-reg     [7:0]   FIFO_OUTLATCH;  //ADBUS0-7
-wire            nFIFORXF;       //ACBUS0
-wire            nFIFOTXE;       //ACBUS1
-reg             nFIFORD;        //ACBUS2
-reg             nFIFOWR;        //ACBUS3
-reg             nFIFOSIWU;      //ACBUS4
+reg     [7:0]   FIFO_OUTLATCH;          //ADBUS0-7
+wire            nFIFORXF;               //ACBUS0
+wire            nFIFOTXE;               //ACBUS1
+reg             nFIFORD = 1'b1;         //ACBUS2
+reg             nFIFOWR = 1'b1;         //ACBUS3
+reg             nFIFOSIWU = 1'b1;       //ACBUS4
 
 //MPSSE input / output driver
 assign MPSSECLK = (mpsse_connection_enable == 1'b0) ? ADBUS[0] : 1'b1; //prevent unintended access
@@ -91,9 +91,9 @@ assign nMPSSECS = (mpsse_connection_enable == 1'b0) ? ADBUS[3] : 1'b1;
 assign ADBUS = (fifo_output_driver_enable == 1'b0) ? FIFO_OUTLATCH : 8'bZZZZ_ZZZZ;
 assign nFIFORXF = ACBUS[0];
 assign nFIFOTXE = ACBUS[1];
-assign ACBUS[2] = (fifo_output_driver_enable == 1'b0) ? nFIFORD : 1'b1; //set pull-up resistor on the pin
-assign ACBUS[3] = (fifo_output_driver_enable == 1'b0) ? nFIFOWR : 1'b1;
-assign ACBUS[4] = (fifo_output_driver_enable == 1'b0) ? nFIFOSIWU : 1'b1;
+assign ACBUS[2] = (fifo_output_driver_enable == 1'b0) ? nFIFORD : 1'bZ; //set pull-up resistor on the pin
+assign ACBUS[3] = (fifo_output_driver_enable == 1'b0) ? nFIFOWR : 1'bZ;
+assign ACBUS[4] = (fifo_output_driver_enable == 1'b0) ? nFIFOSIWU : 1'bZ;
 assign nMPSSEON = ACBUS[5];
 
 
@@ -324,7 +324,22 @@ begin
         FIFO_PRNTDATA_S16: fifo_state <= FIFO_PRNTDATA_S1;
 
 
-        FIFO_TX_S0: fifo_state <= FIFO_TX_S1;
+        FIFO_TX_S0: 
+            if(nFIFOSENDBOOT && nFIFOSENDUSER == 1'b1) 
+            begin 
+                fifo_state <= FIFO_RESET; 
+            end
+            else 
+            begin
+                if(nFIFOTXE == 1'b1) 
+                begin 
+                    fifo_state <= FIFO_TX_S0;
+                end
+                else
+                begin
+                    fifo_state <= FIFO_TX_S1;
+                end
+            end
         FIFO_TX_S1: fifo_state <= FIFO_TX_S2;
         FIFO_TX_S2: fifo_state <= FIFO_TX_S3;
         FIFO_TX_S3: fifo_state <= return_fifo_state;
@@ -367,7 +382,7 @@ begin
             FIFO_OUTLATCH <= text_output;
         end
         FIFO_PRNTMESSAGE_S4: begin
-            text_addr <= text_addr + 8'd1;
+            text_addr <= text_addr + 7'h1;
             line_h_counter <= line_h_counter - 8'd1;
         end
         FIFO_PRNTMESSAGE_S5:

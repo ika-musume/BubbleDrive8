@@ -37,6 +37,13 @@ wire            nLED_DELAYING;
 wire            nLED_STANDBY;
 wire            nLED_PWROK;
 
+wire    [7:0]   ADBUS;
+wire    [5:0]   ACBUS;
+assign ACBUS[5] = 1'b1;
+assign ACBUS[4:2] = 3'bZZZ;
+assign ACBUS[1:0] = 2'b00;
+
+
 
 BubbleDrive8_top Main
 (
@@ -80,8 +87,8 @@ BubbleDrive8_top Main
 
     //MPSSE
     .PWRSTAT        (1'b0           ),
-    .nMPSSEEN       (1'b1           ),
-
+    .ADBUS          (ADBUS          ),
+    .ACBUS          (ACBUS          ),
 
     .nLED_ACC       (nLED_ACC       ),
     .nLED_DELAYING  (nLED_DELAYING  ),

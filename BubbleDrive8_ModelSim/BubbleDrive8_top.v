@@ -59,7 +59,8 @@ module BubbleDrive8_top
 
     //power MUX status
     input   wire            PWRSTAT, //0 = motherboard / 1 = USB
-    input   wire            nMPSSEEN, //MPSSE GPIO
+    inout   wire    [7:0]   ADBUS,
+    inout   wire    [5:0]   ACBUS,
 
 
     /////////////////////////////////////////////
@@ -79,6 +80,8 @@ reg             emucore_en = 1'b1;
 reg             tempsense_en = 1'b1;
 reg             usb_en = 1'b1;
 
+wire            led_delaying;
+
 wire            nFIFOEN;
 wire            nFIFOBUFWRCLKEN;
 wire    [12:0]  FIFOBUFWRADDR;
@@ -86,14 +89,6 @@ wire            FIFOBUFWRDATA;
 wire            nFIFOSENDBOOT;
 wire            nFIFOSENDUSER;
 wire    [11:0]  FIFOCURRPAGE;
-
-
-wire    [7:0]   ADBUS;
-wire    [5:0]   ACBUS;
-assign ACBUS[5] = 1'b1;
-assign ACBUS[4:2] = 3'bZZZ;
-assign ACBUS[1:0] = 2'b00;
-
 
 BubbleDrive8_emucore BubbleDrive8_emucore_0
 (
@@ -140,7 +135,7 @@ BubbleDrive8_tempsense BubbleDrive8_tempsense_0
 
     .nTEMPLO        (nTEMPLO        ),
     .nFANEN         (nFANEN         ),
-    .nDELAYING      (nLED_DELAYING  ),
+    .nDELAYING      (led_delaying   ),
 
     .nTEMPCS        (nTEMPCS        ),
     .TEMPSIO        (TEMPSIO        ),
@@ -256,9 +251,13 @@ localparam ERROR_S1 = 3'b111;           //전원공급은 USB이나 기판 MRST�
 
 //emulator state
 reg     [2:0]   emulator_state = RESET_S0;
-reg             led_pwrok;
-assign nLED_PWROK = led_pwrok & blinker;
-assign nLED_STANDBY = ~nLED_DELAYING;
+reg             ledctrl_delaying = 1'b1;
+reg             ledctrl_pwrok = 1'b1;
+reg             ledctrl_standby = 1'b1;
+
+assign nLED_DELAYING = ledctrl_delaying | led_delaying;
+assign nLED_PWROK = ledctrl_pwrok | blinker;
+assign nLED_STANDBY = (ledctrl_standby | blinker) & ~led_delaying;
 
 //state flow control
 always @(posedge MCLK)
@@ -317,7 +316,11 @@ begin
             emucore_en <= 1'b1;
             tempsense_en <= 1'b1;
             usb_en <= 1'b1;
-            led_pwrok <= 1'b1;
+
+            ledctrl_delaying <= 1'b1;
+            ledctrl_pwrok <= 1'b1;
+            ledctrl_standby <= 1'b1;
+
             blinker_stop <= 1'b0;
             blinker_start <= 1'b1;
         end
@@ -331,27 +334,43 @@ begin
         end
         EMULATOR_S1:
         begin
-            led_pwrok <= 1'b0;
             emucore_en <= 1'b0;
             tempsense_en <= 1'b0;
             usb_en <= 1'b0;
+
+            ledctrl_delaying <= 1'b0;
+            ledctrl_pwrok <= 1'b0;
+            ledctrl_standby <= 1'b1;
         end
 
         MPSSE_STANDBY_S0:
         begin
-            led_pwrok <= 1'b0;
             usb_en <= 1'b0;
+
+            ledctrl_delaying <= 1'b1;
+            ledctrl_pwrok <= 1'b1;
+            ledctrl_standby <= 1'b0;
+
+            blinker_stop <= 1'b1;
+            blinker_start <= 1'b0;
         end
 
         ERROR_S0:
         begin
-            led_pwrok <= 1'b1;
+            ledctrl_delaying <= 1'b1;
+            ledctrl_pwrok <= 1'b0;
+            ledctrl_standby <= 1'b1;
+
             blinker_stop <= 1'b1;
             blinker_start <= 1'b0;
         end
         ERROR_S1:
         begin
-            led_pwrok <= 1'b1;
+            ledctrl_delaying <= 1'b1;
+            ledctrl_pwrok <= 1'b0;
+            ledctrl_standby <= 1'b1;
+            
+            ledctrl_pwrok <= 1'b1;
             blinker_stop <= 1'b1;
             blinker_start <= 1'b0;
         end
