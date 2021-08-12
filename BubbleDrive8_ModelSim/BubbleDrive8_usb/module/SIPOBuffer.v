@@ -4,7 +4,6 @@ module SIPOBuffer
     input   wire            MCLK,
 
     //input
-    input   wire            nSIPOWREN,
     input   wire    [12:0]  SIPOWRADDR,
     input   wire            SIPOWRDATA,
     input   wire            nSIPOWRCLKEN,

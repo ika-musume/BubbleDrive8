@@ -42,3 +42,5 @@ State machine improved. LEDDriver.v removed(for I2C OLED screen driver implement
 GX400 main test program added.
 ### v1.3 - Jun. 07, 2021
 Added TC77 temperature sensor to make an "realistic" heating delay.
+### v1.4 - Aug. 12, 2021
+FT232HL async FIFO implementation completed.

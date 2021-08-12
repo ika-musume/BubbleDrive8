@@ -12,7 +12,6 @@ module BubbleDrive8_usb
     input   wire            PWRSTAT, //(0 = FIFO 1 = MPSSE)
 
     //FIFO buffer interface
-    input   wire            nFIFOEN,
     input   wire            nFIFOBUFWRCLKEN,
     input   wire    [12:0]  FIFOBUFWRADDR,   //13bit addr = 8k * 1bit
     input   wire            FIFOBUFWRDATA,
@@ -111,7 +110,6 @@ SIPOBuffer SIPOBuffer_0
 (
     .MCLK               (MCLK               ),
 
-    .nSIPOWREN          (nFIFOEN            ),
     .SIPOWRADDR         (FIFOBUFWRADDR      ),
     .SIPOWRDATA         (FIFOBUFWRDATA      ),
     .nSIPOWRCLKEN       (nFIFOBUFWRCLKEN    ),

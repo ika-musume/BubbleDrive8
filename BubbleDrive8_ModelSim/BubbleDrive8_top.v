@@ -82,7 +82,6 @@ reg             usb_en = 1'b1;
 
 wire            led_delaying;
 
-wire            nFIFOEN;
 wire            nFIFOBUFWRCLKEN;
 wire    [12:0]  FIFOBUFWRADDR;
 wire            FIFOBUFWRDATA;
@@ -113,7 +112,6 @@ BubbleDrive8_emucore BubbleDrive8_emucore_0
     .ROMMISO        (ROMMISO        ),
     .ROMCLK         (ROMCLK         ),
 
-    .nFIFOEN        (nFIFOEN        ),
     .nFIFOBUFWRCLKEN(nFIFOBUFWRCLKEN),
     .FIFOBUFWRADDR  (FIFOBUFWRADDR  ),
     .FIFOBUFWRDATA  (FIFOBUFWRDATA  ),
@@ -149,7 +147,6 @@ BubbleDrive8_usb BubbleDrive8_usb_0
     .PWRSTAT        (PWRSTAT        ),
     .nEN            (usb_en         ),
 
-    .nFIFOEN        (nFIFOEN        ),
     .nFIFOBUFWRCLKEN(nFIFOBUFWRCLKEN),
     .FIFOBUFWRADDR  (FIFOBUFWRADDR  ),
     .FIFOBUFWRDATA  (FIFOBUFWRDATA  ),

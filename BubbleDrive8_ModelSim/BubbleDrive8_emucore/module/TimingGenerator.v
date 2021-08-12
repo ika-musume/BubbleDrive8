@@ -632,7 +632,7 @@ begin
     //리셋상태
     if(MCLK_counter == 10'd0)
     begin
-        nBOUTCLKEN <= 1'b0;
+        nBOUTCLKEN <= 1'b1;
     end
     //버블 -Y에서 체크
     else if(MCLK_counter == 10'd328 - 10'd2) //propagation delay보상을 위해 신호를 15ns정도 일찍 보내기; 오래된 기판의 경우 LS244가 느려짐

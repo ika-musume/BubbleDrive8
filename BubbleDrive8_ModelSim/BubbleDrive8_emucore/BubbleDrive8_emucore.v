@@ -32,7 +32,6 @@ module BubbleDrive8_emucore
     output  wire            ROMCLK,
 
     //FIFO buffer
-    output  wire            nFIFOEN,
     output  wire            nFIFOBUFWRCLKEN,
     output  wire    [12:0]  FIFOBUFWRADDR,
     output  wire            FIFOBUFWRDATA,
@@ -122,7 +121,6 @@ SPILoader SPILoader_0
     .MISO           (ROMMISO        ),
     .CLK            (ROMCLK         ),
 
-    .nFIFOEN        (nFIFOEN        ),
     .nFIFOBUFWRCLKEN(nFIFOBUFWRCLKEN),
     .FIFOBUFWRADDR  (FIFOBUFWRADDR  ),
     .FIFOBUFWRDATA  (FIFOBUFWRDATA  ),

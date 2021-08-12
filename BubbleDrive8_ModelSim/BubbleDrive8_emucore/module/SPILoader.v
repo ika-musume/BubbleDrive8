@@ -21,7 +21,6 @@ module SPILoader
     output  reg             OUTBUFWRDATA = 1'b1,       //bubble buffer write data
 
     //FIFO buffer interface
-    output  reg             nFIFOEN = 1'b1,
     output  reg             nFIFOBUFWRCLKEN = 1'b1,
     output  reg     [12:0]  FIFOBUFWRADDR = 13'd0,   //13bit addr = 8k * 1bit
     output  reg             FIFOBUFWRDATA = 1'b1,
@@ -275,7 +274,6 @@ begin
         begin
             nCS <= 1'b1; CLK <= 1'b1; 
             
-            nFIFOEN <= 1'b1;
             if(ACCTYPE == 3'b110) //bootloader
             begin
                 nFIFOSENDBOOT <= 1'b0;
@@ -297,7 +295,7 @@ begin
             nCS <= 1'b1; CLK <= 1'b1; 
             OUTBUFWRADDR <= {1'b0, 13'd0, 1'b0}; nOUTBUFWRCLKEN <= 1'b1;
             map_addr <= 12'd0; map_write_enable <= 1'b1; map_write_clken <= 1'b1; map_read_clken <= 1'b1;
-            nFIFOEN <= 1'b1; FIFOBUFWRADDR <= 13'd0; nFIFOBUFWRCLKEN <= 1'b1; nFIFOSENDBOOT <= 1'b1; nFIFOSENDUSER <= 1'b1;
+            FIFOBUFWRADDR <= 13'd0; nFIFOBUFWRCLKEN <= 1'b1; nFIFOSENDBOOT <= 1'b1; nFIFOSENDUSER <= 1'b1;
             convert <= 1'b1;
             general_counter <= 12'd0; 
         end
@@ -320,7 +318,7 @@ begin
         end
         SPI_RDCMD_2B_S3:
         begin
-            nCS <= 1'b0; nFIFOEN <= 1'b0;
+            nCS <= 1'b0;
         end
         SPI_RDCMD_2B_S4:
         begin
