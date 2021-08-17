@@ -1,8 +1,8 @@
 # -------------------------------------------------------------------------- #
 #
-# Copyright (C) 2020  Intel Corporation. All rights reserved.
+# Copyright (C) 2017  Intel Corporation. All rights reserved.
 # Your use of Intel Corporation's design tools, logic functions 
-# and other software and tools, and any partner logic 
+# and other software and tools, and its AMPP partner logic 
 # functions, and any output files from any of the foregoing 
 # (including device programming or simulation files), and any 
 # associated documentation or information are expressly subject 
@@ -12,14 +12,13 @@
 # agreement, including, without limitation, that your use is for
 # the sole purpose of programming logic devices manufactured by
 # Intel and sold by Intel or its authorized distributors.  Please
-# refer to the applicable agreement for further details, at
-# https://fpgasoftware.intel.com/eula.
+# refer to the applicable agreement for further details.
 #
 # -------------------------------------------------------------------------- #
 #
 # Quartus Prime
-# Version 20.1.1 Build 720 11/11/2020 SJ Lite Edition
-# Date created = 21:31:28  April 09, 2021
+# Version 17.1.0 Build 590 10/25/2017 SJ Lite Edition
+# Date created = 13:18:52  August 17, 2021
 #
 # -------------------------------------------------------------------------- #
 #
@@ -40,53 +39,73 @@
 set_global_assignment -name FAMILY "Cyclone IV E"
 set_global_assignment -name DEVICE EP4CE6E22C8
 set_global_assignment -name TOP_LEVEL_ENTITY BubbleDrive8_top
-set_global_assignment -name ORIGINAL_QUARTUS_VERSION 20.1.1
-set_global_assignment -name PROJECT_CREATION_TIME_DATE "21:31:28  APRIL 09, 2021"
-set_global_assignment -name LAST_QUARTUS_VERSION "17.0.0 Lite Edition"
+set_global_assignment -name ORIGINAL_QUARTUS_VERSION 17.1.0
+set_global_assignment -name PROJECT_CREATION_TIME_DATE "13:18:52  AUGUST 17, 2021"
+set_global_assignment -name LAST_QUARTUS_VERSION "17.1.0 Lite Edition"
 set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
 set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0
 set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85
 set_global_assignment -name ERROR_CHECK_FREQUENCY_DIVISOR 1
-set_global_assignment -name NOMINAL_CORE_SUPPLY_VOLTAGE 1.2V
-set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
-set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
-set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
 set_global_assignment -name ENABLE_OCT_DONE OFF
 set_global_assignment -name ENABLE_CONFIGURATION_PINS OFF
 set_global_assignment -name ENABLE_BOOT_SEL_PIN OFF
+set_global_assignment -name STRATIXV_CONFIGURATION_SCHEME "PASSIVE SERIAL"
 set_global_assignment -name USE_CONFIGURATION_DEVICE OFF
+set_global_assignment -name CYCLONEIII_CONFIGURATION_DEVICE EPCS16
 set_global_assignment -name CRC_ERROR_OPEN_DRAIN OFF
-set_global_assignment -name RESERVE_ALL_UNUSED_PINS_WEAK_PULLUP "AS INPUT TRI-STATED"
+set_global_assignment -name ON_CHIP_BITSTREAM_DECOMPRESSION OFF
 set_global_assignment -name STRATIX_DEVICE_IO_STANDARD "3.3-V LVCMOS"
 set_global_assignment -name OUTPUT_IO_TIMING_NEAR_END_VMEAS "HALF VCCIO" -rise
 set_global_assignment -name OUTPUT_IO_TIMING_NEAR_END_VMEAS "HALF VCCIO" -fall
 set_global_assignment -name OUTPUT_IO_TIMING_FAR_END_VMEAS "HALF SIGNAL SWING" -rise
 set_global_assignment -name OUTPUT_IO_TIMING_FAR_END_VMEAS "HALF SIGNAL SWING" -fall
+set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
+set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
+set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
+set_global_assignment -name VERILOG_FILE BubbleDrive8_tempsense/module/TempLoader.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/element/PositionPageConverter.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_tempsense/module/TimeCounter.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_usb/element/RAM1k1.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/module/BubbleInterface.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_usb/element/TEXTROM.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_tempsense/BubbleDrive8_tempsense.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_top.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/BubbleDrive8_emucore.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/module/SPILoader.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_usb/module/SIPOBuffer.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_usb/BubbleDrive8_usb.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/module/TimingGenerator.v
 set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
 set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
-set_location_assignment PIN_69 -to CLKOUT
-set_location_assignment PIN_73 -to DOUT0
-set_location_assignment PIN_70 -to DOUT1
-set_location_assignment PIN_23 -to MCLK
-set_location_assignment PIN_132 -to ROMCLK
-set_location_assignment PIN_138 -to ROMMISO
-set_location_assignment PIN_133 -to ROMMOSI
-set_location_assignment PIN_137 -to nROMCS
-set_location_assignment PIN_135 -to nWP
-set_location_assignment PIN_136 -to nHOLD
-set_location_assignment PIN_65 -to nBOOTEN
-set_location_assignment PIN_66 -to nBSEN
-set_location_assignment PIN_64 -to nREPEN
-set_instance_assignment -name CURRENT_STRENGTH_NEW "MAXIMUM CURRENT" -to DOUT1
-set_instance_assignment -name CURRENT_STRENGTH_NEW "MAXIMUM CURRENT" -to DOUT0
-set_location_assignment PIN_68 -to READY
-set_location_assignment PIN_3 -to LED
-set_global_assignment -name FLOW_ENABLE_POWER_ANALYZER ON
-set_global_assignment -name POWER_DEFAULT_INPUT_IO_TOGGLE_RATE "12.5 %"
-set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/TimingGenerator.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/SPILoader.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/PositionPageConverter.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/BubbleInterface.v
-set_global_assignment -name SDC_FILE BubbleDrive8_top.sdc
-set_global_assignment -name VERILOG_FILE BubbleDrive8_top.v
+set_location_assignment PIN_24 -to MCLK
+set_location_assignment PIN_144 -to nROMCS
+set_location_assignment PIN_143 -to ROMCLK
+set_location_assignment PIN_67 -to nLED_PWROK
+set_location_assignment PIN_64 -to nLED_STANDBY
+set_location_assignment PIN_65 -to nLED_DELAYING
+set_location_assignment PIN_60 -to nLED_ACC
+set_location_assignment PIN_2 -to nTEMPCS
+set_location_assignment PIN_11 -to TEMPSW[2]
+set_location_assignment PIN_10 -to TEMPSW[1]
+set_location_assignment PIN_7 -to TEMPSW[0]
+set_location_assignment PIN_142 -to ROMIO0
+set_location_assignment PIN_141 -to ROMIO1
+set_location_assignment PIN_129 -to ROMIO2
+set_location_assignment PIN_128 -to ROMIO3
+set_location_assignment PIN_3 -to TEMPCLK
+set_location_assignment PIN_1 -to TEMPSIO
+set_location_assignment PIN_127 -to IMGNUM[2]
+set_location_assignment PIN_126 -to IMGNUM[1]
+set_location_assignment PIN_125 -to IMGNUM[0]
+set_location_assignment PIN_28 -to PWRSTAT
+set_location_assignment PIN_43 -to CLKOUT
+set_location_assignment PIN_68 -to FORCESTART
+set_location_assignment PIN_54 -to nBSEN
+set_location_assignment PIN_53 -to nREPEN
+set_location_assignment PIN_52 -to nBOOTEN
+set_location_assignment PIN_55 -to MRST
+set_location_assignment PIN_58 -to nSWAPEN
+set_location_assignment PIN_39 -to nTEMPLO
+set_location_assignment PIN_59 -to nBSS
+set_location_assignment PIN_38 -to nFANEN
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

@@ -20,11 +20,11 @@ reg             i;
 
 
 wire            nROMCS;
-wire            ROMMOSI;
-wire            ROMMISO;
 wire            ROMCLK;
-wire            nWP;
-wire            nHOLD;
+wire            ROMIO0;
+wire            ROMIO1;
+wire            ROMIO2;
+wire            ROMIO3;
 
 wire            nTEMPCS;
 wire            TEMPCLK;
@@ -68,11 +68,11 @@ BubbleDrive8_top Main
     .IMGNUM         (3'b000         ),
 
     .nROMCS         (nROMCS         ),
-    .ROMMOSI        (ROMMOSI        ),
-    .ROMMISO        (ROMMISO        ),
     .ROMCLK         (ROMCLK         ),
-    .nWP            (nWP            ),
-    .nHOLD          (nHOLD          ),
+    .ROMIO0         (ROMIO0         ),
+    .ROMIO1         (ROMIO1         ),
+    .ROMIO2         (ROMIO2         ),
+    .ROMIO3         (ROMIO3         ),
 
     //temperature detector
     .TEMPSW         (3'b000         ),
@@ -101,12 +101,12 @@ W25Q32JVxxIM SPIFlash_0
 (
     .CSn            (nROMCS         ),
     .CLK            (ROMCLK         ),
-    .DO             (ROMMISO        ),
-    .DIO            (ROMMOSI        ),
+    .DO             (ROMIO1         ),
+    .DIO            (ROMIO0         ),
     
-    .WPn            (nWP            ),
-    .HOLDn          (nHOLD          ),
-    .RESETn         (nHOLD          )
+    .WPn            (ROMIO2         ),
+    .HOLDn          (ROMIO3         ),
+    .RESETn         (ROMIO3         )
 );
 
 TC77_fake TC77_0

@@ -30,11 +30,11 @@ module BubbleDrive8_top
 
     //W25Q32
     output  wire            nROMCS,
-    output  wire            ROMMOSI,
-    input   wire            ROMMISO,
     output  wire            ROMCLK,
-    output  wire            nWP,
-    output  wire            nHOLD,
+    inout   wire            ROMIO0,
+    input   wire            ROMIO1,
+    input   wire            ROMIO2,
+    input   wire            ROMIO3,
 
 
     /////////////////////////////////////////////
@@ -71,10 +71,7 @@ module BubbleDrive8_top
     output  wire            nLED_PWROK
 );
 
-assign nWP = 1'bZ;
-assign nHOLD = 1'bZ;
-assign DOUT2 = 1'b1;
-assign DOUT3 = 1'b1;
+reg             BITWIDTH4 = 1'b0;
 
 reg             emucore_en = 1'b1;
 reg             tempsense_en = 1'b1;
@@ -94,6 +91,7 @@ BubbleDrive8_emucore BubbleDrive8_emucore_0
     .MCLK           (MCLK           ),
     .nEN            (emucore_en     ),
     .IMGNUM         (IMGNUM         ),
+    .BITWIDTH4      (BITWIDTH4      ),
 
     .CLKOUT         (CLKOUT         ),
     .nBSS           (nBSS           ),
@@ -104,13 +102,15 @@ BubbleDrive8_emucore BubbleDrive8_emucore_0
 
     .DOUT0          (DOUT0          ),
     .DOUT1          (DOUT1          ),
-    .DOUT2          (               ),
-    .DOUT3          (               ),
+    .DOUT2          (DOUT2          ),
+    .DOUT3          (DOUT3          ),
 
     .nROMCS         (nROMCS         ),
-    .ROMMOSI        (ROMMOSI        ),
-    .ROMMISO        (ROMMISO        ),
     .ROMCLK         (ROMCLK         ),
+    .ROMIO0         (ROMIO0         ),
+    .ROMIO1         (ROMIO1         ),
+    .ROMIO2         (ROMIO2         ),
+    .ROMIO3         (ROMIO3         ),
 
     .nFIFOBUFWRCLKEN(nFIFOBUFWRCLKEN),
     .FIFOBUFWRADDR  (FIFOBUFWRADDR  ),
@@ -146,6 +146,8 @@ BubbleDrive8_usb BubbleDrive8_usb_0
 
     .PWRSTAT        (PWRSTAT        ),
     .nEN            (usb_en         ),
+
+    .BITWIDTH4      (BITWIDTH4      ),
 
     .nFIFOBUFWRCLKEN(nFIFOBUFWRCLKEN),
     .FIFOBUFWRADDR  (FIFOBUFWRADDR  ),

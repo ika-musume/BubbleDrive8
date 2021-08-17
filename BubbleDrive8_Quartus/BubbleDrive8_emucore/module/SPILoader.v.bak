@@ -10,7 +10,6 @@ module SPILoader
     //image select
     input   wire    [2:0]   IMGNUM,
 
-    //4bit width mode
     input   wire            BITWIDTH4,
 
     //Emulator signal outputs
@@ -117,8 +116,8 @@ reg     [11:0]  general_counter = 12'd0;
 //declare states
 localparam RESET = 12'b0000_0000_0000;              //버블 출력 종료 후 기본 리셋상태
 
-localparam SPI_RDCMD_2B_S0 = 12'b0001_0000_0000;    //ACCTYPE가 페이지가 카운트 되기 전에 바뀌므로 ABSPOS+1을 집어넣고, 페이지를 변환한다
-localparam SPI_RDCMD_2B_S1 = 12'b0001_0000_0001;    //nop
+localparam SPI_RDCMD_2B_S0 = 12'b0001_0000_0000;    //ACCTYPE가 페이지가 카운트 되기 전에 바뀌므로 ABSPOS+1을 집어넣는다
+localparam SPI_RDCMD_2B_S1 = 12'b0001_0000_0001;    //페이지 변환하기
 localparam SPI_RDCMD_2B_S2 = 12'b0001_0000_0010;    //SPI인스트럭션을 버퍼에 로드한다, 부트로더와 페이지가 달라짐
 localparam SPI_RDCMD_2B_S3 = 12'b0001_0000_0011;    //SPI CS내려서 준비한다
 localparam SPI_RDCMD_2B_S4 = 12'b0001_0000_0100;    //branch state; 전송 안 했으면 다음 state, 만약 다 전송했으면 액세스 타입에 따라 분기한다
@@ -309,11 +308,10 @@ begin
         SPI_RDCMD_2B_S0:
         begin
             target_position <= ABSPOS + 12'd1;
-            convert <= 1'b0;
         end
         SPI_RDCMD_2B_S1:
         begin
-            convert <= 1'b1;
+            convert <= 1'b0;
         end 
         SPI_RDCMD_2B_S2:
         begin

@@ -9,6 +9,9 @@ module BubbleDrive8_emucore
     //DIP switch
     input   wire    [2:0]   IMGNUM,
 
+    //4bit width mode
+    input   wire            BITWIDTH4,
+
     //4MHz output clock
     output  wire            CLKOUT,
 
@@ -27,10 +30,12 @@ module BubbleDrive8_emucore
 
     //W25Q32
     output  wire            nROMCS,
-    output  wire            ROMMOSI,
-    input   wire            ROMMISO,
     output  wire            ROMCLK,
-
+    inout   wire            ROMIO0,
+    input   wire            ROMIO1,
+    input   wire            ROMIO2,
+    input   wire            ROMIO3,
+    
     //FIFO buffer
     output  wire            nFIFOBUFWRCLKEN,
     output  wire    [12:0]  FIFOBUFWRADDR,
@@ -85,6 +90,8 @@ BubbleInterface BubbleInterface_0
 (
     .MCLK           (MCLK           ),
 
+    .BITWIDTH4      (BITWIDTH4      ),
+
     .ACCTYPE        (ACCTYPE        ),
     .BOUTCYCLENUM   (BOUTCYCLENUM   ),
     .nBINCLKEN      (nBINCLKEN      ),
@@ -108,6 +115,8 @@ SPILoader SPILoader_0
 
     .IMGNUM         (IMGNUM         ),
 
+    .BITWIDTH4      (BITWIDTH4      ),
+
     .ACCTYPE        (ACCTYPE        ),
     .ABSPOS         (ABSPOS         ),
     .CURRPAGE       (FIFOCURRPAGE   ),
@@ -117,9 +126,11 @@ SPILoader SPILoader_0
     .OUTBUFWRDATA   (OUTBUFWRDATA   ),
 
     .nCS            (nROMCS         ),
-    .MOSI           (ROMMOSI        ),
-    .MISO           (ROMMISO        ),
     .CLK            (ROMCLK         ),
+    .IO0            (ROMIO0         ),
+    .IO1            (ROMIO1         ),
+    .IO2            (ROMIO2         ),
+    .IO3            (ROMIO3         ),
 
     .nFIFOBUFWRCLKEN(nFIFOBUFWRCLKEN),
     .FIFOBUFWRADDR  (FIFOBUFWRADDR  ),
