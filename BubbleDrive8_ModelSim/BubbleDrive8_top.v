@@ -255,7 +255,7 @@ reg             ledctrl_pwrok = 1'b1;
 reg             ledctrl_standby = 1'b1;
 
 assign nLED_DELAYING = ledctrl_delaying | led_delaying;
-assign nLED_PWROK = ledctrl_pwrok | blinker;
+assign nLED_PWROK = ledctrl_pwrok & blinker;
 assign nLED_STANDBY = (ledctrl_standby | blinker) & ~led_delaying;
 
 //state flow control
@@ -357,7 +357,7 @@ begin
         ERROR_S0:
         begin
             ledctrl_delaying <= 1'b1;
-            ledctrl_pwrok <= 1'b0;
+            ledctrl_pwrok <= 1'b1;
             ledctrl_standby <= 1'b1;
 
             blinker_stop <= 1'b1;
@@ -366,7 +366,7 @@ begin
         ERROR_S1:
         begin
             ledctrl_delaying <= 1'b1;
-            ledctrl_pwrok <= 1'b0;
+            ledctrl_pwrok <= 1'b1;
             ledctrl_standby <= 1'b1;
             
             ledctrl_pwrok <= 1'b1;
