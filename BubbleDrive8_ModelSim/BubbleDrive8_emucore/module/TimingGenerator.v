@@ -33,7 +33,7 @@ module TimingGenerator
     nBOUTCLKEN: emulator launches bubble data when this goes low
     nNOBUBBLE: emulator launches 1(no bubble)
 
-    ABSPOS: bubble memory's absolute position number
+    ABSPAGE: bubble memory's absolute position number
 
 
     * For my convenience, many comments are written in Korean *
@@ -62,10 +62,10 @@ module TimingGenerator
     output  reg             nBINCLKEN = 1'b1,
     output  reg             nBOUTCLKEN = 1'b1,
 
-    output  wire    [11:0]  ABSPOS
+    output  wire    [11:0]  ABSPAGE
 );
 
-localparam  INITIAL_ABS_POSITION = 12'd1951; //0-2052
+localparam  INITIAL_ABS_PAGE = 12'd1951; //0-2052
 
 
 /*
@@ -377,6 +377,11 @@ begin
 end
 
 /*
+
+    //////////////////////////////////////////////////////
+    ////    INTERNAL ORGANIZATION OF FBM54DB
+
+
         -1
     ----O---- DETECTOR 1
      \  |0 /   <------------ bubble output signal latched here(magnetic field -Y) by MB3908 sense amplifier; stretcher patterns exist here
@@ -399,10 +404,10 @@ end
                             |   | |   | |   | |   | |   | |   |             |   | |D W| 
                             ¯↓^↑¯ ¯↓^↑¯ ¯↓^↑¯ ¯↓^↑¯ ¯↓^↑¯ ¯↓^↑¯             ¯↓^↑¯ ¯↓^↑¯  <-- swap gate swaps an old bubble with a new bubble at the same time: -Y
                              / \   / \   / \   / \   / \   / \               / \   / \                    2     1
-                            /-O-\-/-O-\-/-O-\-/-O-\-/-O-\-/-O-\-            /-O-\-/-O-\---O-----O   ...   O-----O
-                              626   625   624   623   622   621               42    41    40    39              |
-                                                                                        ↑             __________^_0________
-                                                                                   -Y position        | G E N E R A T O R | <-- generates a bubble at +Y
+            O-- .... ---O---/-O-\-/-O-\-/-O-\-/-O-\-/-O-\-/-O-\-            /-O-\-/-O-\---O-----O   ...   O-----O
+            |                 626   625   624   623   622   621               42    41    40    39              |
+            ↓ discarded                                                                ↑              __________^_0________
+                                                                                 -Y position          | G E N E R A T O R | <-- generates a bubble at +Y
 
     SEE JAPANESE PATENT:
     JPA 1992074376-000000 / 特許出願公開 平4-74376  ;contains replicator/swap gate diagram
@@ -433,38 +438,144 @@ end
     data internally.
 
     I merged the EVEN HALF and the ODD HALF in the diagaram above, for my
-    convenience.
+    convenience. Therefore the diagram that represents the real organization
+    will be like this:
+
+    ODD HALF :
+
+        -1
+    ----O---- DETECTOR 1
+     \  |0 /
+      --O--   DETECTOR 0
+        |                                                   ←     ←     ←     ←     ←         propagation direction
+        |1    2         95    96    97    98    99    100   101               680   681
+        O-----O   ...   O-----O-----O-----O-----O-----O-----O--             --O-----O
+                                    ↑           ↑           ↑                       ↑  
+                                  __^__       __^__       __^__                   __^__
+                                  |   |       |   |       |   |                   |   |
+                                  |   |       |   |       |   |                   |   | 
+                                  | L |       | L |       | L |                   | L | 
+                                  | O |       | O |       | O |                   | O | 
+        ←                         | O |       | O |       | O |    .....          | O |
+     ↙                           | P |       | P |       | P |                   | P | 
+     ↓  ↑ EXTERNAL                |B 1|       |  1|       |  3|                   |583| 
+        | MAGNETIC                |   |       |   |       |   |                   |   | 
+          FIELD                   ~   ~       ~   ~       ~   ~                   ~O N~ 
+                                  |   |       |   |       |   |                   |L E| 
+                                  |   |       |   |       |   |                   |D W| 
+                                  ¯↓^↑¯       ¯↓^↑¯       ¯↓^↑¯                   ¯↓^↑¯ 
+                                   / \         / \         / \                     / \                    2     1
+            O-- .... ---O-----O---/-O-\---O---/-O-\---O---/-O-\-            --O---/-O-\---O-----O   ...   O-----O
+            |                 626   625   624   623   622   621               42    41    40    39              |
+            ↓ discarded                                                                ↑              __________^_0________
+                                                                                  -Y position         | G E N E R A T O R |
+
+    EVEN HALF :
+
+        -1
+    ----O---- DETECTOR 1
+     \  |0 /
+      --O--   DETECTOR 0
+        |                                                   ←     ←     ←     ←     ←         propagation direction
+        |1    2         95    96    97    98    99    100   101               680   681
+        O-----O   ...   O-----O-----O-----O-----O-----O-----O--             --O-----O
+                              ↑           ↑           ↑                       ↑  
+                            __^__       __^__       __^__                   __^__
+                            |   |       |   |       |   |                   |   |
+                            |   |       |   |       |   |                   |   |
+                            | L |       | L |       | L |                   | L |
+                            | O |       | O |       | O |                   | O |
+        ←                   | O |       | O |       | O |          .....    | O |
+     ↙                     | P |       | P |       | P |                   | P | 
+     ↓  ↑ EXTERNAL          |B 0|       |  0|       |  2|                   |582|
+        | MAGNETIC          |   |       |   |       |   |                   |   |
+          FIELD             ~   ~       ~   ~       ~   ~                   ~   ~
+                            |   |       |   |       |   |                   |   |
+                            |   |       |   |       |   |                   |   |
+                            ¯↓^↑¯       ¯↓^↑¯       ¯↓^↑¯                   ¯↓^↑¯
+                             / \         / \         / \                     / \                          2     1
+            O-- .... ---O---/-O-\---O---/-O-\---O---/-O-\---O---          --/-O-\---O-----O-----O   ...   O-----O
+            |                 626   625   624   623   622   621               42    41    40    39              |
+            ↓ discarded                                                                ↑             __________^_0________
+                                                                                 -Y position         | G E N E R A T O R |
+
+
+    //////////////////////////////////////////////////////
+    ////    EXACT MINOR LOOP POSITION OF FBM54DB
+
+    A good minor loop in FBM54DB can hold 2053 magnetic bubbles. This means
+    that the total count of positions is 2053. Early bubble memories had put 
+    a bubble every two positions to prevent bubble-bubble interaction, but
+    FBM54DB doesn't require such action. In the diagram, it appears to be 
+    the swap gate and the replicator exist in symmetrical positions, 
+    but actually, it's not. 
+
+                        1   0   2052
+                ____  __O___O___O__
+                |  |  |           |
+                |  |  |           O 2051
+                |  |  |           |
+                |  |  |           O 2050
+                |  |  |           |
+                |  |  |           O 2049
+                |  |  |           |
+                |  ¯¯¯¯           O 2048
+    same loops  ~~   partially   ~~~
+    continued   ~~   magnified   ~~~
+                |  ____           O 1541
+                |  |  |           | 
+          912+0 O  |  O           O 1540
+                |  |  |    LOOP   | 
+             +1 O  |  O    #584   O 1539    
+                |  |  |           | 
+             +2 O  |  O           O 1538
+                |  |  |    +624   | 
+                ¯¯¯¯  ¯¯O¯↓¯O¯↑¯O¯¯ 
+                    +623 /     \ +625
+                  42    /   41  \     40        39
+                --O----↓----O----↑----O---------O
+                    bubble    bubble   
+                    goes OUT  goes IN 
+                    on this   on this  
+                    position  position 
+                    at -Y     at -Y
+
+    To increase loop capacity and density of each half, Fujitsu lengthened
+    minor loops about twice. I assume they are shaped like "H".
+
+    Replicator is on absolute position 0
+    Swap gate is on absolute position 1536
 */
 
 //absolute position counter
-reg     [11:0]  absolute_position_number = INITIAL_ABS_POSITION;
-assign ABSPOS = absolute_position_number;
+reg     [11:0]  absolute_page_number = INITIAL_ABS_PAGE;
+assign ABSPAGE = absolute_page_number;
 
 always @(posedge MCLK)
 begin
     //143번째 pos엣지에서 half disk +Y방향 위치
     if(MCLK_counter == 10'd568) 
     begin
-        if(absolute_position_number < 12'd2052)
+        if(absolute_page_number < 12'd2052)
         begin
-            absolute_position_number <= absolute_position_number + 12'd1;
+            absolute_page_number <= absolute_page_number + 12'd1;
         end
         else
         begin
-            absolute_position_number <= 12'd0;
+            absolute_page_number <= 12'd0;
         end
     end
     //+Y 방향 빼고 나머지에서는
     else
     begin
-        absolute_position_number <= absolute_position_number;
+        absolute_page_number <= absolute_page_number;
     end
 end
 
 //cycle counter
 reg     [6:0]   bout_propagation_delay_counter = 7'd127; //98
 reg     [9:0]   bout_page_cycle_counter = 10'd1023; //584
-reg     [12:0]  bout_bootloop_cycle_counter = {1'b0, INITIAL_ABS_POSITION}; //4106
+reg     [12:0]  bout_bootloop_cycle_counter = {1'b0, INITIAL_ABS_PAGE}; //4106
 
 //assign BOUTCYCLENUM = bout_page_cycle_counter[14:2];
 

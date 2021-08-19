@@ -84,7 +84,7 @@ wire    [12:0]  FIFOBUFWRADDR;
 wire            FIFOBUFWRDATA;
 wire            nFIFOSENDBOOT;
 wire            nFIFOSENDUSER;
-wire    [11:0]  FIFOCURRPAGE;
+wire    [11:0]  FIFORELPAGE;
 
 BubbleDrive8_emucore BubbleDrive8_emucore_0
 (
@@ -117,7 +117,7 @@ BubbleDrive8_emucore BubbleDrive8_emucore_0
     .FIFOBUFWRDATA  (FIFOBUFWRDATA  ),
     .nFIFOSENDBOOT  (nFIFOSENDBOOT  ),
     .nFIFOSENDUSER  (nFIFOSENDUSER  ),
-    .FIFOCURRPAGE   (FIFOCURRPAGE   ),
+    .FIFORELPAGE    (FIFORELPAGE    ),
 
     .nACC           (nLED_ACC       )
 );
@@ -154,7 +154,7 @@ BubbleDrive8_usb BubbleDrive8_usb_0
     .FIFOBUFWRDATA  (FIFOBUFWRDATA  ),
     .nFIFOSENDBOOT  (nFIFOSENDBOOT  ),
     .nFIFOSENDUSER  (nFIFOSENDUSER  ),
-    .FIFOCURRPAGE   (FIFOCURRPAGE   ),
+    .FIFORELPAGE    (FIFORELPAGE    ),
 
     .MPSSECLK       (               ),
     .MPSSEMOSI      (               ),

@@ -20,7 +20,7 @@ module BubbleDrive8_usb
     input   wire            FIFOBUFWRDATA,
     input   wire            nFIFOSENDBOOT,
     input   wire            nFIFOSENDUSER,
-    input   wire    [11:0]  FIFOCURRPAGE,
+    input   wire    [11:0]  FIFORELPAGE,
 
     //MPSSE input/output
     output  wire            MPSSECLK,
@@ -394,15 +394,15 @@ begin
 
         FIFO_PRNTPAGENUM_S0: begin
             text_read_en <= 1'b0;
-            text_addr <= {3'b000, FIFOCURRPAGE[11:8]};
+            text_addr <= {3'b000, FIFORELPAGE[11:8]};
         end
         FIFO_PRNTPAGENUM_S1: begin
             ascii_page_number[23:16] <= text_output;
-            text_addr <= {3'b000, FIFOCURRPAGE[7:4]};
+            text_addr <= {3'b000, FIFORELPAGE[7:4]};
         end
         FIFO_PRNTPAGENUM_S2: begin
             ascii_page_number[15:8] <= text_output;
-            text_addr <= {3'b000, FIFOCURRPAGE[3:0]};
+            text_addr <= {3'b000, FIFORELPAGE[3:0]};
         end
         FIFO_PRNTPAGENUM_S3: begin
             ascii_page_number[7:0] <= text_output;

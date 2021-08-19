@@ -62,19 +62,6 @@ set_global_assignment -name OUTPUT_IO_TIMING_FAR_END_VMEAS "HALF SIGNAL SWING" -
 set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
 set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
 set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
-set_global_assignment -name VERILOG_FILE BubbleDrive8_tempsense/module/TempLoader.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/element/PositionPageConverter.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_tempsense/module/TimeCounter.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_usb/element/RAM1k1.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/module/BubbleInterface.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_usb/element/TEXTROM.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_tempsense/BubbleDrive8_tempsense.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_top.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/BubbleDrive8_emucore.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/module/SPILoader.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_usb/module/SIPOBuffer.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_usb/BubbleDrive8_usb.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/module/TimingGenerator.v
 set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
 set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
 set_location_assignment PIN_24 -to MCLK
@@ -108,4 +95,20 @@ set_location_assignment PIN_58 -to nSWAPEN
 set_location_assignment PIN_39 -to nTEMPLO
 set_location_assignment PIN_59 -to nBSS
 set_location_assignment PIN_38 -to nFANEN
+set_global_assignment -name ENABLE_LOGIC_ANALYZER_INTERFACE OFF
+set_global_assignment -name FLOW_ENABLE_POWER_ANALYZER ON
+set_global_assignment -name POWER_DEFAULT_INPUT_IO_TOGGLE_RATE "12.5 %"
+set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/element/RelativePageConverter.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_tempsense/module/TempLoader.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_tempsense/module/TimeCounter.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_usb/element/RAM1k1.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/module/BubbleInterface.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_usb/element/TEXTROM.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_tempsense/BubbleDrive8_tempsense.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_top.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/BubbleDrive8_emucore.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/module/SPILoader.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_usb/module/SIPOBuffer.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_usb/BubbleDrive8_usb.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/module/TimingGenerator.v
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

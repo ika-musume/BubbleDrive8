@@ -42,7 +42,7 @@ module BubbleDrive8_emucore
     output  wire            FIFOBUFWRDATA,
     output  wire            nFIFOSENDBOOT,
     output  wire            nFIFOSENDUSER,
-    output  wire    [11:0]  FIFOCURRPAGE,
+    output  wire    [11:0]  FIFORELPAGE,
     
     //BUBBLE ACC LED
     output  wire            nACC
@@ -51,7 +51,7 @@ module BubbleDrive8_emucore
 //TimingGenerator
 wire    [2:0]   ACCTYPE;
 wire    [12:0]  BOUTCYCLENUM;
-wire    [11:0]  ABSPOS;
+wire    [11:0]  ABSPAGE;
 wire            nBINCLKEN;
 wire            nBOUTCLKEN;
 
@@ -81,7 +81,7 @@ TimingGenerator TimingGenerator_0
     .nBINCLKEN      (nBINCLKEN      ),
     .nBOUTCLKEN     (nBOUTCLKEN     ),
 
-    .ABSPOS         (ABSPOS         )
+    .ABSPAGE        (ABSPAGE         )
 );
 
 
@@ -118,8 +118,8 @@ SPILoader SPILoader_0
     .BITWIDTH4      (BITWIDTH4      ),
 
     .ACCTYPE        (ACCTYPE        ),
-    .ABSPOS         (ABSPOS         ),
-    .CURRPAGE       (FIFOCURRPAGE   ),
+    .ABSPAGE        (ABSPAGE         ),
+    .RELPAGE        (FIFORELPAGE   ),
 
     .nOUTBUFWRCLKEN (nOUTBUFWRCLKEN ),
     .OUTBUFWRADDR   (OUTBUFWRADDR   ),

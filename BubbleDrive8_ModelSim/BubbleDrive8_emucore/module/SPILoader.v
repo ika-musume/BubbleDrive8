@@ -15,8 +15,8 @@ module SPILoader
 
     //Emulator signal outputs
     input   wire    [2:0]   ACCTYPE,        //access type
-    input   wire    [11:0]  ABSPOS,         //absolute position number
-    output  wire    [11:0]  CURRPAGE,
+    input   wire    [11:0]  ABSPAGE,         //absolute position number
+    output  wire    [11:0]  RELPAGE,
 
     //Bubble out buffer interface
     output  reg             nOUTBUFWRCLKEN = 1'b1,       //bubble buffer write clken
@@ -76,15 +76,15 @@ end
 
 
 /*
-    POSITION2PAGE CONVERTER
+    RELATIVE PAGE CONVERTER
 */
 
 reg     [11:0]  target_position = 12'd0;
-wire    [11:0]  bubble_page;
-assign          CURRPAGE = bubble_page;
+wire    [11:0]  relative_page;
+assign          RELPAGE = relative_page;
 reg             convert = 1'b1;
 
-PositionPageConverter Main (.MCLK(MCLK), .nCONV(convert), .ABSPOS(target_position), .PAGE(bubble_page));
+RelativePageConverter Main (.MCLK(MCLK), .nCONV(convert), .ABSPAGE(target_position), .RELPAGE(relative_page));
 
 
 
@@ -117,7 +117,7 @@ reg     [11:0]  general_counter = 12'd0;
 //declare states
 localparam RESET = 12'b0000_0000_0000;              //버블 출력 종료 후 기본 리셋상태
 
-localparam SPI_RDCMD_2B_S0 = 12'b0001_0000_0000;    //ACCTYPE가 페이지가 카운트 되기 전에 바뀌므로 ABSPOS+1을 집어넣고, 페이지를 변환한다
+localparam SPI_RDCMD_2B_S0 = 12'b0001_0000_0000;    //ACCTYPE가 페이지가 카운트 되기 전에 바뀌므로 ABSPAGE+1을 집어넣고, 페이지를 변환한다
 localparam SPI_RDCMD_2B_S1 = 12'b0001_0000_0001;    //nop
 localparam SPI_RDCMD_2B_S2 = 12'b0001_0000_0010;    //SPI인스트럭션을 버퍼에 로드한다, 부트로더와 페이지가 달라짐
 localparam SPI_RDCMD_2B_S3 = 12'b0001_0000_0011;    //SPI CS내려서 준비한다
@@ -308,7 +308,7 @@ begin
 
         SPI_RDCMD_2B_S0:
         begin
-            target_position <= ABSPOS + 12'd1;
+            target_position <= ABSPAGE + 12'd1;
             convert <= 1'b0;
         end
         SPI_RDCMD_2B_S1:
@@ -320,7 +320,7 @@ begin
             convert <= 1'b1;
             case(ACCTYPE[0])
                 1'b0: spi_instruction <= {8'b0000_0011, 2'b00, IMGNUM[2:0], 12'h805, 7'b000_0000};
-                1'b1: spi_instruction <= {8'b0000_0011, 2'b00, IMGNUM[2:0], bubble_page[11:0], 7'b000_0000};
+                1'b1: spi_instruction <= {8'b0000_0011, 2'b00, IMGNUM[2:0], relative_page[11:0], 7'b000_0000};
             endcase
         end
         SPI_RDCMD_2B_S3:
