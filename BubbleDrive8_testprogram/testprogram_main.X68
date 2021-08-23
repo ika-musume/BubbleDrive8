@@ -369,8 +369,8 @@ VECTORS dc.l $00001000                                      ;reset initial SP
     ORG    $10000
     MAINTEST:
         move.l #$5A000, -(sp) ;copy palette
-        move.w #2, -(sp)
-        move.w #1022, -(sp)
+        move.w #3, -(sp)
+        move.w #1021, -(sp)
         jsr funcLoadBubble
 
         move.l #$30000, -(sp) ;copy tiles
@@ -378,8 +378,8 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         move.w #1024, -(sp)
         jsr funcLoadBubble
 
-        move.w #$FFFF, -(sp)                            ;initialize previous key input comparison register to FFFF
-        move.w #$FFFF, -(sp)                            ;initialize previous key input comparison register to FFFF
+        move.w #$FFFF, $810                             ;initialize current key input comparison register to FFFF
+        move.w #$FFFF, $812                             ;initialize previous key input comparison register to FFFF
 
 
         *--------------------------------------------------------
@@ -401,7 +401,7 @@ VECTORS dc.l $00001000                                      ;reset initial SP
             move.w #$F05F, -(sp)
             move.w #$0002, -(sp)
             move.w #1, -(sp)
-            bsr.w FILLTILEMAP      
+            bsr.w funcFillTilemap      
 
             move.w #0, d7
             move.w #7, d6
@@ -470,7 +470,7 @@ VECTORS dc.l $00001000                                      ;reset initial SP
                 move.b #0, $5E008
 
                 bsr.w funcCheckInput                        ;check P1 button input
-                move.w (sp), d0                             ;get latest input 
+                move.w (sp)+, d0                             ;get latest input 
                 btst.l #$4, d0                              ;check for power-up(gradius) or fire(twinbee)
                 beq TESTMENU
 
@@ -556,7 +556,7 @@ TITLEMESSAGE3   dc.w '2020-2021 Raki', $0000
 
             TESTMENUKEYINWAIT:
                 bsr.w funcCheckInput                        ;check P1 button input
-                move.w (sp), d0                             ;get latest input 
+                move.w (sp)+, d0                             ;get latest input 
                 btst.l #$4, d0                              ;check for power-up(gradius) or fire(twinbee)
                 beq TESTMENUSWITCHER
                 btst.l #$3, d0                              ;check for DOWN
@@ -778,7 +778,7 @@ TESTMENUITEM9   dc.w '9.Return to title screen ', $0000
             
             TSTRTNE_RAM_KeyInDelay_a:
                 bsr.w funcCheckInput                    ;check P1 button input
-                move.w (sp), d0                         ;get latest input 
+                move.w (sp)+, d0                         ;get latest input 
                 btst.l #$4, d0                          ;power-up(gradius) or fire(twinbee)
                 beq.s TSTRTNE_RAM_SwitchScrn
                 jsr funcFixedDelay
@@ -805,7 +805,7 @@ TESTMENUITEM9   dc.w '9.Return to title screen ', $0000
             
             TSTRTNE_RAM_KeyInDelay_b:
                 bsr.w funcCheckInput                    ;check P1 button input
-                move.w (sp), d0                         ;get latest input 
+                move.w (sp)+, d0                         ;get latest input 
                 btst.l #$4, d0                          ;power-up(gradius) or fire(twinbee)
                 beq.w TESTMENU
                 jsr funcFixedDelay
@@ -853,11 +853,133 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
         *--------------------------------------------------------
 
         TSTRTNE_Screen:
+            jsr funcClearTilemap
 
+            move.w $820, d0
+            cmpi.w #$573, d0                    ;konami 573
+            beq TSTRTNE_Screen_0                ;check DATA LOADED flag
 
+            lea NOWLOADING, a0                  ;print nowloading
+            move.l a0, -(sp)
+            move.w #5, -(sp)
+            move.w #9, -(sp)
+            move.w #15, -(sp)
+            move.w #0, -(sp)
+            bsr.w PRINTTEXT
 
+            move.l #$34000, -(sp)               ;copy tiles
+            move.w #256, -(sp)
+            move.w #1152, -(sp)
+            jsr funcLoadBubble
 
+            move.w #$573, $820                  ;set DATA LOADED flag on $820
 
+            TSTRTNE_Screen_0:
+                move.w #$E000, -(sp)            ;clear tilemap B with black(transparent) tiles
+                move.w #$0006, -(sp)
+                move.w #1, -(sp)
+                bsr.w funcFillTilemap
+
+                move.w #32, -(sp)
+                move.w #28, -(sp)
+                move.w #$F200, -(sp)            ;test screen
+                move.w #$0006, -(sp)
+                move.w #0, -(sp)
+                move.w #2, -(sp)
+                move.w #0, -(sp)
+                bsr.w DRAWTILEMAP
+
+                move.w #$0007, d7               ;palette
+                move.w #11, d6                  ;ypos
+                move.w #3, d5                   ;loop counter
+                TSTRTNE_Screen_0_loop:
+                    move.w #14, -(sp)
+                    move.w #2, -(sp)
+                    move.w #$F580, -(sp)        ;test screen
+                    move.w d7, -(sp)
+                    move.w #9, -(sp)
+                    move.w d6, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w DRAWTILEMAP
+
+                    addq.w #1, d7
+                    addq.w #2, d6
+                    dbf d5, TSTRTNE_Screen_0_loop
+
+            TSTRTNE_Screen_KeyInDelay_a:
+                bsr.w funcCheckInput                    ;check P1 button input
+                move.w (sp)+, d0                        ;get latest input 
+                btst.l #$4, d0                          ;power-up(gradius) or fire(twinbee)
+                beq.s TSTRTNE_Screen_1
+                jsr funcFixedDelay
+                bra.s TSTRTNE_Screen_KeyInDelay_a
+
+            TSTRTNE_Screen_1:
+                move.w #$E000, -(sp)
+                move.w #$0006, -(sp)
+                move.w #1, -(sp)
+                bsr.w funcFillTilemap
+
+                move.w #13, d7                          ;28 tile vlines
+                TSTRTNE_Screen_1_red_loopv:
+                    move.w #15, d6                      ;32 tile hlines
+
+                    TSTRTNE_Screen_1_red_looph:
+                        move.w d7, d0                   ;copy vloop counter to d0
+                        lsl.w #1, d0                    ;double the value(16*16 tiles)
+                        addq.w #2, d0                   ;move 16 pixels down(invisible area)
+
+                        move.w d6, d1                   ;copy hloop counter to d1
+                        lsl.w #1, d1                    ;double the value(16*16 tiles)
+
+                        move.w #2, -(sp)
+                        move.w #2, -(sp)
+                        move.w #$F1E0, -(sp)            ;hatched pattern
+                        move.w #$0008, -(sp)            ;red
+                        move.w d1, -(sp)
+                        move.w d0, -(sp)
+                        move.w #0, -(sp)
+                        bsr.w DRAWTILEMAP
+
+                        dbf d6, TSTRTNE_Screen_1_red_looph
+
+                    dbf d7, TSTRTNE_Screen_1_red_loopv
+
+                move.w #11, d7                          ;24 tile vlines
+                TSTRTNE_Screen_1_white_loopv:
+                    move.w #13, d6                      ;28 tile hlines
+
+                    TSTRTNE_Screen_1_white_looph:
+                        move.w d7, d0                   ;copy vloop counter to d0
+                        lsl.w #1, d0                    ;double the value(16*16 tiles)
+                        addq.w #4, d0                   ;move 32 pixels down(invisible area 16px+red pattern area 16px)
+
+                        move.w d6, d1                   ;copy hloop counter to d1
+                        lsl.w #1, d1                    ;double the value(16*16 tiles)
+                        addq.w #2, d1                   ;move 16 pixels right(red pattern area 16px)
+
+                        move.w #2, -(sp)
+                        move.w #2, -(sp)
+                        move.w #$F1E0, -(sp)            ;hatched pattern
+                        move.w #$0002, -(sp)            ;white
+                        move.w d1, -(sp)
+                        move.w d0, -(sp)
+                        move.w #0, -(sp)
+                        bsr.w DRAWTILEMAP
+
+                        dbf d6, TSTRTNE_Screen_1_white_looph
+
+                    dbf d7, TSTRTNE_Screen_1_white_loopv
+
+            TSTRTNE_Screen_KeyInDelay_b:
+                bsr.w funcCheckInput                    ;check P1 button input
+                move.w (sp)+, d0                        ;get latest input 
+                btst.l #$4, d0                          ;power-up(gradius) or fire(twinbee)
+                beq.w TESTMENU
+                jsr funcFixedDelay
+                bra.s TSTRTNE_Screen_KeyInDelay_b
+
+NOWLOADING      dc.w 'WAIT A MOMENT', $0000
 
 
 
@@ -1078,7 +1200,7 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
 
             TSTRTNE_Input_KeyInDelay:
                 bsr.w funcCheckInput                    ;check P1 button input
-                move.w (sp), d0                         ;get latest input 
+                move.w (sp)+, d0                         ;get latest input 
                 move.w $5CC02, d0
                 cmpi.b #$EE, d0
                 beq.w TESTMENU
@@ -1267,7 +1389,7 @@ BTNON           dc.w 'ON ', $0000
 
             TSTRTNE_RF2IO_KeyInDelay:
                 bsr.w funcCheckInput                    ;check P1 button input
-                move.w (sp), d0                         ;get latest input 
+                move.w (sp)+, d0                         ;get latest input 
                 btst.l #$4, d0                          ;power-up(gradius) or fire(twinbee)
                 beq.w TESTMENU
                 jsr funcFixedDelay
@@ -1333,7 +1455,103 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
 
 
 
+
+
+        *--------------------------------------------------------
+        *
+        *       TESTMENU_CHARRAM subroutine
+        *
+        *--------------------------------------------------------
+
         TSTRTNE_CHARRAM:
+            move.w #$E000, -(sp)            ;clear tilemap B with black(transparent) tiles
+            move.w #$0006, -(sp)
+            move.w #1, -(sp)
+            bsr.w funcFillTilemap
+
+            move.w #0, d7                   ;tile code
+            move.w #0, d6                   ;palette code
+
+            TSTRTNE_CHARRAM_ChkVal:                             ;check key input
+                bsr.w funcCheckInput                            ;check P1 button input
+                move.w (sp)+, d0                                ;get latest input 
+                btst.l #$3, d0                                  ;check for DOWN
+                beq.s TSTRTNE_CHARRAM_tileinc
+                btst.l #$2, d0                                  ;check for UP
+                beq.s TSTRTNE_CHARRAM_tiledec
+                btst.l #$1, d0                                  ;check for RIGHT
+                beq.s TSTRTNE_CHARRAM_palinc
+                btst.l #$0, d0                                  ;check for LEFT
+                beq.s TSTRTNE_CHARRAM_paldec
+
+                bra.s TSTRTNE_CHARRAM_Draw                      ;nothing changes
+
+            TSTRTNE_CHARRAM_tiledec:
+                cmpi.w #$0, d7                                  ;test 0x0
+                bne.s TSTRTNE_CHARRAM_tiledec_sub
+                
+                TSTRTNE_CHARRAM_tiledec_hold:                   ;hold
+                bra.s TSTRTNE_CHARRAM_Draw
+
+                TSTRTNE_CHARRAM_tiledec_sub:
+                subi.w #$20, d7                                 ;tilecode - 0x20
+                bra.s TSTRTNE_CHARRAM_tiledec_hold              ;goto hold
+
+            TSTRTNE_CHARRAM_tileinc:
+                cmpi.w #$480, d7                                ;test 0x480
+                bne.s TSTRTNE_CHARRAM_tileinc_sub
+                
+                TSTRTNE_CHARRAM_tileinc_hold:                   ;hold
+                bra.s TSTRTNE_CHARRAM_Draw
+
+                TSTRTNE_CHARRAM_tileinc_sub:
+                addi.w #$20, d7                                 ;tilecode + 0x20
+                bra.s TSTRTNE_CHARRAM_tileinc_hold              ;goto hold
+
+            TSTRTNE_CHARRAM_paldec:
+                cmpi.w #$0, d6                                  ;test 0x0
+                bne.s TSTRTNE_CHARRAM_paldec_sub
+                
+                TSTRTNE_CHARRAM_paldec_hold:                    ;hold
+                bra.s TSTRTNE_CHARRAM_Draw
+
+                TSTRTNE_CHARRAM_paldec_sub:
+                subq.w #$1, d6                                  ;palette code - 0x1
+                bra.s TSTRTNE_CHARRAM_paldec_hold               ;goto hold
+
+            TSTRTNE_CHARRAM_palinc:
+                cmpi.w #$F, d6                                  ;test 0xF
+                bne.s TSTRTNE_CHARRAM_palinc_add
+                
+                TSTRTNE_CHARRAM_palinc_hold:                    ;hold
+                bra.s TSTRTNE_CHARRAM_Draw
+
+                TSTRTNE_CHARRAM_palinc_add:
+                addq.w #$1, d6                                  ;palette code - 0x1
+                bra.s TSTRTNE_CHARRAM_palinc_hold               ;goto hold
+
+            TSTRTNE_CHARRAM_Draw:                               ;apply change on tilemaps
+                move.w #$F000, d0                               ;initialize PR+tile code
+                move.w #$0000, d1                               ;initialize palette code
+                or.w d7, d0
+                or.w d6, d1
+
+                move.w #32, -(sp)
+                move.w #28, -(sp)
+                move.w d0, -(sp)                                ;hatched pattern
+                move.w d1, -(sp)                                ;white
+                move.w #0, -(sp)
+                move.w #2, -(sp)
+                move.w #0, -(sp)
+                bsr.w DRAWTILEMAP
+
+            TSTRTNE_CHARRAM_KeyInDelay:
+                move.w $5CC02, d0
+                cmpi.b #$EE, d0
+                beq.w TESTMENU
+                jsr funcFixedDelay
+                bra.w TSTRTNE_CHARRAM_ChkVal
+
 
 
 
@@ -1437,7 +1655,7 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
 
             TSTRTNE_Pr_ChkVal:                                  ;check key input
                 bsr.w funcCheckInput                            ;check P1 button input
-                move.w (sp), d0                                 ;get latest input 
+                move.w (sp)+, d0                                 ;get latest input 
                 btst.l #$4, d0                                  ;check for power-up(gradius) or fire(twinbee)
                 beq.s TSTRTNE_Pr_Apply
                 btst.l #$3, d0                                  ;check for DOWN
@@ -1566,9 +1784,9 @@ PRTILEMAPA      dc.w 'TM-A', $0000
 PRTILEMAPB      dc.w 'TM-B', $0000
 PRBITZERO       dc.w '0', $0000
 PRBITONE        dc.w '1', $0000
-PRMESSAGE0      dc.w '  Vertical block   TM-A ', $0000
-PRMESSAGE1      dc.w ' Horizontal block  TM-B ', $0000
-PRMESSAGE2      dc.w '  I-shaped block    OBJ ', $0000
+PRMESSAGE0      dc.w ' Scarlet V-block   TM-A ', $0000
+PRMESSAGE1      dc.w '  Green H-block    TM-B ', $0000
+PRMESSAGE2      dc.w ' Saffron V-block   OBJ  ', $0000
 PRMESSAGE3      dc.w 'Press A to apply changes', $0000
 
 
@@ -1583,10 +1801,67 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
         *--------------------------------------------------------
 
         TSTRTNE_Contributors:
+            jsr funcClearTilemap
 
+            lea LINE0, a4
+            move.w #4, d5
+            move.w #10, d6
+            TSTRTNE_Contributors_credits_1:
+                move.l a4, -(sp)
+                move.w #0, -(sp)
+                move.w #0, -(sp)                            ;xpos fixed
+                move.w d5, -(sp)
+                move.w #0, -(sp)
+                bsr.w PRINTTEXT
 
+                addq.w #1, d5
+                add.l #34, a4
 
+                dbf d6, TSTRTNE_Contributors_credits_1
 
+            lea LINE11, a4
+            move.w #22, d5
+            move.w #4, d6
+            TSTRTNE_Contributors_credits_2:
+                move.l a4, -(sp)
+                move.w #1, -(sp)
+                move.w #0, -(sp)                            ;xpos fixed
+                move.w d5, -(sp)
+                move.w #0, -(sp)
+                bsr.w PRINTTEXT
+
+                addq.w #1, d5
+                add.l #34, a4
+
+                dbf d6, TSTRTNE_Contributors_credits_2
+
+            TSTRTNE_Contributors_KeyInDelay:
+                bsr.w funcCheckInput                    ;check P1 button input
+                move.w (sp)+, d0                         ;get latest input 
+                btst.l #$4, d0                          ;power-up(gradius) or fire(twinbee)
+                beq.w TESTMENU
+                jsr funcFixedDelay
+                bra.w TSTRTNE_Contributors_KeyInDelay
+
+LINE0           dc.w '      --------------------      ', $0000
+LINE1           dc.w '       BubbleDrive8 is a        ', $0000
+LINE2           dc.w '         bubble memory          ', $0000
+LINE3           dc.w '       cartridge emulator       ', $0000
+LINE4           dc.w '         developed for          ', $0000
+LINE5           dc.w '                                ', $0000
+LINE6           dc.w '     "Konami Bubble System"     ', $0000
+LINE7           dc.w '                                ', $0000
+LINE8           dc.w '  - Copyright 2019-2021 Raki -  ', $0000
+LINE9           dc.w '          bubsys85.net          ', $0000
+LINE10          dc.w '      --------------------      ', $0000
+
+LINE11          dc.w '        Special thanks to       ', $0000
+LINE12          dc.w '              ----              ', $0000
+LINE13          dc.w '      v9938          MAKI       ', $0000
+LINE14          dc.w '     Kudouta        akamig      ', $0000
+LINE15          dc.w '         CSG@Akatronics         ', $0000
+
+            
 
 
 
@@ -1711,7 +1986,7 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
         ;      COLORRAM: FLIP(1), PALETTE CODE(7)
         ;      TILEMAP A=0/B=1
         ;JSR:  RETURN ADDRESS 
-        FILLTILEMAP:                                        
+        funcFillTilemap:                                        
                                                             ;VRAM priority/flip/CHARRAMADDR
                                                             ;color RAM flip/palette -> tilemap A/B
             movea.l (sp)+, a2                               ;pop return address
@@ -1841,15 +2116,16 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
 
         funcCheckInput:
             move.l (sp)+, a0                            ;pop return address
-            move.w (sp)+, d0                            ;restore key in data
-            move.w (sp)+, d1
+            move.w $812, d0                             ;restore key in data
+            move.w $810, d1
 
             move.w d1, d0                               ;move current value to old value register
             move.w $5CC02, d1                           ;get P1 button register
             not.w d0                                    ;invert previous key input data
             or.w d1, d0                                 ;negedge = ~previous || current
 
-            move.w d1, -(sp)                            ;store key in data
+            move.w d1, $810                             ;store key in data
+            move.w d0, $812
             move.w d0, -(sp)
             move.l a0, -(sp)                            ;push return address
 
@@ -1865,12 +2141,12 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
             move.w #$3000, -(sp)                        ;clear tilemap A
             move.w #$0000, -(sp)
             move.w #0, -(sp)
-            bsr.w FILLTILEMAP
+            bsr.w funcFillTilemap
 
             move.w #$E05F, -(sp)                        ;clear tilemap B
             move.w #$0002, -(sp)
             move.w #1, -(sp)
-            bsr.w FILLTILEMAP 
+            bsr.w funcFillTilemap 
 
             rts
 
