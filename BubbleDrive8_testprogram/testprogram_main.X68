@@ -11,9 +11,11 @@ VECTORS dc.l $00001000                                      ;reset initial SP
 
     ORG     $8
     BOOTLOADER:
+        lea $40000, a5
+        lea $74000, a6
         move.w #4191, d0                                    ;repeat 4192 times
         BOOTLOADER_WaitForController:
-            nop                                             ;I don't know the internal program the BMC executes
+            move.w $6(a5), (a6)+
             dbf d0, BOOTLOADER_WaitForController            ;Konami engineer added 4112 nop loops at that time
 
         move.b #1, $5E008                                   ;kick the Z80 watchdog
@@ -30,47 +32,46 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         cmpi.w #$5555, d0                                   ;check for 0x5555
         beq.w BOOTLOADER_Jump2ExpROM
 
-        lea $40000, a0
-        move.w #$0, $4(a0)                                  ;write 0 to 0x40004: bubble buffer DMA pointer initialization(???)
-        move.w $6(a0), d0                                   ;copy data of 0x40006: controller status
+        move.w #$0, $4(a5)                                  ;write 0 to 0x40004: bubble buffer DMA pointer initialization(???)
+        move.w $6(a5), d0                                   ;copy data of 0x40006: controller status
         cmpi.w #$240, d0                                    ;compare
         bne.w BOOTLOADER
 
-        move.w #$1, $0(a0)                                  ;load page 0x001
+        move.w #$1, $0(a5)                                  ;load page 0x001
         nop                                                 ;BMC is quite slow, works at 4MHz. MC6801(??)
-        move.w #$1, $2(a0)                                  ;READ
+        move.w #$1, $2(a5)                                  ;READ
         move.b #1, $5E008                                   ;kick the Z80 watchdog
         move.b #0, $5E008
         bsr.w BOOTLOADER_funcBubbleWait
 
-        move.w #$1, $0(a0)                                  ;load page 0x001
+        move.w #$1, $0(a5)                                  ;load page 0x001
         nop
-        move.w #$1, $2(a0)                                  ;READ
+        move.w #$1, $2(a5)                                  ;READ
         move.b #1, $5E008                                   ;kick the Z80 watchdog
         move.b #0, $5E008
         bsr.w BOOTLOADER_funcBubbleWait
 
-        move.w #$801, $0(a0)                                ;write to page 0x801
+        move.w #$801, $0(a5)                                ;write to page 0x801
         nop
-        move.w #$1, $2(a0)                                  ;WRITE
+        move.w #$1, $2(a5)                                  ;WRITE
         move.b #1, $5E008                                   ;kick the Z80 watchdog
         move.b #0, $5E008
         bsr.w BOOTLOADER_funcBubbleWait
 
-        move.w #0, $4(a0)                                   ;initialize controller
+        move.w #0, $4(a5)                                   ;initialize controller
         move.w #$1, d1                                      ;set page 0x001 in D1
         lea $A00, a1                                        ;copy pages from A00
         move.w #5, d0                                       ;consecutive 6 pages
         BOOTLOADER_LoadRAMTest:
-            move.w #0, $4(a0)                               ;initialize controller
-            move.w d1, $0(a0)                               ;set page
+            move.w #0, $4(a5)                               ;initialize controller
+            move.w d1, $0(a5)                               ;set page
             nop
-            move.w #1, $2(a0)                               ;READ
+            move.w #1, $2(a5)                               ;READ
             move.b #1, $5E008                               ;kick the Z80 watchdog
             move.b #0, $5E008
             bsr.w BOOTLOADER_funcBubbleWait_loop
 
-            move.w $0(a0), d2                               ;copy last 6 bits
+            move.w $0(a5), d2                               ;copy last 6 bits
             move.w d2, $F80                                 ;place last 5 bits on F80
             lea $F00, a2                                    ;set source address
             move.w #65, d3                                  ;repeat 66 times
@@ -91,7 +92,7 @@ VECTORS dc.l $00001000                                      ;reset initial SP
 
         dbf d0, BOOTLOADER_LoadRAMTest
 
-        move.w #0, $4(a0)                                   ;initialize controller
+        move.w #0, $4(a5)                                   ;initialize controller
         jmp $A00
 
         BOOTLOADER_Jump2ExpROM:
@@ -465,6 +466,14 @@ VECTORS dc.l $00001000                                      ;reset initial SP
             move.w #0, -(sp)
             bsr.w PRINTTEXT
 
+            lea VERSION, a0
+            move.l a0, -(sp)
+            move.w #0, -(sp)
+            move.w #0, -(sp)
+            move.w #2, -(sp)
+            move.w #0, -(sp)
+            bsr.w PRINTTEXT
+
             TITLEKEYINWAIT:
                 move.b #1, $5E008                               ;kick the watchdog
                 move.b #0, $5E008
@@ -503,6 +512,7 @@ VECTORS dc.l $00001000                                      ;reset initial SP
 TITLEMESSAGE1   dc.w 'BubbleDrive8', $0000
 TITLEMESSAGE2   dc.w 'System Test Program', $0000
 TITLEMESSAGE3   dc.w '2020-2021 Raki', $0000
+VERSION         dc.w 'B85:K:A:A:202108312B', $0000
 
 
         *--------------------------------------------------------
@@ -512,6 +522,8 @@ TITLEMESSAGE3   dc.w '2020-2021 Raki', $0000
         *--------------------------------------------------------
 
         TESTMENU:
+            jsr funcClearTilemap
+
             lea $50000, a0
             move.w #1023, d0                                ;vloop 512 times * 2
             TESTMENU_scrollreset:
@@ -524,9 +536,7 @@ TITLEMESSAGE3   dc.w '2020-2021 Raki', $0000
                 move.w #$0000, (a0)+
                 dbf d0, TESTMENU_objreset
 
-            jsr funcClearTilemap
-
-            move.w #8, d6                                   ;print test menu items: 9 lines
+            move.w #9, d6                                   ;print test menu items: 10 lines
             move.w #8, d7                                   ;YPOS of first line
             lea TESTMENUITEM1, a4
             TESTMENU_PrintList:
@@ -567,7 +577,7 @@ TITLEMESSAGE3   dc.w '2020-2021 Raki', $0000
                 
 
                 TESTMENUINCREASE:
-                    cmpi #9, d6                             ;if 9
+                    cmpi #10, d6                             ;if 10
                     beq TESTMENUKEYINDELAY
                     addq.w #1, d6
                     bra.s TESTMENUMOVECURSOR
@@ -609,8 +619,9 @@ TESTMENUITEM4   dc.w '4.RF2 IO board test      ', $0000
 TESTMENUITEM5   dc.w '5.Jump to 0x78002        ', $0000
 TESTMENUITEM6   dc.w '6.Show CHARRAM data      ', $0000
 TESTMENUITEM7   dc.w '7.Priority test          ', $0000
-TESTMENUITEM8   dc.w '8.Contributors           ', $0000
-TESTMENUITEM9   dc.w '9.Return to title screen ', $0000
+TESTMENUITEM8   dc.w '8.BMC debug program      ', $0000
+TESTMENUITEM9   dc.w '9.Contributors           ', $0000
+TESTMENUITEM10  dc.w '10.Return to title screen', $0000
 
 
 
@@ -637,8 +648,10 @@ TESTMENUITEM9   dc.w '9.Return to title screen ', $0000
                     cmpi #7, d6
                     beq TSTRTNE_Pr
                     cmpi #8, d6
-                    beq TSTRTNE_Contributors
+                    beq TSTRTNE_BMC
                     cmpi #9, d6
+                    beq TSTRTNE_Contributors
+                    cmpi #10, d6
                     beq TSTRTNE_Return
                     bra.w TESTMENUKEYINWAIT
 
@@ -1794,6 +1807,33 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
 
 
 
+
+
+        *--------------------------------------------------------
+        *
+        *       TESTMENU_BMC subroutine
+        *
+        *--------------------------------------------------------
+
+        TSTRTNE_BMC:
+            move.l #$3C000, -(sp)               ;copy tiles
+            move.w #8, -(sp)
+            move.w #1408, -(sp)
+            jsr funcLoadBubble
+
+            TSTRTNE_BMC_KeyInDelay:
+                move.w $5CC02, d0
+                cmpi.b #$EE, d0
+                beq.w TESTMENU
+                jsr funcFixedDelay
+                bra.w TSTRTNE_BMC_KeyInDelay
+
+
+
+
+
+
+
         *--------------------------------------------------------
         *
         *       TESTMENU_Contributors subroutine
@@ -2204,6 +2244,7 @@ LINE15          dc.w '         CSG@Akatronics         ', $0000
                     rts
 
 EXITMESSAGE   dc.w 'Press A+LEFT(1P) to exit back to menu screen', $0000
+
 
 
     SIMHALT             ; halt simulator
