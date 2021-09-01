@@ -512,7 +512,7 @@ VECTORS dc.l $00001000                                      ;reset initial SP
 TITLEMESSAGE1   dc.w 'BubbleDrive8', $0000
 TITLEMESSAGE2   dc.w 'System Test Program', $0000
 TITLEMESSAGE3   dc.w '2020-2021 Raki', $0000
-VERSION         dc.w 'B85:K:A:A:202108312B', $0000
+VERSION         dc.w 'B85:K:A:A:2021083102', $0000
 
 
         *--------------------------------------------------------
@@ -619,7 +619,7 @@ TESTMENUITEM4   dc.w '4.RF2 IO board test      ', $0000
 TESTMENUITEM5   dc.w '5.Jump to 0x78002        ', $0000
 TESTMENUITEM6   dc.w '6.Show CHARRAM data      ', $0000
 TESTMENUITEM7   dc.w '7.Priority test          ', $0000
-TESTMENUITEM8   dc.w '8.BMC debug program      ', $0000
+TESTMENUITEM8   dc.w '8.BMC debug program(2BIT)', $0000
 TESTMENUITEM9   dc.w '9.Contributors           ', $0000
 TESTMENUITEM10  dc.w '10.Return to title screen', $0000
 
@@ -1462,6 +1462,9 @@ RF2NEEDLE       dc.w '|', $0000
             move.w #0, -(sp)
             bsr.w PRINTTEXT
 
+            move.b #1, $5E008                                       ;kick the watchdog
+            move.b #0, $5E008
+
             jmp $78002
 
 JMPGOODBYE      dc.w 'Good bye!', $0000
@@ -1485,7 +1488,7 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
             move.w #0, d7                   ;tile code
             move.w #0, d6                   ;palette code
 
-            TSTRTNE_CHARRAM_ChkVal:                             ;check key input
+            TSTRTNE_CHARRAM_InEval:                             ;evaluate key input
                 bsr.w funcCheckInput                            ;check P1 button input
                 move.w (sp)+, d0                                ;get latest input 
                 btst.l #$3, d0                                  ;check for DOWN
@@ -1563,7 +1566,7 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
                 cmpi.b #$EE, d0
                 beq.w TESTMENU
                 jsr funcFixedDelay
-                bra.w TSTRTNE_CHARRAM_ChkVal
+                bra.w TSTRTNE_CHARRAM_InEval
 
 
 
@@ -1666,9 +1669,9 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
             move.w #$0058, (a0)+                                ;C: 88px
             move.w #$0000, (a0)+                                ;E: not used
 
-            TSTRTNE_Pr_ChkVal:                                  ;check key input
+            TSTRTNE_Pr_InEval:                                  ;evaluate key input
                 bsr.w funcCheckInput                            ;check P1 button input
-                move.w (sp)+, d0                                 ;get latest input 
+                move.w (sp)+, d0                                ;get latest input 
                 btst.l #$4, d0                                  ;check for power-up(gradius) or fire(twinbee)
                 beq.s TSTRTNE_Pr_Apply
                 btst.l #$3, d0                                  ;check for DOWN
@@ -1790,7 +1793,7 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
                 cmpi.b #$EE, d0
                 beq.w TESTMENU
                 jsr funcFixedDelay
-                bra.w TSTRTNE_Pr_ChkVal
+                bra.w TSTRTNE_Pr_InEval
 
 
 PRTILEMAPA      dc.w 'TM-A', $0000
@@ -1816,19 +1819,305 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
         *--------------------------------------------------------
 
         TSTRTNE_BMC:
-            move.l #$3C000, -(sp)               ;copy tiles
-            move.w #8, -(sp)
+            move.l #$3C000, -(sp)                                   ;copy tiles
+            move.w #4, -(sp)
             move.w #1408, -(sp)
             jsr funcLoadBubble
+
+            jsr funcClearTilemap
+
+            lea $830, a6
+            move.w #$0000, $0(a6)                                   ;initialize menu number
+            move.l #$00040000, $2(a6)                               ;initialize address data
+            move.w #8, $6(a6)                                       ;initialize address digit
+            move.w #$0000, $8(a6)                                   ;initialize data
+            move.w #4, $A(a6)                                       ;initialize data digit
+            move.b #0, $D(a6)                                       ;initialize UNDER MODIFICATION flag
+
+            TSTRTNE_BMC_InEval:                                     ;evaluate key input
+                bsr.w funcCheckInput                                ;check P1 button input
+                move.w (sp)+, d0                                    ;get latest input 
+                btst.l #$3, d0                                      ;check for DOWN
+                beq.w TSTRTNE_BMC_down
+                btst.l #$2, d0                                      ;check for UP
+                beq.w TSTRTNE_BMC_up
+                btst.l #$1, d0                                      ;check for RIGHT
+                beq.w TSTRTNE_BMC_right
+                btst.l #$0, d0                                      ;check for LEFT
+                beq.w TSTRTNE_BMC_left
+                btst.l #$4, d0                                      ;check for power-up(gradius) or fire(twinbee)
+                beq.w TSTRTNE_BMC_Execute
+
+                bra.w TSTRTNE_BMC_PrntMenu                          ;nothing changes
+
+
+            ;
+            ;   UP INPUT          BTST 전부 레지스터 거치게 고치기!!!!
+            ;
+            TSTRTNE_BMC_up:
+                btst.b #$0, $D(a6)                                  ;check the flag
+                bne.w TSTRTNE_BMC_up_edit                           ;if 1, goto edit mode
+
+                move.w $0(a6), d0                                   ;get menu number
+
+                cmpi.w #0, d0                                       ;if 1-5
+                bne.w TSTRTNE_BMC_up_menudec                        ;decrease number
+
+                bra.w TSTRTNE_BMC_PrntMenu                          ;if not, do not decrease
+
+                TSTRTNE_BMC_up_menudec:
+                    subq.w #1, d0
+                    move.w d0, $0(a6)
+                    bra.w TSTRTNE_BMC_PrntMenu
+
+
+                TSTRTNE_BMC_up_edit:
+                    move.w $0(a6), d0                               ;get menu number
+                    cmpi.w #0, d0                                   ;if 1
+                    bne.w TSTRTNE_BMC_up_edit_datainc               ;edit data
+                                                                    ;if not, edit address
+
+                    ;TSTRTNE_BMC_up_edit_addrinc:
+                        move.w $6(a6), d0                           ;get address digit
+                        lsl.w #2, d0                                ;address digit*4
+                        move.l $2(a6), d1                           ;get address data(long word)
+                        move.l d1, d2
+
+                        lsr.l d0, d2                                ;shift right D2
+                        addq.l #1, d2                               ;D2 + 1 (ignore under/overflow)
+                        
+                        move.l #$0000000F, d3                       ;load 0x0000000F
+                        and.l d3, d2                                ;get D2[3:0]
+                        lsl.l d0, d2                                ;shift left D2
+                        lsl.l d0, d3                                ;shift left D3
+                        not.l d3                                    ;invert D3 e.g. 0xFF0FFFFF
+                        and.l d3, d1                                ;insert 0x0 on corresponding digit
+                        or.l d2, d1                                 ;insert modified digit number(D2)
+
+                        move.l d1, $2(a6)                           ;write modified address
+                        
+                        bra.w TSTRTNE_BMC_PrntMenu
+
+                    TSTRTNE_BMC_up_edit_datainc:
+                        move.w $A(a6), d0                           ;get data digit
+                        lsl.w #2, d0                                ;data digit*4
+                        move.w $8(a6), d1                           ;get data(word)
+                        move.w d1, d2
+
+                        lsr.w d0, d2                                ;shift right D2
+                        addq.w #1, d2                               ;D2 + 1 (ignore under/overflow)
+                        
+                        move.w #$000F, d3                           ;load 0x000F
+                        and.w d3, d2                                ;get D2[3:0]
+                        lsl.w d0, d2                                ;shift left D2
+                        lsl.w d0, d3                                ;shift left D3
+                        not.w d3                                    ;invert D3 e.g. 0xF0FF
+                        and.w d3, d1                                ;insert 0x0 on corresponding digit
+                        or.w d2, d1                                 ;insert modified digit number(D2)
+
+                        move.w d1, $8(a6)                           ;write modified data
+                        
+                        bra.w TSTRTNE_BMC_PrntMenu
+                    
+
+            ;
+            ;   DOWN INPUT
+            ;
+            TSTRTNE_BMC_down:
+                btst.b #$0, $D(a6)                                  ;check the flag
+                bne.w TSTRTNE_BMC_down_edit                         ;if 1, goto edit mode
+
+                move.w $0(a6), d0                                   ;check menu number
+
+                cmpi.w #5, d0                                       ;if 0-4
+                bne.w TSTRTNE_BMC_down_menuinc                      ;increase number
+
+                bra.w TSTRTNE_BMC_PrntMenu                          ;if not, do not increase
+
+                TSTRTNE_BMC_down_menuinc:
+                    addq.w #1, d0
+                    move.w d0, $0(a6)
+                    bra.w TSTRTNE_BMC_PrntMenu
+
+
+                TSTRTNE_BMC_down_edit:
+                    move.w $0(a6), d0                               ;get menu number
+                    cmpi.w #0, d0                                   ;if 1
+                    bne.w TSTRTNE_BMC_down_edit_datadec             ;edit data
+                                                                    ;if not, edit address
+
+                    ;TSTRTNE_BMC_down_edit_addrdec:
+                        move.w $6(a6), d0                           ;get address digit
+                        lsl.w #2, d0                                ;address digit*4
+                        move.l $2(a6), d1                           ;get address data(long word)
+                        move.l d1, d2
+
+                        lsr.l d0, d2                                ;shift right D2
+                        subq.l #1, d2                               ;D2 - 1 (ignore under/overflow)
+                        
+                        move.l #$0000000F, d3                       ;load 0x0000000F
+                        and.l d3, d2                                ;get D2[3:0]
+                        lsl.l d0, d2                                ;shift left D2
+                        lsl.l d0, d3                                ;shift left D3
+                        not.l d3                                    ;invert D3 e.g. 0xFF0FFFFF
+                        and.l d3, d1                                ;insert 0x0 on corresponding digit
+                        or.l d2, d1                                 ;insert modified digit number(D2)
+
+                        move.l d1, $2(a6)                           ;write modified address
+                        
+                        bra.w TSTRTNE_BMC_PrntMenu
+
+                    TSTRTNE_BMC_down_edit_datadec:
+                        move.w $A(a6), d0                           ;get data digit
+                        lsl.w #2, d0                                ;data digit*4
+                        move.w $8(a6), d1                           ;get data(word)
+                        move.w d1, d2
+
+                        lsr.w d0, d2                                ;shift right D2
+                        subq.w #1, d2                               ;D2 - 1 (ignore under/overflow)
+                        
+                        move.w #$000F, d3                           ;load 0x000F
+                        and.w d3, d2                                ;get D2[3:0]
+                        lsl.w d0, d2                                ;shift left D2
+                        lsl.w d0, d3                                ;shift left D3
+                        not.w d3                                    ;invert D3 e.g. 0xF0FF
+                        and.w d3, d1                                ;insert 0x0 on corresponding digit
+                        or.w d2, d1                                 ;insert modified digit number(D2)
+
+                        move.w d1, $8(a6)                           ;write modified data
+                        
+                        bra.w TSTRTNE_BMC_PrntMenu
+
+
+            ;
+            ;   RIGHT INPUT
+            ;
+            TSTRTNE_BMC_right:
+                move.w $0(a6), d0                                   ;check menu number
+
+                cmpi.w #0, d0                                       ;if 0
+                beq.w TSTRTNE_BMC_right_enteraddredit               ;enter address edit mode or modify digit number
+
+                cmpi.w #1, d0                                       ;if 1
+                beq.w TSTRTNE_BMC_right_enterdataedit               ;enter data edit mode or modify digit number
+
+                bra.w TSTRTNE_BMC_PrntMenu                          ;if not, do nothing
+
+                TSTRTNE_BMC_right_enteraddredit:
+                    btst.b #$0, $D(a6)                              ;check the flag
+                    bne.w TSTRTNE_BMC_right_addredit                ;if 1, goto address edit mode
+
+                    move.w #7, $6(a6)                               ;set address digit as 7
+                    move.b #1, $D(a6)                               ;set edit mode flag
+
+                    bra.w TSTRTNE_BMC_PrntMenu
+
+                TSTRTNE_BMC_right_enterdataedit:
+                    btst.b #$0, $D(a6)                              ;check the flag
+                    bne.w TSTRTNE_BMC_right_dataedit                ;if 1, goto data edit mode
+
+                    move.w #3, $A(a6)                               ;set data digit as 3
+                    move.b #1, $D(a6)                               ;set edit mode flag
+
+                    bra.w TSTRTNE_BMC_PrntMenu
+
+                TSTRTNE_BMC_right_addredit:
+                    move.w $6(a6), d0                               ;get address digit
+
+                    cmpi.w #0, d0                                   ;if >0
+                    bne.w TSTRTNE_BMC_right_addredit_decdig         ;decrease digit
+                    bra.w TSTRTNE_BMC_PrntMenu                      ;if not, do nothing
+
+                    TSTRTNE_BMC_right_addredit_decdig:
+                    subq.w #1, d0                                   ;address digit - 1
+                    move.w d0, $6(a6)                               ;write modified address digit
+                    bra.w TSTRTNE_BMC_PrntMenu
+
+                TSTRTNE_BMC_right_dataedit:
+                    move.w $A(a6), d0                               ;get data digit
+
+                    cmpi.w #0, d0                                   ;if >0
+                    bne.w TSTRTNE_BMC_right_dataedit_decdig         ;decrease digit
+                    bra.w TSTRTNE_BMC_PrntMenu                      ;if not, do nothing
+
+                    TSTRTNE_BMC_right_dataedit_decdig:
+                    subq.w #1, d0                                   ;data digit - 1
+                    move.w d0, $A(a6)                               ;write modified data digit
+                    bra.w TSTRTNE_BMC_PrntMenu
+
+
+            ;
+            ;   LEFT INPUT
+            ;
+            TSTRTNE_BMC_left:
+                move.w $0(a6), d0                                   ;check menu number
+
+                cmpi.w #0, d0                                       ;if 0
+                beq.w TSTRTNE_BMC_left_exitaddredit                 ;exit address edit mode or modify digit number
+
+                cmpi.w #1, d0                                       ;if 1
+                beq.w TSTRTNE_BMC_left_exitdataedit                 ;exit data edit mode or modify digit number
+
+                bra.s TSTRTNE_BMC_PrntMenu                          ;if not, do nothing
+
+                TSTRTNE_BMC_left_exitaddredit:
+                    btst.b #$0, $D(a6)                              ;check the flag
+                    bne.w TSTRTNE_BMC_left_addredit                 ;if 1, goto address edit mode
+
+                    bra.s TSTRTNE_BMC_PrntMenu                      ;do nothing
+
+                TSTRTNE_BMC_left_exitdataedit:
+                    btst.b #$0, $D(a6)                              ;check the flag
+                    bne.w TSTRTNE_BMC_left_dataedit                 ;if 1, goto data edit mode
+
+                    bra.s TSTRTNE_BMC_PrntMenu                      ;do nothing
+
+                TSTRTNE_BMC_left_addredit:
+                    move.w $6(a6), d0                               ;get address digit
+
+                    cmpi.w #7, d0                                   ;if <7
+                    bne.w TSTRTNE_BMC_left_addredit_incdig          ;increase digit
+
+                    move.w #8, $6(a6)                               ;if not, set address digit as 8
+                    move.b #0, $D(a6)                               ;clear edit mode flag
+                    bra.s TSTRTNE_BMC_PrntMenu
+
+                    TSTRTNE_BMC_left_addredit_incdig:
+                    addq.w #1, d0                                   ;address digit + 1
+                    move.w d0, $6(a6)                               ;write modified address digit
+                    bra.w TSTRTNE_BMC_PrntMenu
+
+                TSTRTNE_BMC_left_dataedit:
+                    move.w $A(a6), d0                               ;get data digit
+
+                    cmpi.w #3, d0                                   ;if <3
+                    bne.w TSTRTNE_BMC_left_dataedit_incdig          ;increase digit
+
+                    move.w #4, $A(a6)                               ;if not, set data digit as 4
+                    move.b #0, $D(a6)                               ;clear edit mode flag
+                    bra.s TSTRTNE_BMC_PrntMenu
+
+                    TSTRTNE_BMC_left_dataedit_incdig:
+                    addq.w #1, d0                                   ;data digit + 1
+                    move.w d0, $A(a6)                               ;write modified data digit
+                    bra.w TSTRTNE_BMC_PrntMenu
+
+            TSTRTNE_BMC_PrntMenu:
+            TSTRTNE_BMC_Execute:
 
             TSTRTNE_BMC_KeyInDelay:
                 move.w $5CC02, d0
                 cmpi.b #$EE, d0
                 beq.w TESTMENU
                 jsr funcFixedDelay
-                bra.w TSTRTNE_BMC_KeyInDelay
+                bra.w TSTRTNE_BMC_InEval
 
-
+BMCMESSAGE0     dc.w '    Write Address', $0000
+BMCMESSAGE1     dc.w '  Read/Write Data', $0000
+BMCMESSAGE2     dc.w '        READ DATA', $0000
+BMCMESSAGE3     dc.w '       WRITE DATA', $0000
+BMCMESSAGE4     dc.w 'Print Bubble Page', $0000
+BMCMESSAGE5     dc.w 'Shift Bubble Page', $0000
 
 
 
