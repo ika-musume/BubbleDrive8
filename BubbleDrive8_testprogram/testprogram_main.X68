@@ -6,7 +6,7 @@
 *-----------------------------------------------------------
 
     ORG     $0
-VECTORS dc.l $00001000                                      ;reset initial SP
+VECTORS dc.l $00000800                                      ;reset initial SP
         dc.l $00000008                                      ;reset initial PC
 
     ORG     $8
@@ -109,9 +109,7 @@ VECTORS dc.l $00001000                                      ;reset initial SP
 
 
     ORG     $A00
-    INITIALIZATION:                                         ;initial RAM test routines
-        lea $1000, sp                 
-        
+    INITIALIZATION:                                         ;initial RAM test routines        
         move.b #1, $5E008                                   ;kick the Z80 watchdog
         move.b #0, $5E008
         nop
@@ -164,6 +162,14 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         lsl.w #1, d2
         or.w d2, d7                                         ;save test result in d7[1]
 
+        move.w #0, -(sp)                                    ;Z80 RAM test
+        move.l #$20000, -(sp)                
+        move.l #$8000, -(sp)                   
+        bsr.w funcRamTest
+        move.w (sp)+, d2
+        lsl.w #2, d2           
+        or.w d2, d7                                         ;save test result in d7[2]
+
         move.w #1, -(sp)                                    ;expansion RAM
         move.l #$70000, -(sp)                
         move.l #$4000, -(sp)                   
@@ -212,14 +218,6 @@ VECTORS dc.l $00001000                                      ;reset initial SP
         lsl.w #8, d2
         lsl.w #1, d2                
         or.w d2, d7                                         ;save test result in d7[9]
-        
-        move.w #0, -(sp)                                    ;Z80 RAM test
-        move.l #$20000, -(sp)                
-        move.l #$8000, -(sp)                   
-        bsr.w funcRamTest
-        move.w (sp)+, d2
-        lsl.w #2, d2           
-        or.w d2, d7                                         ;save test result in d7[2]
 
         move.l d7, $800                                     ;save RAM test result to 0x800
 
@@ -335,28 +333,28 @@ VECTORS dc.l $00001000                                      ;reset initial SP
                 move.b #1, $5E008                           ;kick the watchdog
                 move.b #0, $5E008
 
-                move.w #$8000, d7
+                move.w #$8000, d3
                 WAIT:
                     nop
-                    dbf d7, WAIT                            ;loop
+                    dbf d3, WAIT                            ;loop
 
                 move.w (a1), d2                             ;move last byte to d2
                 move.w d2, $F80                             ;move last byte to F80
 
                 lea $F00, a0                                ;first address of the page
-                move.w #65, d7
+                move.w #65, d3
                 SHIFT:
                     move.l (a0), d2                         ;get raw data
                     lsl.l #6, d2                            ;shift 6 bits left
                     swap d2                                 ;high 16 low 16 swap
                     move.w d2, (a0)+                        ;write shifted data
-                    dbf d7, SHIFT                           ;loop 66 times
+                    dbf d3, SHIFT                           ;loop 66 times
 
                 lea $F00, a0                                ;first address of the page
-                move.w #31, d7
+                move.w #31, d3
                 COPY:
                     move.l (a0)+, (a2)+
-                    dbf d7, COPY                            ;loop 32 times
+                    dbf d3, COPY                            ;loop 32 times
 
                 addq.w #1, d0                               ;start page +1
                 dbf d1, READ
@@ -1826,6 +1824,77 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
 
             jsr funcClearTilemap
 
+            lea BMCMESSAGE0, a4
+            move.w #1, d6                                           ;repeat 2 times
+            move.w #3, d5                                           ;ypos 3
+            TSTRTNE_BMC_PrntAddrData_loop:
+                move.l a4, -(sp)
+                move.w #0, -(sp)
+                move.w #4, -(sp)                                    ;xpos fixed
+                move.w d5, -(sp)
+                move.w #0, -(sp)
+                bsr.w PRINTTEXT
+
+                addq.w #1, d5                                       ;ypos+1
+                add.l #16, a4
+
+                dbf d6, TSTRTNE_BMC_PrntAddrData_loop
+
+            lea HEXDATAPREFIX, a4
+            move.l a4, -(sp)
+            move.w #1, -(sp)
+            move.w #18, -(sp)                                       ;xpos fixed
+            move.w #3, -(sp)
+            move.w #0, -(sp)
+            bsr.w PRINTTEXT
+
+            move.l a4, -(sp)
+            move.w #1, -(sp)
+            move.w #22, -(sp)                                       ;xpos fixed
+            move.w #4, -(sp)
+            move.w #0, -(sp)
+            bsr.w PRINTTEXT
+
+            lea BMCMESSAGE2, a4
+            move.w #1, d7                                           ;repeat 2 times
+            move.w #8, d6                                           ;xpos 8
+            TSTRTNE_BMC_PrntOptn_loop_out:
+                move.w #1, d5                                       ;repeat 2 times
+                move.w #6, d4                                       ;ypos 6
+                TSTRTNE_BMC_PrntOptn_loop_in:
+                    move.l a4, -(sp)
+                    move.w #0, -(sp)
+                    move.w d6, -(sp)
+                    move.w d4, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w PRINTTEXT
+
+                    addq.w #1, d4                                   ;ypos+1
+                    add.l #8, a4
+
+                    dbf d5, TSTRTNE_BMC_PrntOptn_loop_in
+                
+                addi.w #10, d6                                      ;xpos+16
+
+                dbf d7, TSTRTNE_BMC_PrntOptn_loop_out
+
+            lea RWSTATUS, a4
+            move.l a4, -(sp)
+            move.w #0, -(sp)
+            move.w #12, -(sp)
+            move.w #8, -(sp)
+            move.w #0, -(sp)
+            bsr.w PRINTTEXT
+
+            lea BUBBLEPAGEAREA, a4
+            move.l a4, -(sp)
+            move.w #0, -(sp)
+            move.w #3, -(sp)
+            move.w #12, -(sp)
+            move.w #0, -(sp)
+            bsr.w PRINTTEXT
+
+
             lea $830, a6
             move.w #$0000, $0(a6)                                   ;initialize menu number
             move.l #$00040000, $2(a6)                               ;initialize address data
@@ -1852,7 +1921,7 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
 
 
             ;
-            ;   UP INPUT          BTST 전부 레지스터 거치게 고치기!!!!
+            ;   UP INPUT 
             ;
             TSTRTNE_BMC_up:
                 btst.b #$0, $D(a6)                                  ;check the flag
@@ -2102,8 +2171,135 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
                     move.w d0, $A(a6)                               ;write modified data digit
                     bra.w TSTRTNE_BMC_PrntMenu
 
-            TSTRTNE_BMC_PrntMenu:
             TSTRTNE_BMC_Execute:
+
+
+
+
+
+
+
+
+
+
+
+            TSTRTNE_BMC_PrntMenu:
+                lea BMCMESSAGE0, a4
+                move.w #1, d6                                           ;repeat 2 times
+                move.w #3, d5                                           ;ypos 3
+                TSTRTNE_BMC_PrntMenu_AddrData_loop:
+                    move.w #0, d2                                       ;palette 0(dark blue)
+                    move.w #1, d0                                       ;load 1
+                    sub.w d6, d0                                        ;1 - loop counter
+
+                    move.w $0(a6), d1                                   ;get menu number
+                    cmp.w d0, d1                                        ;if value == 1-loop counter
+                    bne TSTRTNE_BMC_PrntMenu_AddrData_prnt
+                    move.w #4, d2                                       ;palette 4(red)
+
+                    TSTRTNE_BMC_PrntMenu_AddrData_prnt:
+                        move.l a4, -(sp)
+                        move.w d2, -(sp)
+                        move.w #4, -(sp)                                ;xpos fixed
+                        move.w d5, -(sp)
+                        move.w #0, -(sp)
+                        bsr.w PRINTTEXT
+
+                    addq.w #1, d5                                       ;ypos+1
+                    add.l #16, a4
+
+                    dbf d6, TSTRTNE_BMC_PrntMenu_AddrData_loop
+
+                lea BMCMESSAGE2, a4
+                move.w #1, d7                                           ;repeat 2 times
+                move.w #8, d6                                           ;xpos 8
+                TSTRTNE_BMC_PrntMenu_Optn_loop_out:
+                    move.w #1, d5                                       ;repeat 2 times
+                    move.w #6, d4                                       ;ypos 6
+                    TSTRTNE_BMC_PrntMenu_Optn_loop_in:
+                        move.w #0, d2                                   ;palette 0(dark blue)
+                        move.w #5, d0                                   ;load 5
+
+                        move.w d7, d1                                   ;get outer loop counter
+                        lsl.w #1, d1                                    ;outer loop counter*2
+                        add.w d5, d1                                    ;outer loop counter*2 + inner loop counter
+                        sub.w d1, d0                                    ;5 - (outer loop counter*2 + inner loop counter)
+
+                        move.w $0(a6), d1                               ;get menu number
+                        cmp.w d0, d1                                    ;if value == 1-loop counter
+                        bne.s TSTRTNE_BMC_PrntMenu_Optn_prnt
+                        move.w #4, d2                                   ;palette 4(red)
+
+                        TSTRTNE_BMC_PrntMenu_Optn_prnt: 
+                            move.l a4, -(sp)
+                            move.w d2, -(sp)
+                            move.w d6, -(sp)
+                            move.w d4, -(sp)
+                            move.w #0, -(sp)
+                            bsr.w PRINTTEXT
+
+                        addq.w #1, d4                                   ;ypos+1
+                        add.l #8, a4
+
+                        dbf d5, TSTRTNE_BMC_PrntMenu_Optn_loop_in
+                    
+                    addi.w #10, d6                                      ;xpos+16
+
+                    dbf d7, TSTRTNE_BMC_PrntMenu_Optn_loop_out
+
+                ;ADDRESS HEX VALUE starts from 0x521A8... 8 A C E 0 2 4 6
+                ;DATA HEX VALUE starts from 0x52230...            0 2 4 6
+                ;HEX digit 0 to F is on CHARRAM 600 to 60F
+                ;PR bits are 0xF
+
+                move.w #7, d7                                           ;repeat 8 times
+                lea $521B6, a4                                          ;last digit of address on VRAM1
+                move.l $2(a6), d6                                       ;get addr data
+                move.w $6(a6), d5                                       ;get addr digit
+                TSTRTNE_BMC_PrntMenu_Addr:
+                    move.w #$0001, d1                                   ;palette 1 (light blue)
+                    move.w d7, d0                                       ;get loop counter
+                    eori.w #$0007, d0                                   ;invert loop counter
+
+                    cmp.w d0, d5                                        ;if current digit != loop digit
+                    bne.s TSTRTNE_BMC_PrntMenu_Addr_prnt                ;print hex value
+                    move.w #$0004, d1                                   ;if not, set palette as 4 (red)
+
+                    TSTRTNE_BMC_PrntMenu_Addr_prnt:
+                        move.l d6, d0                                   ;copy addr data
+                        andi.l #$0000000F, d0                           ;get D0[3:0]
+                        ori.w #$F600, d0                                ;insert 0xF6XX
+                        move.b d1, $2001(a4)                            ;write to VRAM2
+                        move.w d0, (a4)                                 ;write to VRAM1
+                        sub.l #2, a4                                    ;decrease A4
+                        lsr.l #4, d6                                    ;shift right addr data
+
+                    dbf d7, TSTRTNE_BMC_PrntMenu_Addr
+
+                move.w #3, d7                                           ;repeat 4 times
+                lea $52236, a4                                          ;last digit of address on VRAM1
+                move.w $8(a6), d6                                       ;get data
+                move.w $A(a6), d5                                       ;get digit
+                TSTRTNE_BMC_PrntMenu_Data:
+                    move.w #$0001, d1                                   ;palette 1 (light blue)
+                    move.w d7, d0                                       ;get loop counter
+                    eori.w #$0003, d0                                   ;invert loop counter
+
+                    cmp.w d0, d5                                        ;if current digit != loop digit
+                    bne.s TSTRTNE_BMC_PrntMenu_Data_prnt                ;print hex value
+                    move.w #$0004, d1                                   ;if not, set palette as 4 (red)
+
+                    TSTRTNE_BMC_PrntMenu_Data_prnt:
+                        move.w d6, d0                                   ;copy data
+                        andi.w #$000F, d0                               ;get D0[3:0]
+                        ori.w #$F600, d0                                ;insert 0xF6XX
+                        move.b d1, $2001(a4)                            ;write to VRAM2
+                        move.w d0, (a4)                                 ;write to VRAM1
+                        sub.l #2, a4                                    ;decrease A4
+                        lsr.l #4, d6                                    ;shift right data
+
+                    dbf d7, TSTRTNE_BMC_PrntMenu_Data
+
 
             TSTRTNE_BMC_KeyInDelay:
                 move.w $5CC02, d0
@@ -2112,12 +2308,19 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
                 jsr funcFixedDelay
                 bra.w TSTRTNE_BMC_InEval
 
-BMCMESSAGE0     dc.w '    Write Address', $0000
-BMCMESSAGE1     dc.w '  Read/Write Data', $0000
-BMCMESSAGE2     dc.w '        READ DATA', $0000
-BMCMESSAGE3     dc.w '       WRITE DATA', $0000
-BMCMESSAGE4     dc.w 'Print Bubble Page', $0000
-BMCMESSAGE5     dc.w 'Shift Bubble Page', $0000
+BMCMESSAGE0     dc.w 'RD/WR Address', $0000
+BMCMESSAGE1     dc.w '   WR    Data', $0000
+BMCMESSAGE2     dc.w 'Read  ', $0000
+BMCMESSAGE3     dc.w 'Write ', $0000
+BMCMESSAGE4     dc.w 'Update', $0000
+BMCMESSAGE5     dc.w 'Shift ', $0000
+BYTEACCESS      dc.w '>BYTE ACCESS<', $0000
+WORDACCESS      dc.w '>WORD ACCESS<', $0000
+RWSTATUS        dc.w 'RW status', $0000
+READCOMPLETE    dc.w ' Read completed     @', $0000
+WRITECOMPLETE   dc.w 'Write completed     @', $0000
+BUBBLEPAGEAREA  dc.w '<bubble memory page area>', $0000
+HEXDATAPREFIX   dc.w '0x', $0000
 
 
 
