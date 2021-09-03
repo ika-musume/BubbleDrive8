@@ -617,7 +617,7 @@ TESTMENUITEM4   dc.w '4.RF2 IO board test      ', $0000
 TESTMENUITEM5   dc.w '5.Jump to 0x78002        ', $0000
 TESTMENUITEM6   dc.w '6.Show CHARRAM data      ', $0000
 TESTMENUITEM7   dc.w '7.Priority test          ', $0000
-TESTMENUITEM8   dc.w '8.BMC debug program(2BIT)', $0000
+TESTMENUITEM8   dc.w '8.BMC debug program      ', $0000
 TESTMENUITEM9   dc.w '9.Contributors           ', $0000
 TESTMENUITEM10  dc.w '10.Return to title screen', $0000
 
@@ -1840,6 +1840,14 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
 
                 dbf d6, TSTRTNE_BMC_PrntAddrData_loop
 
+            lea RAMAREA, a0
+            move.l a0, -(sp)
+            move.w #0, -(sp)
+            move.w #6, -(sp)
+            move.w #12, -(sp)
+            move.w #0, -(sp)
+            bsr.w PRINTTEXT
+
             lea HEXDATAPREFIX, a4
             move.l a4, -(sp)
             move.w #1, -(sp)
@@ -1852,6 +1860,13 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
             move.w #1, -(sp)
             move.w #22, -(sp)                                       ;xpos fixed
             move.w #4, -(sp)
+            move.w #0, -(sp)
+            bsr.w PRINTTEXT
+
+            move.l a4, -(sp)
+            move.w #1, -(sp)
+            move.w #15, -(sp)                                       ;xpos fixed
+            move.w #12, -(sp)
             move.w #0, -(sp)
             bsr.w PRINTTEXT
 
@@ -1878,19 +1893,11 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
 
                 dbf d7, TSTRTNE_BMC_PrntOptn_loop_out
 
-            lea RWSTATUS, a4
-            move.l a4, -(sp)
+            lea RWSTATUS, a0
+            move.l a0, -(sp)
             move.w #0, -(sp)
-            move.w #12, -(sp)
-            move.w #8, -(sp)
-            move.w #0, -(sp)
-            bsr.w PRINTTEXT
-
-            lea BUBBLEPAGEAREA, a4
-            move.l a4, -(sp)
-            move.w #0, -(sp)
-            move.w #3, -(sp)
-            move.w #12, -(sp)
+            move.w #11, -(sp)
+            move.w #9, -(sp)
             move.w #0, -(sp)
             bsr.w PRINTTEXT
 
@@ -1902,6 +1909,8 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
             move.w #$0000, $8(a6)                                   ;initialize data
             move.w #4, $A(a6)                                       ;initialize data digit
             move.b #0, $D(a6)                                       ;initialize UNDER MODIFICATION flag
+            move.l #$00000F00, $10(a6)                              ;initialize RAM area address data
+            move.w #8, $14(a6)                                      ;initialize RAM area address digit
 
             TSTRTNE_BMC_InEval:                                     ;evaluate key input
                 bsr.w funcCheckInput                                ;check P1 button input
@@ -1916,6 +1925,10 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
                 beq.w TSTRTNE_BMC_left
                 btst.l #$4, d0                                      ;check for power-up(gradius) or fire(twinbee)
                 beq.w TSTRTNE_BMC_Execute
+                btst.l #$5, d0                                      ;button B
+                beq.w TSTRTNE_BMC_Read
+                btst.l #$6, d0                                      ;button C
+                beq.w TSTRTNE_BMC_Write
 
                 bra.w TSTRTNE_BMC_PrntMenu                          ;nothing changes
 
@@ -1929,7 +1942,7 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
 
                 move.w $0(a6), d0                                   ;get menu number
 
-                cmpi.w #0, d0                                       ;if 1-5
+                cmpi.w #0, d0                                       ;if 1-6
                 bne.w TSTRTNE_BMC_up_menudec                        ;decrease number
 
                 bra.w TSTRTNE_BMC_PrntMenu                          ;if not, do not decrease
@@ -1942,11 +1955,19 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
 
                 TSTRTNE_BMC_up_edit:
                     move.w $0(a6), d0                               ;get menu number
-                    cmpi.w #0, d0                                   ;if 1
-                    bne.w TSTRTNE_BMC_up_edit_datainc               ;edit data
-                                                                    ;if not, edit address
 
-                    ;TSTRTNE_BMC_up_edit_addrinc:
+                    cmpi.w #0, d0                                   ;if 0
+                    beq.w TSTRTNE_BMC_up_edit_addrinc               ;edit address
+
+                    cmpi.w #1, d0                                   ;if 1
+                    beq.w TSTRTNE_BMC_up_edit_datainc               ;edit data
+
+                    cmpi.w #6, d0                                   ;if 6
+                    beq.w TSTRTNE_BMC_up_edit_ramviewinc            ;edit ram viewer address
+
+                    bra.w TSTRTNE_BMC_PrntMenu                      ;does not happens
+
+                    TSTRTNE_BMC_up_edit_addrinc:
                         move.w $6(a6), d0                           ;get address digit
                         lsl.w #2, d0                                ;address digit*4
                         move.l $2(a6), d1                           ;get address data(long word)
@@ -1987,6 +2008,27 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
                         move.w d1, $8(a6)                           ;write modified data
                         
                         bra.w TSTRTNE_BMC_PrntMenu
+
+                    TSTRTNE_BMC_up_edit_ramviewinc:
+                        move.w $14(a6), d0                          ;get ram viewer address digit
+                        lsl.w #2, d0                                ;ram viewer address digit*4
+                        move.l $10(a6), d1                          ;get ram viewer address data(long word)
+                        move.l d1, d2
+
+                        lsr.l d0, d2                                ;shift right D2
+                        addq.l #1, d2                               ;D2 + 1 (ignore under/overflow)
+                        
+                        move.l #$0000000F, d3                       ;load 0x0000000F
+                        and.l d3, d2                                ;get D2[3:0]
+                        lsl.l d0, d2                                ;shift left D2
+                        lsl.l d0, d3                                ;shift left D3
+                        not.l d3                                    ;invert D3 e.g. 0xFF0FFFFF
+                        and.l d3, d1                                ;insert 0x0 on corresponding digit
+                        or.l d2, d1                                 ;insert modified digit number(D2)
+
+                        move.l d1, $10(a6)                          ;write modified ram viewer address
+                        
+                        bra.w TSTRTNE_BMC_PrntMenu
                     
 
             ;
@@ -1998,7 +2040,7 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
 
                 move.w $0(a6), d0                                   ;check menu number
 
-                cmpi.w #5, d0                                       ;if 0-4
+                cmpi.w #6, d0                                       ;if 0-5
                 bne.w TSTRTNE_BMC_down_menuinc                      ;increase number
 
                 bra.w TSTRTNE_BMC_PrntMenu                          ;if not, do not increase
@@ -2011,11 +2053,20 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
 
                 TSTRTNE_BMC_down_edit:
                     move.w $0(a6), d0                               ;get menu number
-                    cmpi.w #0, d0                                   ;if 1
-                    bne.w TSTRTNE_BMC_down_edit_datadec             ;edit data
-                                                                    ;if not, edit address
 
-                    ;TSTRTNE_BMC_down_edit_addrdec:
+                    cmpi.w #0, d0                                   ;if 0
+                    beq.w TSTRTNE_BMC_down_edit_addrdec             ;edit address
+
+                    cmpi.w #1, d0                                   ;if 1
+                    beq.w TSTRTNE_BMC_down_edit_datadec             ;edit data
+
+                    cmpi.w #6, d0                                   ;if 6
+                    beq.w TSTRTNE_BMC_down_edit_ramviewdec          ;edit ram viewer address
+
+                    bra.w TSTRTNE_BMC_PrntMenu                      ;does not happens
+
+
+                    TSTRTNE_BMC_down_edit_addrdec:
                         move.w $6(a6), d0                           ;get address digit
                         lsl.w #2, d0                                ;address digit*4
                         move.l $2(a6), d1                           ;get address data(long word)
@@ -2057,6 +2108,27 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
                         
                         bra.w TSTRTNE_BMC_PrntMenu
 
+                    TSTRTNE_BMC_down_edit_ramviewdec:
+                        move.w $14(a6), d0                          ;get aram viewer ddress digit
+                        lsl.w #2, d0                                ;ram viewer address digit*4
+                        move.l $10(a6), d1                          ;get ram viewer address data(long word)
+                        move.l d1, d2
+
+                        lsr.l d0, d2                                ;shift right D2
+                        subq.l #1, d2                               ;D2 - 1 (ignore under/overflow)
+                        
+                        move.l #$0000000F, d3                       ;load 0x0000000F
+                        and.l d3, d2                                ;get D2[3:0]
+                        lsl.l d0, d2                                ;shift left D2
+                        lsl.l d0, d3                                ;shift left D3
+                        not.l d3                                    ;invert D3 e.g. 0xFF0FFFFF
+                        and.l d3, d1                                ;insert 0x0 on corresponding digit
+                        or.l d2, d1                                 ;insert modified digit number(D2)
+
+                        move.l d1, $10(a6)                           ;write modified ram viewer address
+                        
+                        bra.w TSTRTNE_BMC_PrntMenu
+
 
             ;
             ;   RIGHT INPUT
@@ -2070,6 +2142,9 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
                 cmpi.w #1, d0                                       ;if 1
                 beq.w TSTRTNE_BMC_right_enterdataedit               ;enter data edit mode or modify digit number
 
+                cmpi.w #6, d0                                       ;if 6
+                beq.w TSTRTNE_BMC_right_enterramviewedit            ;enter ram viewer mode or modify digit number
+
                 bra.w TSTRTNE_BMC_PrntMenu                          ;if not, do nothing
 
                 TSTRTNE_BMC_right_enteraddredit:
@@ -2081,6 +2156,22 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
 
                     bra.w TSTRTNE_BMC_PrntMenu
 
+                TSTRTNE_BMC_right_addredit:
+                    move.w $6(a6), d0                               ;get address digit
+
+                    cmpi.w #0, d0                                   ;if >0
+                    bgt.w TSTRTNE_BMC_right_addredit_decdig         ;decrease digit
+                    move.w #8, $6(a6)                               ;if not, write 8(loop)
+                    move.b #0, $D(a6)                               ;clear edit mode flag
+                    bra.w TSTRTNE_BMC_PrntMenu
+
+                    TSTRTNE_BMC_right_addredit_decdig:
+                    subq.w #1, d0                                   ;address digit - 1
+                    move.w d0, $6(a6)                               ;write modified address digit
+                    bra.w TSTRTNE_BMC_PrntMenu
+
+
+
                 TSTRTNE_BMC_right_enterdataedit:
                     btst.b #$0, $D(a6)                              ;check the flag
                     bne.w TSTRTNE_BMC_right_dataedit                ;if 1, goto data edit mode
@@ -2090,28 +2181,43 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
 
                     bra.w TSTRTNE_BMC_PrntMenu
 
-                TSTRTNE_BMC_right_addredit:
-                    move.w $6(a6), d0                               ;get address digit
-
-                    cmpi.w #0, d0                                   ;if >0
-                    bne.w TSTRTNE_BMC_right_addredit_decdig         ;decrease digit
-                    bra.w TSTRTNE_BMC_PrntMenu                      ;if not, do nothing
-
-                    TSTRTNE_BMC_right_addredit_decdig:
-                    subq.w #1, d0                                   ;address digit - 1
-                    move.w d0, $6(a6)                               ;write modified address digit
-                    bra.w TSTRTNE_BMC_PrntMenu
-
                 TSTRTNE_BMC_right_dataedit:
                     move.w $A(a6), d0                               ;get data digit
 
                     cmpi.w #0, d0                                   ;if >0
-                    bne.w TSTRTNE_BMC_right_dataedit_decdig         ;decrease digit
-                    bra.w TSTRTNE_BMC_PrntMenu                      ;if not, do nothing
+                    bgt.w TSTRTNE_BMC_right_dataedit_decdig         ;decrease digit
+                    move.w #4, $A(a6)                               ;if not, write 4(loop)
+                    move.b #0, $D(a6)                               ;clear edit mode flag
+                    bra.w TSTRTNE_BMC_PrntMenu
 
                     TSTRTNE_BMC_right_dataedit_decdig:
                     subq.w #1, d0                                   ;data digit - 1
                     move.w d0, $A(a6)                               ;write modified data digit
+                    bra.w TSTRTNE_BMC_PrntMenu
+
+
+
+                TSTRTNE_BMC_right_enterramviewedit:
+                    btst.b #$0, $D(a6)                              ;check the flag
+                    bne.w TSTRTNE_BMC_right_ramviewedit             ;if 1, goto ram viewer address edit mode
+
+                    move.w #7, $14(a6)                              ;set ram viewer address digit as 7
+                    move.b #1, $D(a6)                               ;set edit mode flag
+
+                    bra.w TSTRTNE_BMC_PrntMenu
+
+                TSTRTNE_BMC_right_ramviewedit:
+                    move.w $14(a6), d0                              ;get ram viewer address digit
+
+                    cmpi.w #2, d0                                   ;if >2
+                    bgt.w TSTRTNE_BMC_right_ramviewedit_decdig      ;decrease digit
+                    move.w #8, $14(a6)                              ;if not, write 8(loop)
+                    move.b #0, $D(a6)                               ;clear edit mode flag
+                    bra.w TSTRTNE_BMC_PrntMenu
+
+                    TSTRTNE_BMC_right_ramviewedit_decdig:
+                    subq.w #1, d0                                   ;ram viewer address digit - 1
+                    move.w d0, $14(a6)                              ;write modified ram viewer address digit
                     bra.w TSTRTNE_BMC_PrntMenu
 
 
@@ -2127,63 +2233,184 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
                 cmpi.w #1, d0                                       ;if 1
                 beq.w TSTRTNE_BMC_left_exitdataedit                 ;exit data edit mode or modify digit number
 
-                bra.s TSTRTNE_BMC_PrntMenu                          ;if not, do nothing
+                cmpi.w #6, d0                                       ;if 6
+                beq.w TSTRTNE_BMC_left_exitramviewedit              ;exit ram viewer mode or modify digit number
+
+                bra.w TSTRTNE_BMC_PrntMenu                          ;if not, do nothing
 
                 TSTRTNE_BMC_left_exitaddredit:
                     btst.b #$0, $D(a6)                              ;check the flag
                     bne.w TSTRTNE_BMC_left_addredit                 ;if 1, goto address edit mode
 
-                    bra.s TSTRTNE_BMC_PrntMenu                      ;do nothing
-
-                TSTRTNE_BMC_left_exitdataedit:
-                    btst.b #$0, $D(a6)                              ;check the flag
-                    bne.w TSTRTNE_BMC_left_dataedit                 ;if 1, goto data edit mode
-
-                    bra.s TSTRTNE_BMC_PrntMenu                      ;do nothing
+                    move.w #0, $6(a6)                               ;if 0, write address digit 0
+                    move.b #1, $D(a6)                               ;set edit mode flag
+                    bra.w TSTRTNE_BMC_PrntMenu
 
                 TSTRTNE_BMC_left_addredit:
                     move.w $6(a6), d0                               ;get address digit
 
                     cmpi.w #7, d0                                   ;if <7
-                    bne.w TSTRTNE_BMC_left_addredit_incdig          ;increase digit
+                    blt.w TSTRTNE_BMC_left_addredit_incdig          ;increase digit
 
                     move.w #8, $6(a6)                               ;if not, set address digit as 8
                     move.b #0, $D(a6)                               ;clear edit mode flag
-                    bra.s TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_PrntMenu
 
                     TSTRTNE_BMC_left_addredit_incdig:
                     addq.w #1, d0                                   ;address digit + 1
                     move.w d0, $6(a6)                               ;write modified address digit
                     bra.w TSTRTNE_BMC_PrntMenu
 
+
+
+                TSTRTNE_BMC_left_exitdataedit:
+                    btst.b #$0, $D(a6)                              ;check the flag
+                    bne.w TSTRTNE_BMC_left_dataedit                 ;if 1, goto data edit mode
+
+                    move.w #0, $A(a6)                               ;if 0, write address digit 0
+                    move.b #1, $D(a6)                               ;set edit mode flag
+                    bra.w TSTRTNE_BMC_PrntMenu
+
                 TSTRTNE_BMC_left_dataedit:
                     move.w $A(a6), d0                               ;get data digit
 
                     cmpi.w #3, d0                                   ;if <3
-                    bne.w TSTRTNE_BMC_left_dataedit_incdig          ;increase digit
+                    blt.w TSTRTNE_BMC_left_dataedit_incdig          ;increase digit
 
                     move.w #4, $A(a6)                               ;if not, set data digit as 4
                     move.b #0, $D(a6)                               ;clear edit mode flag
-                    bra.s TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_PrntMenu
 
                     TSTRTNE_BMC_left_dataedit_incdig:
                     addq.w #1, d0                                   ;data digit + 1
                     move.w d0, $A(a6)                               ;write modified data digit
                     bra.w TSTRTNE_BMC_PrntMenu
 
+
+
+                TSTRTNE_BMC_left_exitramviewedit:
+                    btst.b #$0, $D(a6)                              ;check the flag
+                    bne.w TSTRTNE_BMC_left_ramviewedit              ;if 1, goto ram viewer address edit mode
+
+                    move.w #0, $14(a6)                               ;if 0, write address digit 0
+                    move.b #1, $D(a6)                               ;set edit mode flag
+                    bra.w TSTRTNE_BMC_PrntMenu
+
+                TSTRTNE_BMC_left_ramviewedit:
+                    move.w $14(a6), d0                              ;get ram viewer address digit
+
+                    cmpi.w #7, d0                                   ;if <7
+                    blt.w TSTRTNE_BMC_left_ramviewedit_incdig       ;increase digit
+
+                    move.w #8, $14(a6)                              ;if not, set ram viewer address digit as 8
+                    move.b #0, $D(a6)                               ;clear edit mode flag
+                    bra.w TSTRTNE_BMC_PrntMenu
+
+                    TSTRTNE_BMC_left_ramviewedit_incdig:
+                    addq.w #1, d0                                   ;data digit + 1
+                    move.w d0, $14(a6)                              ;write modified ram viewer address digit
+                    bra.w TSTRTNE_BMC_PrntMenu
+
+
+
+            ;
+            ;   BUTTON B INPUT
+            ;
+            TSTRTNE_BMC_Read:
+                move.w $0(a6), d0                                   ;get menu number
+                cmpi.w #1, d0                                       ;if >1
+                bgt.w TSTRTNE_BMC_PrntMenu                          ;do nothing
+
+                move.l $2(a6), d0                                   ;get address
+                btst.l #$0, d0                                      ;test bit0 of address
+                bne.w TSTRTNE_BMC_Read_byte
+                ;TSTRTNE_BMC_Read_word:
+                    movea.l $2(a6), a0                              ;get address
+                    move.w (a0), $8(a6)                             ;read and write data
+                    addi.l #2, $2(a6)                               ;auto increment
+                    
+                    lea WREADCOMPLETE, a0
+                    move.l a0, -(sp)
+                    move.w #3, -(sp)                                ;palette 3 (green)
+                    move.w #6, -(sp)                                ;xpos fixed
+                    move.w #10, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w PRINTTEXT
+
+                    bra.w TSTRTNE_BMC_PrntMenu
+
+                TSTRTNE_BMC_Read_byte:
+                    movea.l $2(a6), a0                              ;get address
+                    move.b (a0), $9(a6)                             ;read and write data
+                    addi.l #2, $2(a6)                               ;auto increment
+                    
+                    lea BREADCOMPLETE, a0
+                    move.l a0, -(sp)
+                    move.w #3, -(sp)                                ;palette 3 (green)
+                    move.w #6, -(sp)                                ;xpos fixed
+                    move.w #10, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w PRINTTEXT
+
+                    bra.w TSTRTNE_BMC_PrntMenu
+
+            ;
+            ;   BUTTON C INPUT
+            ;
+            TSTRTNE_BMC_Write:
+                move.w $0(a6), d0                                   ;get menu number
+                cmpi.w #1, d0                                       ;if >1
+                bgt.w TSTRTNE_BMC_PrntMenu                          ;do nothing
+
+                move.l $2(a6), d0                                   ;get address
+                btst.l #$0, d0                                      ;test bit0 of address
+                bne.w TSTRTNE_BMC_Write_byte
+                ;TSTRTNE_BMC_Write_word:
+                    movea.l $2(a6), a0                              ;get address
+                    move.w $8(a6), (a0)                             ;read and write data
+                    addi.l #2, $2(a6)                               ;auto increment
+                    
+                    lea WWRITECOMPLETE, a0
+                    move.l a0, -(sp)
+                    move.w #3, -(sp)                                ;palette 3 (green)
+                    move.w #6, -(sp)                                ;xpos fixed
+                    move.w #10, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w PRINTTEXT
+
+                    bra.w TSTRTNE_BMC_PrntMenu
+
+                TSTRTNE_BMC_Write_byte:
+                    movea.l $2(a6), a0                              ;get address
+                    move.b $9(a6), (a0)                             ;read and write data
+                    addi.l #2, $2(a6)                               ;auto increment
+                    
+                    lea BWRITECOMPLETE, a0
+                    move.l a0, -(sp)
+                    move.w #3, -(sp)                                ;palette 3 (green)
+                    move.w #6, -(sp)                                ;xpos fixed
+                    move.w #10, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w PRINTTEXT
+
+                    bra.w TSTRTNE_BMC_PrntMenu
+
+
+            ;
+            ;   BUTTON A INPUT
+            ;
             TSTRTNE_BMC_Execute:
-
-
-
-
-
-
-
+                
 
 
 
 
             TSTRTNE_BMC_PrntMenu:
+                move.w $0(a6), d0                                       ;get menu number
+                cmpi.w #4, d0                                           ;if COPY
+                beq.s TSTRTNE_BMC_PrntMenu_CopyMode
+
+                ;   ADDRESS/DATA
                 lea BMCMESSAGE0, a4
                 move.w #1, d6                                           ;repeat 2 times
                 move.w #3, d5                                           ;ypos 3
@@ -2210,45 +2437,94 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
 
                     dbf d6, TSTRTNE_BMC_PrntMenu_AddrData_loop
 
-                lea BMCMESSAGE2, a4
-                move.w #1, d7                                           ;repeat 2 times
-                move.w #8, d6                                           ;xpos 8
-                TSTRTNE_BMC_PrntMenu_Optn_loop_out:
-                    move.w #1, d5                                       ;repeat 2 times
-                    move.w #6, d4                                       ;ypos 6
-                    TSTRTNE_BMC_PrntMenu_Optn_loop_in:
-                        move.w #0, d2                                   ;palette 0(dark blue)
-                        move.w #5, d0                                   ;load 5
+                ;   RAM AREA
+                move.w $0(a6), d0                                       ;get menu number
+                move.w #0, d1                                           ;palette 0(dark blue)
+                cmpi.w #6, d0
+                bne.s TSTRTNE_BMC_PrntMenu_Ramarea
+                move.w #4, d1                                           ;palette 4(red)
 
-                        move.w d7, d1                                   ;get outer loop counter
-                        lsl.w #1, d1                                    ;outer loop counter*2
-                        add.w d5, d1                                    ;outer loop counter*2 + inner loop counter
-                        sub.w d1, d0                                    ;5 - (outer loop counter*2 + inner loop counter)
+                TSTRTNE_BMC_PrntMenu_Ramarea:
+                    lea RAMAREA, a0
+                    move.l a0, -(sp)
+                    move.w d1, -(sp)
+                    move.w #6, -(sp)
+                    move.w #12, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w PRINTTEXT
 
-                        move.w $0(a6), d1                               ;get menu number
-                        cmp.w d0, d1                                    ;if value == 1-loop counter
-                        bne.s TSTRTNE_BMC_PrntMenu_Optn_prnt
-                        move.w #4, d2                                   ;palette 4(red)
+                bra.s TSTRTNE_BMC_PrntMenu_Options
 
-                        TSTRTNE_BMC_PrntMenu_Optn_prnt: 
-                            move.l a4, -(sp)
-                            move.w d2, -(sp)
-                            move.w d6, -(sp)
-                            move.w d4, -(sp)
-                            move.w #0, -(sp)
-                            bsr.w PRINTTEXT
+                TSTRTNE_BMC_PrntMenu_CopyMode:
+                    lea DATACOPYSOURCE, a0
+                    move.l a0, -(sp)
+                    move.w #3, -(sp)                                        ;palette 3 (green)
+                    move.w #4, -(sp)                                        ;xpos fixed
+                    move.w #3, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w PRINTTEXT
 
-                        addq.w #1, d4                                   ;ypos+1
-                        add.l #8, a4
+                    lea DATACOPYLENGTH, a0
+                    move.l a0, -(sp)
+                    move.w #3, -(sp)                                        ;palette 3 (green)
+                    move.w #4, -(sp)                                        ;xpos fixed
+                    move.w #4, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w PRINTTEXT
 
-                        dbf d5, TSTRTNE_BMC_PrntMenu_Optn_loop_in
-                    
-                    addi.w #10, d6                                      ;xpos+16
+                    lea DATACOPYTARGET, a0
+                    move.l a0, -(sp)
+                    move.w #3, -(sp)                                        ;palette 3 (green)
+                    move.w #6, -(sp)                                        ;xpos fixed
+                    move.w #12, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w PRINTTEXT
 
-                    dbf d7, TSTRTNE_BMC_PrntMenu_Optn_loop_out
+                TSTRTNE_BMC_PrntMenu_Options:
+                    lea BMCMESSAGE2, a4
+                    move.w #1, d7                                           ;repeat 2 times
+                    move.w #8, d6                                           ;xpos 8
+                    TSTRTNE_BMC_PrntMenu_Optn_loop_out:
+                        move.w #1, d5                                       ;repeat 2 times
+                        move.w #6, d4                                       ;ypos 6
+                        TSTRTNE_BMC_PrntMenu_Optn_loop_in:
+                            move.w #0, d2                                   ;palette 0(dark blue)
+                            move.w #5, d0                                   ;load 5
+
+                            move.w d7, d1                                   ;get outer loop counter
+                            lsl.w #1, d1                                    ;outer loop counter*2
+                            add.w d5, d1                                    ;outer loop counter*2 + inner loop counter
+                            sub.w d1, d0                                    ;5 - (outer loop counter*2 + inner loop counter)
+
+                            move.w $0(a6), d1                               ;get menu number
+                            cmp.w d0, d1                                    ;if value == 1-loop counter
+                            bne.s TSTRTNE_BMC_PrntMenu_Optn_prnt
+                            move.w #4, d2                                   ;palette 4(red)
+
+                            TSTRTNE_BMC_PrntMenu_Optn_prnt: 
+                                move.l a4, -(sp)
+                                move.w d2, -(sp)
+                                move.w d6, -(sp)
+                                move.w d4, -(sp)
+                                move.w #0, -(sp)
+                                bsr.w PRINTTEXT
+
+                            addq.w #1, d4                                   ;ypos+1
+                            add.l #8, a4
+
+                            dbf d5, TSTRTNE_BMC_PrntMenu_Optn_loop_in
+                        
+                        addi.w #10, d6                                      ;xpos+16
+
+                        dbf d7, TSTRTNE_BMC_PrntMenu_Optn_loop_out
+
+                
+
 
                 ;ADDRESS HEX VALUE starts from 0x521A8... 8 A C E 0 2 4 6
                 ;DATA HEX VALUE starts from 0x52230...            0 2 4 6
+                ;RAM VIEWER ADDRESS HEX VALUE starts from 0x52622...    2 4 6 8 A C E 0
+                ;RAM CONTENTS starts from 0x52680
                 ;HEX digit 0 to F is on CHARRAM 600 to 60F
                 ;PR bits are 0xF
 
@@ -2300,6 +2576,62 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
 
                     dbf d7, TSTRTNE_BMC_PrntMenu_Data
 
+                move.w #7, d7                                           ;repeat 8 times
+                lea $52630, a4                                          ;last digit of address on VRAM1
+                move.l $10(a6), d6                                      ;get ram viewer addr data
+                move.w $14(a6), d5                                      ;get addr digit
+                TSTRTNE_BMC_PrntMenu_Ramview:
+                    move.w #$0001, d1                                   ;palette 1 (light blue)
+                    move.w d7, d0                                       ;get loop counter
+                    eori.w #$0007, d0                                   ;invert loop counter
+
+                    cmp.w d0, d5                                        ;if current digit != loop digit
+                    bne.s TSTRTNE_BMC_PrntMenu_Ramview_prnt             ;print hex value
+                    move.w #$0004, d1                                   ;if not, set palette as 4 (red)
+
+                    TSTRTNE_BMC_PrntMenu_Ramview_prnt:
+                        move.l d6, d0                                   ;copy ram viewer addr data
+                        andi.l #$0000000F, d0                           ;get D0[3:0]
+                        ori.w #$F600, d0                                ;insert 0xF6XX
+                        move.b d1, $2001(a4)                            ;write to VRAM2
+                        move.w d0, (a4)                                 ;write to VRAM1
+                        sub.l #2, a4                                    ;decrease A4
+                        lsr.l #4, d6                                    ;shift right ram viewer addr data
+
+                    dbf d7, TSTRTNE_BMC_PrntMenu_Ramview
+
+
+                movea.l $10(a6), a0                                     ;get ram viewer addr data
+                lea $5270E, a1                                          ;RAM contents start address in VRAM1
+
+                move.w #15, d7                                          ;repeat 16 times
+                TSTRTNE_BMC_PrntMenu_Ramdata_vloop:
+                    move.w #3, d6                                       ;repeat 4 times
+                    TSTRTNE_BMC_PrntMenu_Ramdata_hloop:
+                        move.l (a0)+, d1                                ;get ram contents
+                        move.w #7, d5                                   ;repeat 8 times
+                        TSTRTNE_BMC_PrntMenu_Ramdata_4B:
+                            move.l d1, d0                               ;copy ram contents
+                            andi.l #$0000000F, d0                       ;get D0[3:0]
+                            ori.w #$F600, d0                            ;insert 0xF6XX
+                            move.b #$0000, $2001(a1)                    ;write to VRAM2
+                            move.w d0, (a1)                             ;write to VRAM1
+                            sub.l #2, a1                                ;decrease A1
+                            lsr.l #4, d1                                ;shift right ram viewer addr data
+
+                            dbf d5, TSTRTNE_BMC_PrntMenu_Ramdata_4B
+                        
+                        add.l #$20, a1                                  ;next 4 bytes(VRAM1)
+                        dbf d6, TSTRTNE_BMC_PrntMenu_Ramdata_hloop
+                    
+                    add.l #$40, a1                                      ;next line(VRAM1)
+                    dbf d7, TSTRTNE_BMC_PrntMenu_Ramdata_vloop
+
+
+                
+                
+
+
 
             TSTRTNE_BMC_KeyInDelay:
                 move.w $5CC02, d0
@@ -2309,19 +2641,23 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
                 bra.w TSTRTNE_BMC_InEval
 
 BMCMESSAGE0     dc.w 'RD/WR Address', $0000
-BMCMESSAGE1     dc.w '   WR    Data', $0000
+BMCMESSAGE1     dc.w 'RD/WR    Data', $0000
 BMCMESSAGE2     dc.w 'Read  ', $0000
 BMCMESSAGE3     dc.w 'Write ', $0000
-BMCMESSAGE4     dc.w 'Update', $0000
+BMCMESSAGE4     dc.w 'Copy  ', $0000
 BMCMESSAGE5     dc.w 'Shift ', $0000
-BYTEACCESS      dc.w '>BYTE ACCESS<', $0000
-WORDACCESS      dc.w '>WORD ACCESS<', $0000
 RWSTATUS        dc.w 'RW status', $0000
-READCOMPLETE    dc.w ' Read completed     @', $0000
-WRITECOMPLETE   dc.w 'Write completed     @', $0000
-BUBBLEPAGEAREA  dc.w '<bubble memory page area>', $0000
+BREADCOMPLETE   dc.w 'Byte read completed ', $0000
+BWRITECOMPLETE  dc.w 'Byte write completed', $0000
+WREADCOMPLETE   dc.w 'Word read completed ', $0000
+WWRITECOMPLETE  dc.w 'Word write completed', $0000
+SHIFTCOMPLETE   dc.w 'Bubble page shifted ', $0000
+COPYCOMPLETE    dc.w 'Block copy completed', $0000
+RAMAREA         dc.w 'RAM area', $0000
 HEXDATAPREFIX   dc.w '0x', $0000
-
+DATACOPYSOURCE  dc.w '       Source', $0000
+DATACOPYLENGTH  dc.w '       Length', $0000
+DATACOPYTARGET  dc.w '  Target', $0000
 
 
 
@@ -2341,7 +2677,7 @@ HEXDATAPREFIX   dc.w '0x', $0000
             TSTRTNE_Contributors_credits_1:
                 move.l a4, -(sp)
                 move.w #0, -(sp)
-                move.w #0, -(sp)                            ;xpos fixed
+                move.w #0, -(sp)                                        ;xpos fixed
                 move.w d5, -(sp)
                 move.w #0, -(sp)
                 bsr.w PRINTTEXT
@@ -2353,11 +2689,11 @@ HEXDATAPREFIX   dc.w '0x', $0000
 
             lea LINE11, a4
             move.w #22, d5
-            move.w #4, d6
+            move.w #6, d6
             TSTRTNE_Contributors_credits_2:
                 move.l a4, -(sp)
                 move.w #1, -(sp)
-                move.w #0, -(sp)                            ;xpos fixed
+                move.w #0, -(sp)                                        ;xpos fixed
                 move.w d5, -(sp)
                 move.w #0, -(sp)
                 bsr.w PRINTTEXT
@@ -2368,9 +2704,9 @@ HEXDATAPREFIX   dc.w '0x', $0000
                 dbf d6, TSTRTNE_Contributors_credits_2
 
             TSTRTNE_Contributors_KeyInDelay:
-                bsr.w funcCheckInput                    ;check P1 button input
-                move.w (sp)+, d0                         ;get latest input 
-                btst.l #$4, d0                          ;power-up(gradius) or fire(twinbee)
+                bsr.w funcCheckInput                                    ;check P1 button input
+                move.w (sp)+, d0                                        ;get latest input 
+                btst.l #$4, d0                                          ;power-up(gradius) or fire(twinbee)
                 beq.w TESTMENU
                 jsr funcFixedDelay
                 bra.w TSTRTNE_Contributors_KeyInDelay
@@ -2392,6 +2728,8 @@ LINE12          dc.w '              ----              ', $0000
 LINE13          dc.w '      v9938          MAKI       ', $0000
 LINE14          dc.w '     Kudouta        akamig      ', $0000
 LINE15          dc.w '         CSG@Akatronics         ', $0000
+LINE16          dc.w '                                ', $0000
+LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
 
             
 
