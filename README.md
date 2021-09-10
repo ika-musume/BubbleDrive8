@@ -44,3 +44,5 @@ GX400 main test program added.
 Added TC77 temperature sensor to make an "realistic" heating delay.
 ### v1.4 - Aug. 12, 2021
 FT232HL async FIFO implementation completed.
+### v1.5 - Sep. 10, 2021
+Bubble System test program B85:K:A:A:2021091002 released.

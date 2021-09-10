@@ -222,7 +222,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
         move.l d7, $800                                     ;save RAM test result to 0x800
 
         move.l #$10000, -(sp)
-        move.w #64, -(sp)
+        move.w #70, -(sp)                                   ;70 pages
         move.w #7, -(sp)                                    ;from 0x380
         bsr.w funcLoadBubble
 
@@ -510,7 +510,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
 TITLEMESSAGE1   dc.w 'BubbleDrive8', $0000
 TITLEMESSAGE2   dc.w 'System Test Program', $0000
 TITLEMESSAGE3   dc.w '2020-2021 Raki', $0000
-VERSION         dc.w 'B85:K:A:A:2021083102', $0000
+VERSION         dc.w 'B85:K:A:A:2021091002', $0000
 
 
         *--------------------------------------------------------
@@ -1822,7 +1822,37 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
             move.w #1408, -(sp)
             jsr funcLoadBubble
 
+            move.l #$3C400, -(sp)                                   ;copy tiles(2CC00 on ROM)
+            move.w #16, -(sp)
+            move.w #1432, -(sp)
+            jsr funcLoadBubble
+
             jsr funcClearTilemap
+
+            move.w #32, -(sp)
+            move.w #1, -(sp)
+            move.w #$F620, -(sp)                                    ;ram viewer index
+            move.w #$0006, -(sp)
+            move.w #0, -(sp)
+            move.w #13, -(sp)
+            move.w #1, -(sp)
+            bsr.w DRAWTILEMAP
+
+            move.w #15, d5                                          ;repeat 16 times
+            TSTRTNE_BMC_RamViewer_bgloop:
+                move.w d5, d0
+                addi.w #14, d0
+
+                move.w #32, -(sp)
+                move.w #1, -(sp)
+                move.w #$E640, -(sp)                                ;ram viewer stripe
+                move.w #$0006, -(sp)
+                move.w #0, -(sp)
+                move.w d0, -(sp)
+                move.w #1, -(sp)
+                bsr.w DRAWTILEMAP
+
+                dbf d5, TSTRTNE_BMC_RamViewer_bgloop
 
             lea BMCMESSAGE0, a4
             move.w #1, d6                                           ;repeat 2 times
@@ -2334,18 +2364,25 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
                     move.l $10(a6), d1                              ;get target address
 
                     btst.l #0, d0                                   ;if D0[0] = 1
-                    bne.s TSTRTNE_BMC_Execute_copy_illegal          ;goto illegal access
+                    bne.s TSTRTNE_BMC_Execute_copy_illegaladdr      ;goto illegal access
                     btst.l #0, d1                                   ;if D1[0] = 1
-                    bne.s TSTRTNE_BMC_Execute_copy_illegal          ;goto illegal access
+                    bne.s TSTRTNE_BMC_Execute_copy_illegaladdr      ;goto illegal access
+                    move.w $8(a6), d2                               ;get loop count
+                    cmpi.w #0, d2                                   ;if 0
+                    beq.s TSTRTNE_BMC_Execute_copy_zerolength
+                    subi.w #1, d2                                   ;loop count - 1
+                    btst.l #15, d2                                  ;if D0[15] = 1
+                    bne.w TSTRTNE_BMC_Execute_copy_overlength
 
                     movea.l d0, a0                                  ;load source addr
                     movea.l d1, a1                                  ;load target addr
-                    move.w $8(a6), d0                               ;get loop count
-                    subi.w #1, d0                                   ;loop count - 1
+
+                    move.b #1, $5E008                               ;kick the watchdog
+                    move.b #0, $5E008
 
                     TSTRTNE_BMC_Execute_copy_loop:
                         move.w (a0)+, (a1)+                         ;copy
-                        dbf d0, TSTRTNE_BMC_Execute_copy_loop
+                        dbf d2, TSTRTNE_BMC_Execute_copy_loop
 
                     lea COPYCOMPLETE, a0
                     move.l a0, -(sp)
@@ -2355,9 +2392,12 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
                     move.w #0, -(sp)
                     bsr.w PRINTTEXT
 
+                    move.l #0, d0                                   ;initialize d0, d1
+                    move.l #0, d1
+
                     bra.w TSTRTNE_BMC_PrntMenu
 
-                    TSTRTNE_BMC_Execute_copy_illegal:
+                    TSTRTNE_BMC_Execute_copy_illegaladdr:
                         lea COPYILLEGAL, a0
                         move.l a0, -(sp)
                         move.w #4, -(sp)                            ;palette 4 (red)
@@ -2367,6 +2407,30 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
                         bsr.w PRINTTEXT
 
                         bra.w TSTRTNE_BMC_PrntMenu
+
+                    TSTRTNE_BMC_Execute_copy_zerolength:
+                        lea COPYZEROLENGTH, a0
+                        move.l a0, -(sp)
+                        move.w #4, -(sp)                            ;palette 4 (red)
+                        move.w #6, -(sp)                            ;xpos fixed
+                        move.w #10, -(sp)
+                        move.w #0, -(sp)
+                        bsr.w PRINTTEXT
+
+                        bra.w TSTRTNE_BMC_PrntMenu
+
+                    TSTRTNE_BMC_Execute_copy_overlength:
+                        lea COPYTOOLONG, a0
+                        move.l a0, -(sp)
+                        move.w #4, -(sp)                            ;palette 4 (red)
+                        move.w #6, -(sp)                            ;xpos fixed
+                        move.w #10, -(sp)
+                        move.w #0, -(sp)
+                        bsr.w PRINTTEXT
+
+                        bra.w TSTRTNE_BMC_PrntMenu
+
+
 
                 
                 TSTRTNE_BMC_Execute_shift:
@@ -2711,10 +2775,6 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
                     dbf d7, TSTRTNE_BMC_PrntMenu_Ramdata_vloop
 
 
-                
-                
-
-
 
             TSTRTNE_BMC_KeyInDelay:
                 move.w $5CC02, d0
@@ -2737,6 +2797,8 @@ WWRITECOMPLETE  dc.w 'Word write completed', $0000
 SHIFTCOMPLETE   dc.w 'Bubble page shifted ', $0000
 COPYCOMPLETE    dc.w 'Block copy completed', $0000
 COPYILLEGAL     dc.w 'Illegal copy address', $0000
+COPYZEROLENGTH  dc.w '  Copy length is 0  ', $0000
+COPYTOOLONG     dc.w 'Length is over 8000 ', $0000 
 RAMAREA         dc.w 'RAM area', $0000
 HEXDATAPREFIX   dc.w '0x', $0000
 DATACOPYSOURCE  dc.w '       Source', $0000
@@ -2827,7 +2889,7 @@ LINE11          dc.w '        Special thanks to       ', $0000
 LINE12          dc.w '              ----              ', $0000
 LINE13          dc.w '      v9938          MAKI       ', $0000
 LINE14          dc.w '     Kudouta        akamig      ', $0000
-LINE15          dc.w '         CSG@Akatronics         ', $0000
+LINE15          dc.w '          CSG Akatian           ', $0000
 LINE16          dc.w '                                ', $0000
 LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
 
@@ -2845,20 +2907,6 @@ LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
         TSTRTNE_Return:
             jsr funcClearTilemap
             bra.w TITLEPROGRAM                          ;return to title screen
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
