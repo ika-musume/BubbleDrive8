@@ -510,7 +510,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
 TITLEMESSAGE1   dc.w 'BubbleDrive8', $0000
 TITLEMESSAGE2   dc.w 'System Test Program', $0000
 TITLEMESSAGE3   dc.w '2020-2021 Raki', $0000
-VERSION         dc.w 'B85:K:A:A:2021091002', $0000
+VERSION         dc.w 'B85:K:A:B:2021091302', $0000
 
 
         *--------------------------------------------------------
@@ -1581,9 +1581,11 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
         *--------------------------------------------------------
 
         TSTRTNE_Pr:
-            move.w #0, d6                                       ;initialize PR bit number reg
-            move.w #$00FF, d7                                   ;initialize PR bit reg
+            lea $830, a6
+            move.w #0, $0(a6)                                   ;initialize PR digit number reg
+            move.w #$00FF, $2(a6)                               ;initialize PR bit reg
                                                                 ; MSB <- BBBB/BBBB -> LSB (TM-B, TM-A)
+            move.w #0, $4(a6)                                   ;reset timer reg
 
             jsr funcClearTilemap
 
@@ -1598,7 +1600,7 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
             lea PRTILEMAPA, a0
             move.l a0, -(sp)
             move.w #0, -(sp)
-            move.w #11, -(sp)
+            move.w #17, -(sp)
             move.w #6, -(sp)
             move.w #0, -(sp)
             bsr.w PRINTTEXT
@@ -1606,7 +1608,7 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
             lea PRTILEMAPB, a0
             move.l a0, -(sp)
             move.w #0, -(sp)
-            move.w #17, -(sp)
+            move.w #11, -(sp)
             move.w #6, -(sp)
             move.w #0, -(sp)
             bsr.w PRINTTEXT
@@ -1670,53 +1672,66 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
             TSTRTNE_Pr_InEval:                                  ;evaluate key input
                 bsr.w funcCheckInput                            ;check P1 button input
                 move.w (sp)+, d0                                ;get latest input 
+
                 btst.l #$4, d0                                  ;check for power-up(gradius) or fire(twinbee)
                 beq.s TSTRTNE_Pr_Apply
-                btst.l #$3, d0                                  ;check for DOWN
-                beq.s TSTRTNE_Pr_bitvalzero
-                btst.l #$2, d0                                  ;check for UP
-                beq.s TSTRTNE_Pr_bitvalone
+
                 btst.l #$1, d0                                  ;check for RIGHT
                 beq.s TSTRTNE_Pr_bitnumdec
                 btst.l #$0, d0                                  ;check for LEFT
                 beq.s TSTRTNE_Pr_bitnuminc
 
-                bra.s TSTRTNE_Pr_PrntVal                        ;nothing changes
+                cmpi.w #8, $0(a6)                               ;test 8
+                beq.w TSTRTNE_Pr_Autoinc                        ;PR bits auto increase
+
+                btst.l #$3, d0                                  ;check for DOWN
+                beq.s TSTRTNE_Pr_bitvalzero
+                btst.l #$2, d0                                  ;check for UP
+                beq.s TSTRTNE_Pr_bitvalone
+
+                bra.w TSTRTNE_Pr_PrntVal                        ;nothing changes
 
             TSTRTNE_Pr_bitvalzero:
-                bclr.l d6, d7                                   ;clear bit
-                bra.s TSTRTNE_Pr_PrntVal
+                move.w $0(a6), d0                               ;get digit
+                move.w $2(a6), d1                               ;get PR bits    
+                bclr.l d0, d1                                   ;clear bit
+                move.w d1, $2(a6)                               ;writeback
+                bra.w TSTRTNE_Pr_PrntVal
 
             TSTRTNE_Pr_bitvalone:
-                bset.l d6, d7                                   ;set bit
-                bra.s TSTRTNE_Pr_PrntVal
+                move.w $0(a6), d0                               ;get digit
+                move.w $2(a6), d1                               ;get PR bits   
+                bset.l d0, d1                                   ;set bit
+                move.w d1, $2(a6)                               ;writeback
+                bra.w TSTRTNE_Pr_PrntVal
 
             TSTRTNE_Pr_bitnumdec:
-                cmpi.w #0, d6                                   ;test 0
+                cmpi.w #0, $0(a6)                               ;test 0
                 bne.s TSTRTNE_Pr_bitnumdec_sub
                 
                 TSTRTNE_Pr_bitnumdec_hold:                      ;hold
-                bra.s TSTRTNE_Pr_PrntVal
+                bra.w TSTRTNE_Pr_PrntVal
 
                 TSTRTNE_Pr_bitnumdec_sub:
-                subq.w #1, d6                                   ;bitnum - 1
+                subq.w #1, $0(a6)                               ;bitnum - 1
                 bra.s TSTRTNE_Pr_bitnumdec_hold                 ;goto hold
 
             TSTRTNE_Pr_bitnuminc:
-                cmpi.w #7, d6                                   ;test 0
+                cmpi.w #8, $0(a6)                               ;test 8
                 bne.s TSTRTNE_Pr_bitnuminc_add
                 
                 TSTRTNE_Pr_bitnuminc_hold:                      ;hold
-                bra.s TSTRTNE_Pr_PrntVal
+                bra.w TSTRTNE_Pr_PrntVal
 
                 TSTRTNE_Pr_bitnuminc_add:
-                addq.w #1, d6                                   ;bitnum - 1
+                addq.w #1, $0(a6)                               ;bitnum - 1
                 bra.s TSTRTNE_Pr_bitnuminc_hold                 ;goto hold
 
             TSTRTNE_Pr_Apply:                                   ;apply change on tilemaps
-                move.w d7, d0                                   ;copy PR bits data
-                andi.w #$00F0, d0                               ;get TM-A data(0x00F0)
+                move.w $2(a6), d0                               ;copy PR bits data
+                andi.w #$000F, d0                               ;get TM-A data(0x000F)
                 lsl.w #8, d0                                    ;shift left 8 bits
+                lsl.w #4, d0                                    ;shift left 4 bits
                 move.w #$1D0, d1                                ;load 0x1D0(TM-A test pattern)
                 or.w d0, d1                                     ;merge d0 and d1
 
@@ -1729,10 +1744,9 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
                 move.w #0, -(sp)
                 bsr.w DRAWTILEMAP
 
-                move.w d7, d0                                   ;copy PR bits data
-                andi.w #$000F, d0                               ;get TM-B data(0x000F)
+                move.w $2(a6), d0                               ;copy PR bits data
+                andi.w #$00F0, d0                               ;get TM-B data(0x00F0)
                 lsl.w #8, d0                                    ;shift left 8 bits
-                lsl.w #4, d0                                    ;shift left 4 bits
                 move.w #$1D4, d1                                ;load 0x1D4(TM-B test pattern)
                 or.w d0, d1                                     ;merge d0 and d1
 
@@ -1745,11 +1759,36 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
                 move.w #1, -(sp)
                 bsr.w DRAWTILEMAP
 
+                bra.s TSTRTNE_Pr_PrntVal
+
+            
+            TSTRTNE_Pr_Autoinc:
+                cmpi.w #7, $4(a6)                               ;check 7
+                beq.w TSTRTNE_Pr_Autoinc_princ
+
+                ;TSTRTNE_Pr_Autoinc_cntrinc:
+                    addq.w #1, $4(a6)                           ;increase counter
+                    bra.s TSTRTNE_Pr_Apply
+
+                TSTRTNE_Pr_Autoinc_princ:
+                    move.w #0, $4(a6)
+
+                    cmpi.w #$FF, $2(a6)                         ;check PR FF
+                    beq.w TSTRTNE_Pr_Autoinc_princ_loop
+                    addq.w #$01, $2(a6)
+                    bra.w TSTRTNE_Pr_Apply
+
+                    TSTRTNE_Pr_Autoinc_princ_loop:
+                        move.w #$00, $2(a6)                     ;reset PR
+                        bra.w TSTRTNE_Pr_Apply
+
+
             TSTRTNE_Pr_PrntVal:
                 move.w #7, d5                                   ;repeat 8 times
                 move.w #11, d4                                  ;set xpos
                 TSTRTNE_Pr_PrntVal_prntloop:
-                    cmp.w d5, d6                                ;check that the value of the loop counter is equal to the currently selected bit
+                    move.w $0(a6), d1                           ;get digit number
+                    cmp.w d5, d1                                ;check that the value of the loop counter is equal to the currently selected bit
                     beq.s TSTRTNE_Pr_PrntVal_prntloop_redtxt    ;if same, use red
 
                     move.w #1, d0                               ;if not, use light blue
@@ -1759,7 +1798,8 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
                         move.w #4, d0
 
                     TSTRTNE_Pr_PrntVal_prntloop_chkbt:
-                        btst.l d5, d7                               ;check bit value
+                        move.w $2(a6), d1                       ;get PR bits
+                        btst.l d5, d1                           ;check bit value
                         bne.s TSTRTNE_Pr_PrntVal_prntloop_one
                         lea PRBITZERO, a0
                         bra.s TSTRTNE_Pr_PrntVal_prntloop_prnt
@@ -1784,7 +1824,39 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
                         addq.w #1, d4                               ;add 1 to xpos
                         dbf d5, TSTRTNE_Pr_PrntVal_prntloop         ;loop
 
-            jsr funcScrExitMessage
+                jsr funcScrExitMessage
+
+                cmpi.w #8, $0(a6)                               ;digitnum 8
+                bne.s TSTRTNE_PR_PrntVal_delautoinc
+
+                cmpi.w #3, $4(a6)                               ;timer 3
+                beq.s TSTRTNE_PR_PrntVal_prntautoinc
+
+                cmpi.w #7, $4(a6)                               ;timer 7
+                beq.s TSTRTNE_PR_PrntVal_delautoinc
+
+                bra.s TSTRTNE_Pr_KeyInDelay
+
+                TSTRTNE_PR_PrntVal_delautoinc:
+                    lea PRAUTOINC, a0
+                    move.l a0, -(sp)
+                    move.w #6, -(sp)
+                    move.w #9, -(sp)
+                    move.w #4, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w PRINTTEXT
+
+                    bra.s TSTRTNE_Pr_KeyInDelay
+
+                TSTRTNE_PR_PrntVal_prntautoinc:
+                    lea PRAUTOINC, a0
+                    move.l a0, -(sp)
+                    move.w #4, -(sp)
+                    move.w #9, -(sp)
+                    move.w #4, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w PRINTTEXT
+
 
             TSTRTNE_Pr_KeyInDelay:
                 move.w $5CC02, d0
@@ -1802,6 +1874,7 @@ PRMESSAGE0      dc.w ' Scarlet V-block   TM-A ', $0000
 PRMESSAGE1      dc.w '  Green H-block    TM-B ', $0000
 PRMESSAGE2      dc.w ' Saffron V-block   OBJ  ', $0000
 PRMESSAGE3      dc.w 'Press A to apply changes', $0000
+PRAUTOINC       dc.w 'Auto increment', $0000
 
 
 
@@ -1824,7 +1897,7 @@ PRMESSAGE3      dc.w 'Press A to apply changes', $0000
 
             move.l #$3C400, -(sp)                                   ;copy tiles(2CC00 on ROM)
             move.w #16, -(sp)
-            move.w #1432, -(sp)
+            move.w #1416, -(sp)
             jsr funcLoadBubble
 
             jsr funcClearTilemap
@@ -2815,9 +2888,9 @@ DATACOPYTARGET  dc.w '  Target', $0000
         *--------------------------------------------------------
 
         TSTRTNE_Contributors:
-            move.l #$3C400, -(sp)                                       ;copy tiles(2C400 on ROM)
+            move.l #$3CC00, -(sp)                                       ;copy tiles(2C400 on ROM)
             move.w #16, -(sp)
-            move.w #1416, -(sp)
+            move.w #1432, -(sp)
             jsr funcLoadBubble
 
 
@@ -2825,7 +2898,7 @@ DATACOPYTARGET  dc.w '  Target', $0000
 
             move.w #16, -(sp)
             move.w #4, -(sp)
-            move.w #$F620, -(sp)                                        ;bubbledrive Korean logo
+            move.w #$F660, -(sp)                                        ;bubbledrive Korean logo
             move.w #$000B, -(sp)
             move.w #8, -(sp)
             move.w #16, -(sp)
