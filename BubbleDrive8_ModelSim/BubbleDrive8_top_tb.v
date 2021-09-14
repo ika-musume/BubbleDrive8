@@ -3,12 +3,13 @@ module BubbleDrive8_top_tb;
 
 reg             master_clock = 1'b1;
 wire            clock_out;
+reg             power_status = 1'b1;
 
 reg             bubble_shift_enable = 1'b1;
 reg             replicator_enable = 1'b1;
 reg             bootloop_enable = 1'b0;
 
-reg             power_good = 1'b1;
+reg             power_good = 1'b0;
 wire            temperature_low;
 
 reg     [2:0]   image_dip_switch = 3'b000;
@@ -42,6 +43,8 @@ wire    [5:0]   ACBUS;
 assign ACBUS[5] = 1'b1;
 assign ACBUS[4:2] = 3'bZZZ;
 assign ACBUS[1:0] = 2'b00;
+
+
 
 
 
@@ -86,7 +89,7 @@ BubbleDrive8_top Main
     .nFANEN         (nFANEN         ),
 
     //MPSSE
-    .PWRSTAT        (1'b0           ),
+    .PWRSTAT        (power_status   ),
     .ADBUS          (ADBUS          ),
     .ACBUS          (ACBUS          ),
 
@@ -122,7 +125,9 @@ always #1 master_clock = ~master_clock;
 
 initial
 begin
-    #300000 power_good = 1'b0;
+    #100000 power_good = 1'b1; power_status = 1'b1;
+    #100000 power_good = 1'b1; power_status = 1'b0;
+    #100000 power_good = 1'b0; power_status = 1'b0;
 end
 
 always @(posedge temperature_low)

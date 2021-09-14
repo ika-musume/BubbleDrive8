@@ -8,8 +8,8 @@ module BubbleDrive8_usb
     input   wire            MCLK,
 
     //FIFO/MPSSE mode select
-    input   wire            nEN,
-    input   wire            PWRSTAT, //(0 = FIFO 1 = MPSSE)
+    input   wire            nFIFOEN,
+    input   wire            nMPSSEEN,
 
     //4bit width mode
     input   wire            BITWIDTH4,
@@ -60,20 +60,9 @@ module BubbleDrive8_usb
 */
 
 //enable signals(active low)
-reg             fifo_output_driver_enable = 1'b1;
-reg             mpsse_connection_enable = 1'b1;
-wire            nMPSSEON;
-
-//controls input / output driver
-always @(*)
-begin
-    case({PWRSTAT, nMPSSEON})
-        2'b00: begin fifo_output_driver_enable <= nEN | 1'b1; mpsse_connection_enable <= nEN | 1'b1; end //illegal access(enabling MPSSE while FIFO accessing)
-        2'b01: begin fifo_output_driver_enable <= nEN | 1'b0; mpsse_connection_enable <= nEN | 1'b1; end //stable FIFO
-        2'b10: begin fifo_output_driver_enable <= nEN | 1'b1; mpsse_connection_enable <= nEN | 1'b0; end //stable MPSSE
-        2'b11: begin fifo_output_driver_enable <= nEN | 1'b1; mpsse_connection_enable <= nEN | 1'b1; end //standby(FIFO, MPSSE is not reconfigured by a host PC yet)
-    endcase
-end
+wire            fifo_output_driver_enable = nFIFOEN;
+wire            mpsse_connection_enable = nMPSSEEN;
+wire            nMPSSERQ;
 
 //declare fifo variables
 reg     [7:0]   FIFO_OUTLATCH;          //ADBUS0-7
@@ -96,7 +85,7 @@ assign nFIFOTXE = ACBUS[1];
 assign ACBUS[2] = (fifo_output_driver_enable == 1'b0) ? nFIFORD : 1'bZ; //set pull-up resistor on the pin
 assign ACBUS[3] = (fifo_output_driver_enable == 1'b0) ? nFIFOWR : 1'bZ;
 assign ACBUS[4] = (fifo_output_driver_enable == 1'b0) ? nFIFOSIWU : 1'bZ;
-assign nMPSSEON = ACBUS[5];
+assign nMPSSERQ = ACBUS[5];
 
 
 
@@ -155,15 +144,15 @@ localparam FIFO_IDLE_S0 = 8'b0000_0001;                  //FIFO 버스에 13(car
 localparam FIFO_IDLE_S1 = 8'b0000_0010;                  //jsr, return 레지스터에 현재 state+1 넣기
 localparam FIFO_IDLE_S2 = 8'b0000_0011;                  //nop
 
-localparam FIFO_RESET = 8'b0000_0000;                    //
+localparam FIFO_RESET = 8'b0000_0000;                    //최초 리셋
 
 //TITLE MESSAGE
-localparam FIFO_PRNTMESSAGE_S0 = 8'b0010_0000;             //루프 횟수 set, 스트링 시작 어드레스 set
-localparam FIFO_PRNTMESSAGE_S1 = 8'b0010_0001;             //루프 카운터가 0 되면 S5로 가기
-localparam FIFO_PRNTMESSAGE_S2 = 8'b0010_0010;             //메시지 롬 read = 0
-localparam FIFO_PRNTMESSAGE_S3 = 8'b0010_0011;             //메시지 롬 read = 1, 메시지 가져다가 FIFO 버스에 올리기, jsr(return 레지스터에 현재 state+1 넣기)
-localparam FIFO_PRNTMESSAGE_S4 = 8'b0010_0100;             //S1으로 가기
-localparam FIFO_PRNTMESSAGE_S5 = 8'b0010_0101;             //부트로더 v루프 설정하고 FIFO_PRNTDATA_S0로 가기, 페이지 v루프 설정하고 PRNTPAGENUM_S0으로 가기
+localparam FIFO_PRNTMESSAGE_S0 = 8'b0010_0000;           //루프 횟수 set, 스트링 시작 어드레스 set
+localparam FIFO_PRNTMESSAGE_S1 = 8'b0010_0001;           //루프 카운터가 0 되면 S5로 가기
+localparam FIFO_PRNTMESSAGE_S2 = 8'b0010_0010;           //메시지 롬 read = 0
+localparam FIFO_PRNTMESSAGE_S3 = 8'b0010_0011;           //메시지 롬 read = 1, 메시지 가져다가 FIFO 버스에 올리기, jsr(return 레지스터에 현재 state+1 넣기)
+localparam FIFO_PRNTMESSAGE_S4 = 8'b0010_0100;           //S1으로 가기
+localparam FIFO_PRNTMESSAGE_S5 = 8'b0010_0101;           //부트로더 v루프 설정하고 FIFO_PRNTDATA_S0로 가기, 페이지 v루프 설정하고 PRNTPAGENUM_S0으로 가기
  
 //PRINT PAGE NUMBER 
 localparam FIFO_PRNTPAGENUM_S0 = 8'b0100_0000;           //digit 2 값을 갖다가 FIFO 어드레스에 넣기, FIFO ROM read = 0
@@ -177,10 +166,10 @@ localparam FIFO_PRNTPAGENUM_S6 = 8'b0100_0110;           //digit 1 변환값을 
 localparam FIFO_PRNTPAGENUM_S7 = 8'b0100_0111;           //jsr(return 레지스터에 현재 state+1 넣기)
 localparam FIFO_PRNTPAGENUM_S8 = 8'b0100_1000;           //digit 0 변환값을 FIFO 버스에 올리기, 
 localparam FIFO_PRNTPAGENUM_S9 = 8'b0100_1001;           //jsr(return 레지스터에 현재 state+1 넣기)
-localparam FIFO_PRNTPAGENUM_S10 = 8'b0100_1010;           //FIFO 버스에 13(carriage return) 올리기
-localparam FIFO_PRNTPAGENUM_S11 = 8'b0100_1011;           //jsr, return 레지스터에 현재 state+1 넣기
- 
-localparam FIFO_PRNTPAGENUM_S12 = 8'b0100_1100;           //FIFO_PRNTDATA_S0로 가기
+localparam FIFO_PRNTPAGENUM_S10 = 8'b0100_1010;          //FIFO 버스에 13(carriage return) 올리기
+localparam FIFO_PRNTPAGENUM_S11 = 8'b0100_1011;          //jsr, return 레지스터에 현재 state+1 넣기
+
+localparam FIFO_PRNTPAGENUM_S12 = 8'b0100_1100;          //FIFO_PRNTDATA_S0로 가기
 
 //DATA BLOCK TRANSFER
 localparam FIFO_PRNTDATA_S0 = 8'b0110_0000;              //스트링 시작 어드레스 set

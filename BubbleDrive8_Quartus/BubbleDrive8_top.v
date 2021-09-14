@@ -73,10 +73,6 @@ module BubbleDrive8_top
 
 reg             BITWIDTH4 = 1'b0;
 
-reg             emucore_en = 1'b1;
-reg             tempsense_en = 1'b1;
-reg             usb_en = 1'b1;
-
 wire            led_delaying;
 
 wire            nFIFOBUFWRCLKEN;
@@ -85,90 +81,6 @@ wire            FIFOBUFWRDATA;
 wire            nFIFOSENDBOOT;
 wire            nFIFOSENDUSER;
 wire    [11:0]  FIFORELPAGE;
-
-BubbleDrive8_emucore BubbleDrive8_emucore_0
-(
-    .MCLK           (MCLK           ),
-    .nEN            (emucore_en     ),
-    .IMGNUM         (IMGNUM         ),
-    .BITWIDTH4      (BITWIDTH4      ),
-
-    .CLKOUT         (CLKOUT         ),
-    .nBSS           (nBSS           ),
-    .nBSEN          (nBSEN          ),
-    .nREPEN         (nREPEN         ),
-    .nBOOTEN        (nBOOTEN        ),
-    .nSWAPEN        (nSWAPEN        ),
-
-    .DOUT0          (DOUT0          ),
-    .DOUT1          (DOUT1          ),
-    .DOUT2          (DOUT2          ),
-    .DOUT3          (DOUT3          ),
-
-    .nROMCS         (nROMCS         ),
-    .ROMCLK         (ROMCLK         ),
-    .ROMIO0         (ROMIO0         ),
-    .ROMIO1         (ROMIO1         ),
-    .ROMIO2         (ROMIO2         ),
-    .ROMIO3         (ROMIO3         ),
-
-    .nFIFOBUFWRCLKEN(nFIFOBUFWRCLKEN),
-    .FIFOBUFWRADDR  (FIFOBUFWRADDR  ),
-    .FIFOBUFWRDATA  (FIFOBUFWRDATA  ),
-    .nFIFOSENDBOOT  (nFIFOSENDBOOT  ),
-    .nFIFOSENDUSER  (nFIFOSENDUSER  ),
-    .FIFORELPAGE    (FIFORELPAGE    ),
-
-    .nACC           (nLED_ACC       )
-);
-
-BubbleDrive8_tempsense BubbleDrive8_tempsense_0
-(
-    .MCLK           (MCLK           ),
-
-    .TEMPSW         (TEMPSW         ),
-    .nEN            (tempsense_en   ),
-
-    .FORCESTART     (FORCESTART     ),
-
-    .nTEMPLO        (nTEMPLO        ),
-    .nFANEN         (nFANEN         ),
-    .nDELAYING      (led_delaying   ),
-
-    .nTEMPCS        (nTEMPCS        ),
-    .TEMPSIO        (TEMPSIO        ),
-    .TEMPCLK        (TEMPCLK        )
-);
-
-BubbleDrive8_usb BubbleDrive8_usb_0
-(
-    .MCLK           (MCLK           ),
-
-    .PWRSTAT        (PWRSTAT        ),
-    .nEN            (usb_en         ),
-
-    .BITWIDTH4      (BITWIDTH4      ),
-
-    .nFIFOBUFWRCLKEN(nFIFOBUFWRCLKEN),
-    .FIFOBUFWRADDR  (FIFOBUFWRADDR  ),
-    .FIFOBUFWRDATA  (FIFOBUFWRDATA  ),
-    .nFIFOSENDBOOT  (nFIFOSENDBOOT  ),
-    .nFIFOSENDUSER  (nFIFOSENDUSER  ),
-    .FIFORELPAGE    (FIFORELPAGE    ),
-
-    .MPSSECLK       (               ),
-    .MPSSEMOSI      (               ),
-    .MPSSEMISO      (               ),
-    .nMPSSECS       (               ),
-
-    .ADBUS          (ADBUS          ),
-    .ACBUS          (ACBUS          )
-);
-
-
-
-
-
 
 
 /*
@@ -250,9 +162,15 @@ localparam ERROR_S1 = 3'b111;           //전원공급은 USB이나 기판 MRST�
 
 //emulator state
 reg     [2:0]   emulator_state = RESET_S0;
+
 reg             ledctrl_delaying = 1'b1;
 reg             ledctrl_pwrok = 1'b1;
 reg             ledctrl_standby = 1'b1;
+
+reg             emucore_en = 1'b1;
+reg             tempsense_en = 1'b1;
+reg             fifo_en = 1'b1;
+reg             mpsse_en = 1'b1;
 
 assign nLED_DELAYING = ledctrl_delaying | led_delaying;
 assign nLED_PWROK = ledctrl_pwrok & blinker;
@@ -276,13 +194,13 @@ begin
         EMULATOR_S1: emulator_state <= EMULATOR_S1;
 
         MPSSE_STANDBY_S0:
-            if({PWRSTAT, MRST} == 2'b00)
+            if({PWRSTAT, MRST} == 2'b11)
             begin
-                emulator_state <= RESET_S0;
+                emulator_state <= MPSSE_STANDBY_S0;
             end
             else
             begin
-                emulator_state <= MPSSE_STANDBY_S0;
+                emulator_state <= RESET_S0;
             end
 
         ERROR_S0:
@@ -295,7 +213,7 @@ begin
                 emulator_state <= RESET_S0;
             end
         ERROR_S1:
-            if({PWRSTAT, MRST} == 2'b11)
+            if({PWRSTAT, MRST} == 2'b10)
             begin
                 emulator_state <= ERROR_S1;
             end
@@ -314,7 +232,8 @@ begin
         begin
             emucore_en <= 1'b1;
             tempsense_en <= 1'b1;
-            usb_en <= 1'b1;
+            fifo_en <= 1'b1;
+            mpsse_en <= 1'b1;
 
             ledctrl_delaying <= 1'b1;
             ledctrl_pwrok <= 1'b1;
@@ -335,19 +254,26 @@ begin
         begin
             emucore_en <= 1'b0;
             tempsense_en <= 1'b0;
-            usb_en <= 1'b0;
+            fifo_en <= 1'b0;
+            mpsse_en <= 1'b1;
 
             ledctrl_delaying <= 1'b0;
             ledctrl_pwrok <= 1'b0;
             ledctrl_standby <= 1'b1;
+
+            blinker_stop <= 1'b0;
+            blinker_start <= 1'b1;
         end
 
         MPSSE_STANDBY_S0:
         begin
-            usb_en <= 1'b0;
+            emucore_en <= 1'b1;
+            tempsense_en <= 1'b1;
+            fifo_en <= 1'b1;
+            mpsse_en <= 1'b0;
 
             ledctrl_delaying <= 1'b1;
-            ledctrl_pwrok <= 1'b1;
+            ledctrl_pwrok <= 1'b0;
             ledctrl_standby <= 1'b0;
 
             blinker_stop <= 1'b1;
@@ -369,7 +295,6 @@ begin
             ledctrl_pwrok <= 1'b1;
             ledctrl_standby <= 1'b1;
             
-            ledctrl_pwrok <= 1'b1;
             blinker_stop <= 1'b1;
             blinker_start <= 1'b0;
         end
@@ -377,5 +302,86 @@ begin
         default: begin end
     endcase    
 end
+
+
+BubbleDrive8_emucore BubbleDrive8_emucore_0
+(
+    .MCLK           (MCLK           ),
+    .nEN            (emucore_en     ),
+    .IMGNUM         (IMGNUM         ),
+    .BITWIDTH4      (BITWIDTH4      ),
+
+    .CLKOUT         (CLKOUT         ),
+    .nBSS           (nBSS           ),
+    .nBSEN          (nBSEN          ),
+    .nREPEN         (nREPEN         ),
+    .nBOOTEN        (nBOOTEN        ),
+    .nSWAPEN        (nSWAPEN        ),
+
+    .DOUT0          (DOUT0          ),
+    .DOUT1          (DOUT1          ),
+    .DOUT2          (DOUT2          ),
+    .DOUT3          (DOUT3          ),
+
+    .nROMCS         (nROMCS         ),
+    .ROMCLK         (ROMCLK         ),
+    .ROMIO0         (ROMIO0         ),
+    .ROMIO1         (ROMIO1         ),
+    .ROMIO2         (ROMIO2         ),
+    .ROMIO3         (ROMIO3         ),
+
+    .nFIFOBUFWRCLKEN(nFIFOBUFWRCLKEN),
+    .FIFOBUFWRADDR  (FIFOBUFWRADDR  ),
+    .FIFOBUFWRDATA  (FIFOBUFWRDATA  ),
+    .nFIFOSENDBOOT  (nFIFOSENDBOOT  ),
+    .nFIFOSENDUSER  (nFIFOSENDUSER  ),
+    .FIFORELPAGE    (FIFORELPAGE    ),
+
+    .nACC           (nLED_ACC       )
+);
+
+BubbleDrive8_tempsense BubbleDrive8_tempsense_0
+(
+    .MCLK           (MCLK           ),
+
+    .TEMPSW         (TEMPSW         ),
+    .nEN            (tempsense_en   ),
+
+    .FORCESTART     (FORCESTART     ),
+
+    .nTEMPLO        (nTEMPLO        ),
+    .nFANEN         (nFANEN         ),
+    .nDELAYING      (led_delaying   ),
+
+    .nTEMPCS        (nTEMPCS        ),
+    .TEMPSIO        (TEMPSIO        ),
+    .TEMPCLK        (TEMPCLK        )
+);
+
+BubbleDrive8_usb BubbleDrive8_usb_0
+(
+    .MCLK           (MCLK           ),
+
+    .nFIFOEN        (fifo_en        ),
+    .nMPSSEEN       (mpsse_en       ),
+
+    .BITWIDTH4      (BITWIDTH4      ),
+
+    .nFIFOBUFWRCLKEN(nFIFOBUFWRCLKEN),
+    .FIFOBUFWRADDR  (FIFOBUFWRADDR  ),
+    .FIFOBUFWRDATA  (FIFOBUFWRDATA  ),
+    .nFIFOSENDBOOT  (nFIFOSENDBOOT  ),
+    .nFIFOSENDUSER  (nFIFOSENDUSER  ),
+    .FIFORELPAGE    (FIFORELPAGE    ),
+
+    .MPSSECLK       (               ),
+    .MPSSEMOSI      (               ),
+    .MPSSEMISO      (               ),
+    .nMPSSECS       (               ),
+
+    .ADBUS          (ADBUS          ),
+    .ACBUS          (ACBUS          )
+);
+
 
 endmodule

@@ -220,7 +220,7 @@ end
 //DOUT2
 reg             D2_outbuffer[8191:0];
 reg             D2_outbuffer_read_data;
-assign          DOUT2 = (BITWIDTH4 == 1'b0) ? ~1'b0 : ~D2_outbuffer_read_data;
+assign          DOUT2 = (BITWIDTH4 == 1'b0) ? ~1'b1 : ~D2_outbuffer_read_data;
 
 always @(negedge MCLK)
 begin
@@ -250,7 +250,7 @@ end
 //DOUT3
 reg             D3_outbuffer[8191:0];
 reg             D3_outbuffer_read_data;
-assign          DOUT3 = (BITWIDTH4 == 1'b0) ? ~1'b0 : ~D3_outbuffer_read_data;
+assign          DOUT3 = (BITWIDTH4 == 1'b0) ? ~1'b1 : ~D3_outbuffer_read_data;
 
 always @(negedge MCLK)
 begin
