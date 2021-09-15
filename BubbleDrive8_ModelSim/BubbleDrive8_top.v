@@ -160,21 +160,25 @@ localparam MPSSE_STANDBY_S0 = 3'b101;   //버블 모듈 diasble, FIFO disable, M
 localparam ERROR_S0 = 3'b110;           //FPGA는 켜졌으나 기판 MRST가 1일때(-12V 등 불량)
 localparam ERROR_S1 = 3'b111;           //전원공급은 USB이나 기판 MRST가 0일때(애매한 상태)
 
-//emulator state
-reg     [2:0]   emulator_state = RESET_S0;
 
 reg             ledctrl_delaying = 1'b1;
 reg             ledctrl_pwrok = 1'b1;
 reg             ledctrl_standby = 1'b1;
 
-reg             emucore_en = 1'b1;
-reg             tempsense_en = 1'b1;
-reg             fifo_en = 1'b1;
-reg             mpsse_en = 1'b1;
-
 assign nLED_DELAYING = ledctrl_delaying | led_delaying;
 assign nLED_PWROK = ledctrl_pwrok & blinker;
 assign nLED_STANDBY = (ledctrl_standby | blinker) & ~led_delaying;
+
+//emulator state
+reg     [2:0]   emulator_state = RESET_S0;
+
+reg             emucore_en = 1'b1;
+reg             tempsense_en = 1'b1;
+reg             fifo_en_reg = 1'b1;
+reg             mpsse_en = 1'b1;
+wire            fifo_en = fifo_en_reg | ~nTEMPLO;
+
+
 
 //state flow control
 always @(posedge MCLK)
@@ -232,7 +236,7 @@ begin
         begin
             emucore_en <= 1'b1;
             tempsense_en <= 1'b1;
-            fifo_en <= 1'b1;
+            fifo_en_reg <= 1'b1;
             mpsse_en <= 1'b1;
 
             ledctrl_delaying <= 1'b1;
@@ -254,7 +258,7 @@ begin
         begin
             emucore_en <= 1'b0;
             tempsense_en <= 1'b0;
-            fifo_en <= 1'b0;
+            fifo_en_reg <= 1'b0;
             mpsse_en <= 1'b1;
 
             ledctrl_delaying <= 1'b0;
@@ -269,7 +273,7 @@ begin
         begin
             emucore_en <= 1'b1;
             tempsense_en <= 1'b1;
-            fifo_en <= 1'b1;
+            fifo_en_reg <= 1'b1;
             mpsse_en <= 1'b0;
 
             ledctrl_delaying <= 1'b1;
