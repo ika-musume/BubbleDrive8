@@ -36,12 +36,15 @@ module BubbleDrive8_top
     input   wire            ROMIO2,
     input   wire            ROMIO3,
 
+    //general settings dip switch
+    input   wire    [3:0]   SETTINGSW,  //4MBIT/reserved/flash FRAM type/FANEN
+
 
     /////////////////////////////////////////////
     //// TEMPERATURE DETECTOR CORE
 
     //control inputs
-    input   wire    [2:0]   TEMPSW,
+    input   wire    [1:0]   DELAYSW,
     input   wire            FORCESTART,
 
     //TC77
@@ -71,7 +74,9 @@ module BubbleDrive8_top
     output  wire            nLED_PWROK
 );
 
-reg             BITWIDTH4 = 1'b0;
+
+wire    [2:0]   tempsense_setting = {SETTINGSW[0], DELAYSW};
+wire            bitwidth4 = ~SETTINGSW[3];
 
 wire            led_delaying;
 
@@ -313,7 +318,7 @@ BubbleDrive8_emucore BubbleDrive8_emucore_0
     .MCLK           (MCLK           ),
     .nEN            (emucore_en     ),
     .IMGNUM         (IMGNUM         ),
-    .BITWIDTH4      (BITWIDTH4      ),
+    .BITWIDTH4      (bitwidth4      ),
 
     .CLKOUT         (CLKOUT         ),
     .nBSS           (nBSS           ),
@@ -348,9 +353,9 @@ BubbleDrive8_tempsense BubbleDrive8_tempsense_0
 (
     .MCLK           (MCLK           ),
 
-    .TEMPSW         (TEMPSW         ),
     .nEN            (tempsense_en   ),
 
+    .SETTING        (tempsense_setting  ),
     .FORCESTART     (FORCESTART     ),
 
     .nTEMPLO        (nTEMPLO        ),
@@ -369,7 +374,7 @@ BubbleDrive8_usb BubbleDrive8_usb_0
     .nFIFOEN        (fifo_en        ),
     .nMPSSEEN       (mpsse_en       ),
 
-    .BITWIDTH4      (BITWIDTH4      ),
+    .BITWIDTH4      (bitwidth4      ),
 
     .nFIFOBUFWRCLKEN(nFIFOBUFWRCLKEN),
     .FIFOBUFWRADDR  (FIFOBUFWRADDR  ),

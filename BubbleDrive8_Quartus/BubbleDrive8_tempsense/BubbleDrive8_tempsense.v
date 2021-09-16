@@ -11,7 +11,7 @@ module BubbleDrive8_tempsense
     input   wire            nEN,
 
     //startup delay set switch
-    input   wire    [2:0]   TEMPSW, //[FAN/DELAY1/DELAY0]
+    input   wire    [2:0]   SETTING, //[FAN/DELAY1/DELAY0]
 
     //force start switch
     input   wire            FORCESTART,
@@ -275,7 +275,7 @@ begin
         end
         RESET_S1: 
         begin
-            dip_switch_settings <= ~TEMPSW;
+            dip_switch_settings <= ~SETTING;
         end
         RESET_S2:
         begin

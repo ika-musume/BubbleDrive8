@@ -77,8 +77,10 @@ BubbleDrive8_top Main
     .ROMIO2         (ROMIO2         ),
     .ROMIO3         (ROMIO3         ),
 
+    .SETTINGSW      (4'b1110        ),
+
     //temperature detector
-    .TEMPSW         (3'b000         ),
+    .DELAYSW        (2'b00          ),
     .FORCESTART     (1'b0           ),
 
     .nTEMPCS        (nTEMPCS        ),
@@ -95,7 +97,7 @@ BubbleDrive8_top Main
 
     .nLED_ACC       (nLED_ACC       ),
     .nLED_DELAYING  (nLED_DELAYING  ),
-    .nLED_STANDBY   (nLED_STANDBY    ),
+    .nLED_STANDBY   (nLED_STANDBY   ),
     .nLED_PWROK     (nLED_PWROK     )
 );
 
