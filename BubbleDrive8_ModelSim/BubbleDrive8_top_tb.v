@@ -67,8 +67,9 @@ BubbleDrive8_top Main
     .DOUT1          (bubble_out_1   ),
     .DOUT2          (               ),
     .DOUT3          (               ),
+    .n4BEN          (               ),
 
-    .IMGNUM         (3'b000         ),
+    .IMGNUMSW       (3'b111         ),
 
     .nROMCS         (nROMCS         ),
     .ROMCLK         (ROMCLK         ),
@@ -87,7 +88,7 @@ BubbleDrive8_top Main
     .TEMPCLK        (TEMPCLK        ),
     .TEMPSIO        (TEMPSIO        ),
 
-    .nTEMPLO        (temperature_low),
+    .TEMPLO         (temperature_low),
     .nFANEN         (nFANEN         ),
 
     //MPSSE
@@ -132,7 +133,7 @@ begin
     #100000 power_good = 1'b0; power_status = 1'b0;
 end
 
-always @(posedge temperature_low)
+always @(negedge temperature_low)
 begin
     //bootloader
     #50038 replicator_enable = 1'b0;
@@ -155,7 +156,7 @@ begin
     #683 replicator_enable = 1'b1;
 end
 
-always @(posedge temperature_low)
+always @(negedge temperature_low)
 begin
     //bootloader
     #50000 bubble_shift_enable = 1'b0;

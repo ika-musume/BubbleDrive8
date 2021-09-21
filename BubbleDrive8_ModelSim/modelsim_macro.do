@@ -4,7 +4,7 @@ add wave -noupdate /BubbleDrive8_top_tb/Main/PWRSTAT
 add wave -noupdate /BubbleDrive8_top_tb/Main/MRST
 add wave -noupdate /BubbleDrive8_top_tb/Main/emucore_en
 add wave -noupdate /BubbleDrive8_top_tb/Main/tempsense_en
-add wave -noupdate /BubbleDrive8_top_tb/Main/usb_en
+add wave -noupdate /BubbleDrive8_top_tb/temperature_low
 add wave -noupdate /BubbleDrive8_top_tb/Main/nLED_DELAYING
 add wave -noupdate /BubbleDrive8_top_tb/Main/nLED_STANDBY
 add wave -noupdate /BubbleDrive8_top_tb/Main/nLED_PWROK
@@ -27,8 +27,8 @@ add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenera
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/nREPEN
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/nREPEN_intl
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/ACCTYPE
-add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/ABSPAGE
-add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/Main/RELPAGE
+add wave -noupdate -radix decimal /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/ABSPAGE
+add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/Main/RELPAGE
 add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/MCLK_counter
 add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/bout_bootloop_cycle_counter
 add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/BOUTCYCLENUM
@@ -37,6 +37,9 @@ add wave -noupdate /BubbleDrive8_top_tb/Main/DOUT3
 add wave -noupdate /BubbleDrive8_top_tb/Main/DOUT2
 add wave -noupdate /BubbleDrive8_top_tb/Main/DOUT1
 add wave -noupdate /BubbleDrive8_top_tb/Main/DOUT0
+add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/OUTBUFWRADDR
+add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/nOUTBUFWRCLKEN
+add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/OUTBUFWRDATA
 add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/FIFOBUFWRADDR
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/nFIFOBUFWRCLKEN
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/FIFOBUFWRDATA
@@ -44,10 +47,12 @@ add wave -noupdate /BubbleDrive8_top_tb/Main/nROMCS
 add wave -noupdate /BubbleDrive8_top_tb/Main/ROMCLK
 add wave -noupdate /BubbleDrive8_top_tb/Main/ROMIO0
 add wave -noupdate /BubbleDrive8_top_tb/Main/ROMIO1
+add wave -noupdate /BubbleDrive8_top_tb/ROMIO2
+add wave -noupdate /BubbleDrive8_top_tb/ROMIO3
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/mosi_enable
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/spi_instruction
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/SPI_OUTLATCH
-add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/general_counter
+add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/general_counter
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/spi_state
 add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/SIPOBuffer_0/SIPOWRADDR
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/SIPOBuffer_0/D7/nWRCLKEN
@@ -70,7 +75,7 @@ add wave -noupdate -radix hexadecimal /BubbleDrive8_top_tb/Main/BubbleDrive8_usb
 add wave -noupdate -radix ascii /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/ADBUS
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/ACBUS
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {82601519 ns} 0} {{Cursor 3} {79513600 ns} 1}
+WaveRestoreCursors {{Cursor 1} {15011540 ns} 0} {{Cursor 3} {79513600 ns} 1}
 quietly wave cursor active 1
 configure wave -namecolwidth 150
 configure wave -valuecolwidth 100
@@ -86,4 +91,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {40433910 ns} {105841988 ns}
+WaveRestoreZoom {0 ns} {242221056 ns}

@@ -21,12 +21,13 @@ module BubbleDrive8_top
     output  wire            DOUT1,
     output  wire            DOUT2,
     output  wire            DOUT3,
+    output  wire            n4BEN,
 
     //PCB power status input
     input   wire            MRST,
 
     //control inputs
-    input   wire    [2:0]   IMGNUM,
+    input   wire    [2:0]   IMGNUMSW,
 
     //W25Q32
     output  wire            nROMCS,
@@ -53,7 +54,7 @@ module BubbleDrive8_top
     inout   wire            TEMPSIO,
 
     //status signals
-    output  wire            nTEMPLO,
+    output  wire            TEMPLO,
     output  wire            nFANEN,
 
 
@@ -74,11 +75,17 @@ module BubbleDrive8_top
     output  wire            nLED_PWROK
 );
 
+reg     [8:0]   dip_switch_settings; //4MBIT/reserved/flash-FRAM type/FANEN _ delay[1:0] _ IMGNUM[2:0]
 
-wire    [2:0]   tempsense_setting = {SETTINGSW[0], DELAYSW};
-wire            bitwidth4 = ~SETTINGSW[3];
+wire            bitwidth4 = dip_switch_settings[8];
+wire    [2:0]   tempsense_setting = dip_switch_settings[5:3];
+wire    [2:0]   image_number = dip_switch_settings[2:0];
+
+assign n4BEN = SETTINGSW[3];
 
 wire            led_delaying;
+wire            temperature_low;
+assign          TEMPLO = ~temperature_low;
 
 wire            nFIFOBUFWRCLKEN;
 wire    [12:0]  FIFOBUFWRADDR;
@@ -181,7 +188,7 @@ reg             emucore_en = 1'b1;
 reg             tempsense_en = 1'b1;
 reg             fifo_en_reg = 1'b1;
 reg             mpsse_en = 1'b1;
-wire            fifo_en = fifo_en_reg | ~nTEMPLO;
+wire            fifo_en = fifo_en_reg | ~temperature_low;
 
 
 
@@ -250,14 +257,18 @@ begin
 
             blinker_stop <= 1'b0;
             blinker_start <= 1'b1;
+
+            dip_switch_settings <= {~SETTINGSW, ~DELAYSW, ~IMGNUMSW};
         end
 
         MODE_SELECT_S0:
         begin 
+            
         end
 
         EMULATOR_S0:
         begin
+            
         end
         EMULATOR_S1:
         begin
@@ -317,7 +328,7 @@ BubbleDrive8_emucore BubbleDrive8_emucore_0
 (
     .MCLK           (MCLK           ),
     .nEN            (emucore_en     ),
-    .IMGNUM         (IMGNUM         ),
+    .IMGNUM         (image_number   ),
     .BITWIDTH4      (bitwidth4      ),
 
     .CLKOUT         (CLKOUT         ),
@@ -358,7 +369,7 @@ BubbleDrive8_tempsense BubbleDrive8_tempsense_0
     .SETTING        (tempsense_setting  ),
     .FORCESTART     (FORCESTART     ),
 
-    .nTEMPLO        (nTEMPLO        ),
+    .nTEMPLO        (temperature_low),
     .nFANEN         (nFANEN         ),
     .nDELAYING      (led_delaying   ),
 

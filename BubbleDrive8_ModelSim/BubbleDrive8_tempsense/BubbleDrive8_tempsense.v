@@ -34,9 +34,6 @@ module BubbleDrive8_tempsense
 //Temperature checking period(seconds)
 localparam      CHECKING_PERIOD = 16'd20;
 
-//DIP switch setting latching register
-reg     [2:0]   dip_switch_settings = 3'b000;
-
 reg signed  [31:0]  delaying_time = 32'd0;
 wire [23:0] test = delaying_time[31:8];
 
@@ -90,7 +87,7 @@ TempLoader TempLoader_0
 
 //declare states
 localparam RESET_S0 = 5'b0_0000;
-localparam RESET_S1 = 5'b0_0001;            //딥스위치 데이터 래치
+localparam RESET_S1 = 5'b0_0001;            //nop
 localparam RESET_S2 = 5'b0_0010;            //branch
 
 localparam DELAY_FIXED_S0 = 5'b0_0011;      //여름(00) = 2초, 봄가을(01) = 80초, 겨울(10) = 260초 delaying_time에 로드
@@ -139,7 +136,7 @@ begin
             end
         RESET_S1: tempsense_state <= RESET_S2;
         RESET_S2: 
-            case(dip_switch_settings[1:0])
+            case(SETTING[1:0])
                 2'b00: tempsense_state <= DELAY_FIXED_S0;
                 2'b01: tempsense_state <= DELAY_FIXED_S0;
                 2'b10: tempsense_state <= DELAY_FIXED_S0;
@@ -226,7 +223,7 @@ begin
 
         //팬 가동
         FAN_CONTROL_S0: 
-            if(dip_switch_settings[2] == 1'b1)
+            if(SETTING[2] == 1'b1)
             begin
                 tempsense_state <= FAN_CONTROL_S1;
             end
@@ -275,7 +272,7 @@ begin
         end
         RESET_S1: 
         begin
-            dip_switch_settings <= ~SETTING;
+            
         end
         RESET_S2:
         begin
@@ -285,7 +282,7 @@ begin
         //고정 시간 딜레이
         DELAY_FIXED_S0:
         begin
-            case(dip_switch_settings[1:0])
+            case(SETTING[1:0])
                 2'b00: delaying_time <= 32'sb0000_0000_0000_0000_0000_0010_0000_0000; //2초
                 2'b01: delaying_time <= 32'sb0000_0000_0000_0000_0101_0000_0000_0000; //80초
                 2'b10: delaying_time <= 32'sb0000_0000_0000_0001_0000_0100_0000_0000; //260초
