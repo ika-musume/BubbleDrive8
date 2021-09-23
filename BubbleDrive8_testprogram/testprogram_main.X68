@@ -11,18 +11,17 @@ VECTORS dc.l $00000800                                      ;reset initial SP
 
     ORG     $8
     BOOTLOADER:
-        lea $40000, a5
-        lea $74000, a6
-        move.w #4191, d0                                    ;repeat 4192 times
+        move.w #4111, d0                                    ;repeat 4112 times
         BOOTLOADER_WaitForController:
-            move.w $6(a5), (a6)+
+            nop
             dbf d0, BOOTLOADER_WaitForController            ;Konami engineer added 4112 nop loops at that time
 
-        move.b #1, $5E008                                   ;kick the Z80 watchdog
-        move.b #0, $5E008                                   ;what circuitry acts as watchdog? idk
+        lea $5E008, a6 
+        move.b #1, (a6)                                     ;kick the Z80 watchdog
+        move.b #0, (a6)                                     ;what circuitry acts as watchdog? idk
 
         lea $14C, a0                                        ;bubble memory error map start address in the BOOTLOADER area
-        lea $d00, a1                                        ;target address, does the BMC uses this data using DMA? not verified
+        lea $D00, a1                                        ;target address, does the BMC uses this data using DMA? not verified
         move.w #75, d0                                      ;repeat 76 times
         BOOTLOADER_CopyErrormap:                            ;8*4*76=2432bits, FBM54DB needs 584bits of error map
             move.l (a0)+, (a1)+                             ;2432/4=608, 14 or 15bits of CRC(???) data should be supplied(by observation)
@@ -32,80 +31,81 @@ VECTORS dc.l $00000800                                      ;reset initial SP
         cmpi.w #$5555, d0                                   ;check for 0x5555
         beq.w BOOTLOADER_Jump2ExpROM
 
-        move.w #$0, $4(a5)                                  ;write 0 to 0x40004: bubble buffer DMA pointer initialization(???)
-        move.w $6(a5), d0                                   ;copy data of 0x40006: controller status
+        lea $40000, a0
+
+        move.w #$0, $4(a0)                                  ;write 0 to 0x40004: bubble buffer DMA pointer initialization(???)
+        move.w $6(a0), d0                                   ;copy data of 0x40006: controller status
         cmpi.w #$240, d0                                    ;compare
-        bne.w BOOTLOADER
+        bne.w BOOTLOADER_Restart
 
-        move.w #$1, $0(a5)                                  ;load page 0x001
-        nop                                                 ;BMC is quite slow, works at 4MHz. MC6801(??)
-        move.w #$1, $2(a5)                                  ;READ
-        move.b #1, $5E008                                   ;kick the Z80 watchdog
-        move.b #0, $5E008
+
+        move.w #$1, $0(a0)                                  ;load page 0x001
+        move.w #$1, $2(a0)                                  ;READ
+        move.b #1, (a6)                                     ;kick the Z80 watchdog
+        move.b #0, (a6)
         bsr.w BOOTLOADER_funcBubbleWait
 
-        move.w #$1, $0(a5)                                  ;load page 0x001
-        nop
-        move.w #$1, $2(a5)                                  ;READ
-        move.b #1, $5E008                                   ;kick the Z80 watchdog
-        move.b #0, $5E008
+        move.w #$1, $0(a0)                                  ;load page 0x001
+        move.w #$1, $2(a0)                                  ;READ
+        move.b #1, (a6)                                     ;kick the Z80 watchdog
+        move.b #0, (a6)
         bsr.w BOOTLOADER_funcBubbleWait
 
-        move.w #$801, $0(a5)                                ;write to page 0x801
-        nop
-        move.w #$1, $2(a5)                                  ;WRITE
-        move.b #1, $5E008                                   ;kick the Z80 watchdog
-        move.b #0, $5E008
+        move.w #$801, $0(a0)                                ;load page 0x001
+        move.w #$2, $2(a0)                                  ;WRITE
+        move.b #1, (a6)                                     ;kick the Z80 watchdog
+        move.b #0, (a6)
         bsr.w BOOTLOADER_funcBubbleWait
 
-        move.w #0, $4(a5)                                   ;initialize controller
+        move.w #0, $4(a0)                                   ;initialize controller
         move.w #$1, d1                                      ;set page 0x001 in D1
-        lea $A00, a1                                        ;copy pages from A00
         move.w #5, d0                                       ;consecutive 6 pages
+        lea $A00, a1                                        ;copy pages from A00
         BOOTLOADER_LoadRAMTest:
-            move.w #0, $4(a5)                               ;initialize controller
-            move.w d1, $0(a5)                               ;set page
+            move.w #0, $4(a0)                               ;initialize controller
+            move.w d1, $0(a0)                               ;set page
             nop
-            move.w #1, $2(a5)                               ;READ
-            move.b #1, $5E008                               ;kick the Z80 watchdog
-            move.b #0, $5E008
-            bsr.w BOOTLOADER_funcBubbleWait_loop
+            move.w #$1, $2(a0)                              ;READ
+            addq.w #1, d1                                   ;d1 + 1
+            move.b #1, (a6)                                 ;kick the Z80 watchdog
+            move.b #0, (a6)
 
-            move.w $0(a5), d2                               ;copy last 6 bits
+            bsr.w BOOTLOADER_funcBubbleWait                 ;wait until completion
+
+            move.w $0(a0), d2                               ;copy last 6 bits
             move.w d2, $F80                                 ;place last 5 bits on F80
-            lea $F00, a2                                    ;set source address
+            lea $F00, a3                                    ;set source address
             move.w #65, d3                                  ;repeat 66 times
             BOOTLOADER_LoadRAMTest_ShiftPage:
-                move.l (a2), d2                             ;start shifting: same as the original Konami code
+                move.l (a3), d2                             ;start shifting: same as the original Konami code
                 lsl.l #6, d2
                 swap d2
-                move.w d2, (a2)+
+                move.w d2, (a3)+
                 dbf d3, BOOTLOADER_LoadRAMTest_ShiftPage
 
-            lea $F00, a2
-            move.w #31, d3
+            lea $F00, a3
+            move.w #31, d7
             BOOTLOADER_LoadRAMTest_CopyPage:
-                move.l (a2)+, (a1)+
-                dbf d3, BOOTLOADER_LoadRAMTest_CopyPage
-        
-        addq.w #1, d1
+                move.l (a3)+, (a1)+
+                dbf d7, BOOTLOADER_LoadRAMTest_CopyPage
 
-        dbf d0, BOOTLOADER_LoadRAMTest
+            dbf d0, BOOTLOADER_LoadRAMTest                  ;repeat 6 times
 
-        move.w #0, $4(a5)                                   ;initialize controller
+        move.w #0, $4(a0)                                   ;initialize controller
         jmp $A00
 
-        BOOTLOADER_Jump2ExpROM:
-            jmp $78002
-
         BOOTLOADER_funcBubbleWait:
-            move.w #$8000, d4                               ;signed -32768
+            move.w #$8000, d7                               ;signed -32768
             BOOTLOADER_funcBubbleWait_loop:
                 nop
                 dbf d4, BOOTLOADER_funcBubbleWait_loop
             rts
 
+        BOOTLOADER_Jump2ExpROM:
+            jmp $78002
 
+        BOOTLOADER_Restart:
+            bra.w BOOTLOADER
 
 
     ORG     $A00
@@ -220,6 +220,23 @@ VECTORS dc.l $00000800                                      ;reset initial SP
         or.w d2, d7                                         ;save test result in d7[9]
 
         move.l d7, $800                                     ;save RAM test result to 0x800
+
+        lea $56000, a0                                      ;sprite RAM
+        move.w #$FF, d0                                     ;sprite priority
+        move.w #$FF, d2                                     ;sprite RAM loop (56000-56FFF)
+        INITIALIZATION_ObjRAMInit_vloop:
+            move.w d0, (a0)+                                ;write priority
+            
+            move.w #5, d1                                   ;inner loop
+            INITIALIZATION_ObjRAMInit_hloop:
+                move.w #$FF, (a0)+
+                dbf d1, INITIALIZATION_ObjRAMInit_hloop     ;repeat 6 times
+
+            move.w #$00, (a0)+
+
+            subq.w #1, d0                                   ;decrease priority
+
+            dbf d2, INITIALIZATION_ObjRAMInit_vloop
 
         move.l #$10000, -(sp)
         move.w #70, -(sp)                                   ;70 pages
@@ -510,7 +527,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
 TITLEMESSAGE1   dc.w 'BubbleDrive8', $0000
 TITLEMESSAGE2   dc.w 'System Test Program', $0000
 TITLEMESSAGE3   dc.w '2020-2021 Raki', $0000
-VERSION         dc.w 'B85:K:A:B:2021091302', $0000
+VERSION         dc.w 'B85:K:A:B:2021092302', $0000
 
 
         *--------------------------------------------------------
@@ -527,12 +544,20 @@ VERSION         dc.w 'B85:K:A:B:2021091302', $0000
             TESTMENU_scrollreset:
                 move.w #$0000, (a0)+                        ;move scroll value
                 dbf d0, TESTMENU_scrollreset
-
-            lea $56000, a0
-            move.w #23, d0
-            TESTMENU_objreset:
-                move.w #$0000, (a0)+
-                dbf d0, TESTMENU_objreset
+            
+            ;Clear SPRITE 1 
+            lea $56102, a0                                  ;0: reletive priority: EF
+            move.w #5, d1                                   ;inner loop
+            TESTMENU_Obj1Clr_loop:
+                move.w #$FF, (a0)+
+                dbf d1, TESTMENU_Obj1Clr_loop               ;repeat 6 times
+            
+            ;Clear SPRITE 2
+            lea $56202, a0                                  ;0: reletive priority: DF
+            move.w #5, d1                                   ;inner loop
+            TESTMENU_Obj2Clr_loop:
+                move.w #$FF, (a0)+
+                dbf d1, TESTMENU_Obj2Clr_loop               ;repeat 6 times
 
             move.w #9, d6                                   ;print test menu items: 10 lines
             move.w #8, d7                                   ;YPOS of first line
@@ -1646,11 +1671,9 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
             move.w #10, -(sp)
             move.w #1, -(sp)
             bsr.w DRAWTILEMAP
-
-            lea $56000, a0                                      ;sprite RAM
-
-            ;SPRITE 1
-            move.w #$00EF, (a0)+                                ;0: reletive priority
+            
+            ;SPRITE 1 
+            lea $56102, a0                                      ;0: reletive priority: EF
             move.w #$0020, (a0)+                                ;2: 8*8 = size 3'b100
             move.w #$0080, (a0)+                                ;4: no zoom
             move.w #$00EC, (a0)+                                ;6: 8*8 filled block
@@ -1660,7 +1683,7 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
             move.w #$0000, (a0)+                                ;E: not used
             
             ;SPRITE 2
-            move.w #$00AF, (a0)+                                ;0: reletive priority
+            lea $56202, a0                                      ;0: reletive priority: DF
             move.w #$0020, (a0)+                                ;2: 8*8 = size 3'b100
             move.w #$0080, (a0)+                                ;4: no zoom
             move.w #$00EC, (a0)+                                ;6: 8*8 filled block
