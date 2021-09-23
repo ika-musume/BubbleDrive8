@@ -1,8 +1,9 @@
 *-----------------------------------------------------------
 * Title      : BubbleDrive8_testprogram
 * Written by : Raki
-* Date       : 
-* Description:
+* Date       : 2021-09-23
+* Description: BubbleDrive8 Test Program
+*              B85:K:A:B:2021092302
 *-----------------------------------------------------------
 
     ORG     $0
@@ -270,6 +271,8 @@ VECTORS dc.l $00000800                                      ;reset initial SP
                     bsr.w FILLWORD
                     move.w #$0000, d3
                     bsr.w FILLWORD
+                    move.w #$FFFF, d3
+                    bsr.w FILLWORD
 
                     move.w d2, -(sp)                        ;set ok/failed flag
                     move.l a2, -(sp)                        ;push return address
@@ -280,10 +283,14 @@ VECTORS dc.l $00000800                                      ;reset initial SP
                         movea.l a1, a0                      ;move start address to a0
                         WORDRWTEST:
                             move.w d3, (a0)                 ;write $FFFF, 5555, AAAA, 0000
+                            nop
+                            nop
+                            nop
+                            nop
                             cmp.w (a0)+, d3                 ;read and compare
                             bne.s WORDERROR                 ;if not matches, goto ERROR
                             dbf d0, WORDRWTEST              ;loop
-                        rts
+                            rts
 
                         WORDERROR:
                             bsr.s ERROR
@@ -300,6 +307,8 @@ VECTORS dc.l $00000800                                      ;reset initial SP
                     bsr.w FILLBYTE
                     move.w #$00, d3
                     bsr.w FILLBYTE
+                    move.w #$FF, d3
+                    bsr.w FILLBYTE
 
                     move.w d2, -(sp)                        ;set ok/failed flag
                     move.l a2, -(sp)                        ;push return address
@@ -310,11 +319,15 @@ VECTORS dc.l $00000800                                      ;reset initial SP
                         movea.l a1, a0                      ;move start address to a0
                         BYTERWTEST:                    
                             move.b d3, (a0)                 ;write $FF, 55, AA, 00
+                            nop
+                            nop
+                            nop
+                            nop
                             cmp.b (a0), d3                  ;read and compare
                             addq.l #2, a0                   ;+2 increment
                             bne.s BYTEERROR                 ;if not matches, goto ERROR
                             dbf d0, BYTERWTEST              ;loop
-                        rts
+                            rts
 
                         BYTEERROR:
                             bsr.s ERROR
@@ -405,6 +418,8 @@ VECTORS dc.l $00000800                                      ;reset initial SP
         *--------------------------------------------------------
 
         TITLEPROGRAM:
+            jsr funcClearTilemap
+
             move.w #12, -(sp)
             move.w #12, -(sp)
             move.w #$F060, -(sp)
@@ -413,11 +428,6 @@ VECTORS dc.l $00000800                                      ;reset initial SP
             move.w #18, -(sp)
             move.w #0, -(sp)
             bsr.w DRAWTILEMAP
-
-            move.w #$F05F, -(sp)
-            move.w #$0002, -(sp)
-            move.w #1, -(sp)
-            bsr.w funcFillTilemap      
 
             move.w #0, d7
             move.w #7, d6
