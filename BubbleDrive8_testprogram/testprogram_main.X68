@@ -3,7 +3,7 @@
 * Written by : Raki
 * Date       : 2021-09-23
 * Description: BubbleDrive8 Test Program
-*              B85:K:A:B:2021092302
+*              B85:K:A:C:2021092402
 *-----------------------------------------------------------
 
     ORG     $0
@@ -111,8 +111,8 @@ VECTORS dc.l $00000800                                      ;reset initial SP
 
     ORG     $A00
     INITIALIZATION:                                         ;initial RAM test routines        
-        move.b #1, $5E008                                   ;kick the Z80 watchdog
-        move.b #0, $5E008
+        move.b #1, (a6)                                     ;kick the Z80 watchdog
+        move.b #0, (a6)
         nop
 
         move.b #1, $5C001                                   ;morning music code latch
@@ -123,10 +123,8 @@ VECTORS dc.l $00000800                                      ;reset initial SP
             nop
             dbf d0, INITIALIZATION_DelayLoop                ;initial delay
 
-        move.b #0, $5E004                                   ;Z80 interrupt
-        nop
-        nop
-        move.b #1, $5E004
+        move.b #1, (a6)                                     ;kick the Z80 watchdog
+        move.b #0, (a6)
 
         move.l #$0, d0                                      ;initialize d0
         move.l #$0, d1                                      ;initialize d1
@@ -134,7 +132,6 @@ VECTORS dc.l $00000800                                      ;reset initial SP
         move.l #$0, d3                                      ;initialize d3
         move.l #$0, d4                                      ;initialize d4
         move.l #$0, d7                                      ;initialize d7
-        bset.l #$0, d7                                      ;set bit 0 flag
         
         ;bit 0: shared RAM
         ;bit 1: WORK RAM
@@ -147,10 +144,11 @@ VECTORS dc.l $00000800                                      ;reset initial SP
         ;bit 8: OBJ List RAM
         ;bit 9: Character RAM
 
+
         move.w #1, -(sp)                                    ;Palette RAM test
         move.l #$5A000, -(sp)
         move.l #$1000, -(sp)
-        bsr.w funcRamTest
+        bsr.w funcRamTestInit
         move.w (sp)+, d2
         lsl.w #3, d2
         or.w d2, d7                                         ;save test result in d7[3]
@@ -158,31 +156,15 @@ VECTORS dc.l $00000800                                      ;reset initial SP
         move.w #1, -(sp)                                    ;Work RAM test
         move.l #$10000, -(sp)
         move.l #$10000, -(sp)
-        bsr.w funcRamTest
+        bsr.w funcRamTestInit
         move.w (sp)+, d2
         lsl.w #1, d2
         or.w d2, d7                                         ;save test result in d7[1]
 
-        move.w #0, -(sp)                                    ;Z80 RAM test
-        move.l #$20000, -(sp)                
-        move.l #$8000, -(sp)                   
-        bsr.w funcRamTest
-        move.w (sp)+, d2
-        lsl.w #2, d2           
-        or.w d2, d7                                         ;save test result in d7[2]
-
-        move.w #1, -(sp)                                    ;expansion RAM
-        move.l #$70000, -(sp)                
-        move.l #$4000, -(sp)                   
-        bsr.w funcRamTest
-        move.w (sp)+, d2
-        lsl.w #4, d2           
-        or.w d2, d7                                         ;save test result in d7[4]
-
         move.w #0, -(sp)                                    ;scroll RAM test
         move.l #$50000, -(sp)                
         move.l #$1000, -(sp)                   
-        bsr.w funcRamTest
+        bsr.w funcRamTestInit
         move.w (sp)+, d2
         lsl.w #5, d2           
         or.w d2, d7                                         ;save test result in d7[5]
@@ -190,7 +172,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
         move.w #1, -(sp)                                    ;tilemap RAM test
         move.l #$52000, -(sp)                
         move.l #$2000, -(sp)                   
-        bsr.w funcRamTest
+        bsr.w funcRamTestInit
         move.w (sp)+, d2
         lsl.w #6, d2         
         or.w d2, d7                                         ;save test result in d7[6]
@@ -198,7 +180,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
         move.w #0, -(sp)                                    ;tile color RAM test
         move.l #$54000, -(sp)                
         move.l #$2000, -(sp)                   
-        bsr.w funcRamTest
+        bsr.w funcRamTestInit
         move.w (sp)+, d2
         lsl.w #7, d2           
         or.w d2, d7                                         ;save test result in d7[7]
@@ -206,7 +188,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
         move.w #0, -(sp)                                    ;sprite RAM test
         move.l #$56000, -(sp)                
         move.l #$1000, -(sp)                   
-        bsr.w funcRamTest
+        bsr.w funcRamTestInit
         move.w (sp)+, d2
         lsl.w #8, d2           
         or.w d2, d7                                         ;save test result in d7[8]
@@ -214,13 +196,26 @@ VECTORS dc.l $00000800                                      ;reset initial SP
         move.w #1, -(sp)                                    ;Character RAM test
         move.l #$30000, -(sp)                
         move.l #$10000, -(sp)                   
-        bsr.w funcRamTest                  
+        bsr.w funcRamTestInit                  
         move.w (sp)+, d2
         lsl.w #8, d2
         lsl.w #1, d2                
         or.w d2, d7                                         ;save test result in d7[9]
 
+        move.w #1, -(sp)                                    ;expansion RAM
+        move.l #$70000, -(sp)                
+        move.l #$4000, -(sp)                   
+        jsr funcRamTestInit
+        move.w (sp)+, d2
+        lsl.w #4, d2           
+        or.w d2, d7                                         ;save test result in d7[4]
+
         move.l d7, $800                                     ;save RAM test result to 0x800
+
+        move.b #0, $5E004                                   ;Z80 interrupt
+        nop
+        nop
+        move.b #1, $5E004
 
         lea $56000, a0                                      ;sprite RAM
         move.w #$FF, d0                                     ;sprite priority
@@ -239,16 +234,23 @@ VECTORS dc.l $00000800                                      ;reset initial SP
 
             dbf d2, INITIALIZATION_ObjRAMInit_vloop
 
+        move.b #1, (a6)                                     ;kick the Z80 watchdog
+        move.b #0, (a6)
+
         move.l #$10000, -(sp)
-        move.w #70, -(sp)                                   ;70 pages
+        move.w #71, -(sp)                                   ;72 pages
         move.w #7, -(sp)                                    ;from 0x380
         bsr.w funcLoadBubble
 
+        move.b #1, (a6)                                     ;kick the Z80 watchdog
+        move.b #0, (a6)
+
         jmp $10000                                          ;goto work ram
 
-
-        ;FUNCTION RAMTEST
-        funcRamTest:                                        ;bit width flag -> start address -> test length -> return address
+        ;
+        ;           FUNCTION RAMTEST WITH INITIALIZATION
+        ;
+        funcRamTestInit:                                    ;bit width flag -> start address -> test length -> return address
             movea.l (sp)+, a2                               ;pop return address
             move.l (sp)+, d1                                ;pop test length
             movea.l (sp)+, a1                               ;pop start address
@@ -262,7 +264,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
 
             move.w #0, d2                                   ;initialize d2
 
-                WORDTEST:       
+                WORDTEST:
                     move.w #$FFFF, d3
                     bsr.w FILLWORD
                     move.w #$5555, d3
@@ -271,19 +273,22 @@ VECTORS dc.l $00000800                                      ;reset initial SP
                     bsr.w FILLWORD
                     move.w #$0000, d3
                     bsr.w FILLWORD
-                    move.w #$FFFF, d3
-                    bsr.w FILLWORD
+
+                    move.b #1, (a6)                         ;kick the Z80 watchdog
+                    move.b #0, (a6)
 
                     move.w d2, -(sp)                        ;set ok/failed flag
                     move.l a2, -(sp)                        ;push return address
                     rts  
 
                     FILLWORD:
+                        move.b #1, (a6)                     ;kick the Z80 watchdog
+                        move.b #0, (a6)
+
                         move.l d1, d0                       ;move loop counter to d0
                         movea.l a1, a0                      ;move start address to a0
                         WORDRWTEST:
                             move.w d3, (a0)                 ;write $FFFF, 5555, AAAA, 0000
-                            nop
                             nop
                             nop
                             nop
@@ -307,29 +312,32 @@ VECTORS dc.l $00000800                                      ;reset initial SP
                     bsr.w FILLBYTE
                     move.w #$00, d3
                     bsr.w FILLBYTE
-                    move.w #$FF, d3
-                    bsr.w FILLBYTE
+
+                    move.b #1, (a6)                         ;kick the Z80 watchdog
+                    move.b #0, (a6)
 
                     move.w d2, -(sp)                        ;set ok/failed flag
                     move.l a2, -(sp)                        ;push return address
                     rts
 
                     FILLBYTE:
+                        move.b #1, (a6)                         ;kick the Z80 watchdog
+                        move.b #0, (a6)
+
                         move.l d1, d0                       ;move loop counter to d0
                         movea.l a1, a0                      ;move start address to a0
                         BYTERWTEST:                    
                             move.b d3, (a0)                 ;write $FF, 55, AA, 00
                             nop
-                            nop
-                            nop
-                            nop
                             cmp.b (a0), d3                  ;read and compare
-                            addq.l #2, a0                   ;+2 increment
                             bne.s BYTEERROR                 ;if not matches, goto ERROR
+                            addq.l #2, a0                   ;+2 increment
                             dbf d0, BYTERWTEST              ;loop
-                            rts
+                        
+                        rts
 
                         BYTEERROR:
+                            addq.l #2, a0                   ;+2 increment
                             bsr.s ERROR
                             dbf d0, BYTERWTEST
 
@@ -360,8 +368,8 @@ VECTORS dc.l $00000800                                      ;reset initial SP
                 nop
                 move.w #1, $2(a1)                           ;read page
 
-                move.b #1, $5E008                           ;kick the watchdog
-                move.b #0, $5E008
+                move.b #1, (a6)                             ;kick the Z80 watchdog
+                move.b #0, (a6)
 
                 move.w #$8000, d3
                 WAIT:
@@ -398,8 +406,8 @@ VECTORS dc.l $00000800                                      ;reset initial SP
     ORG    $10000
     MAINTEST:
         move.l #$5A000, -(sp) ;copy palette
-        move.w #3, -(sp)
-        move.w #1021, -(sp)
+        move.w #4, -(sp)
+        move.w #1020, -(sp)
         jsr funcLoadBubble
 
         move.l #$30000, -(sp) ;copy tiles
@@ -486,7 +494,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
             lea TITLEMESSAGE3, a0
             move.l a0, -(sp)
             move.w #1, -(sp)
-            move.w #15, -(sp)
+            move.w #13, -(sp)
             move.w #24, -(sp)
             move.w #0, -(sp)
             bsr.w PRINTTEXT
@@ -536,8 +544,8 @@ VECTORS dc.l $00000800                                      ;reset initial SP
 
 TITLEMESSAGE1   dc.w 'BubbleDrive8', $0000
 TITLEMESSAGE2   dc.w 'System Test Program', $0000
-TITLEMESSAGE3   dc.w '2020-2021 Raki', $0000
-VERSION         dc.w 'B85:K:A:B:2021092302', $0000
+TITLEMESSAGE3   dc.w '(C) 2020-2021 Raki', $0000
+VERSION         dc.w 'B85:K:A:C:2021092402', $0000
 
 
         *--------------------------------------------------------
@@ -555,19 +563,12 @@ VERSION         dc.w 'B85:K:A:B:2021092302', $0000
                 move.w #$0000, (a0)+                        ;move scroll value
                 dbf d0, TESTMENU_scrollreset
             
-            ;Clear SPRITE 1 
+            ;Clear SPRITES 1 
             lea $56102, a0                                  ;0: reletive priority: EF
             move.w #5, d1                                   ;inner loop
-            TESTMENU_Obj1Clr_loop:
+            TESTMENU_ObjClr_hloop:
                 move.w #$FF, (a0)+
-                dbf d1, TESTMENU_Obj1Clr_loop               ;repeat 6 times
-            
-            ;Clear SPRITE 2
-            lea $56202, a0                                  ;0: reletive priority: DF
-            move.w #5, d1                                   ;inner loop
-            TESTMENU_Obj2Clr_loop:
-                move.w #$FF, (a0)+
-                dbf d1, TESTMENU_Obj2Clr_loop               ;repeat 6 times
+                dbf d1, TESTMENU_ObjClr_hloop               ;repeat 6 times
 
             move.w #9, d6                                   ;print test menu items: 10 lines
             move.w #8, d7                                   ;YPOS of first line
@@ -702,7 +703,7 @@ TESTMENUITEM10  dc.w '10.Return to title screen', $0000
         *--------------------------------------------------------
 
         TSTRTNE_RAM:
-            jsr funcClearTilemap
+            jsr TSTRTNE_RAM_additionaltest
 
             lea RAMTESTMESSAGE1, a0
             move.l a0, -(sp)
@@ -785,24 +786,18 @@ TESTMENUITEM10  dc.w '10.Return to title screen', $0000
                 move.w #4, d7
                 TSTRTNE_RAM_PrintTestResult_left:
                     move.l $800, d0                     ;get test result
-                    tst.w d3                            ;check shared RAM
-                    beq TSTRTNE_RAM_PrintTestResult_exception
 
                     btst.l d3, d0
-                    bne TSTRTNE_RAM_PrintTestResult_setfailed           ;set failed/passed branch
+                    bne.s TSTRTNE_RAM_PrintTestResult_setfailed             ;set failed/passed branch
 
                     lea RAMTESTPASSED, a0                                   ;set passed flag
                     move.w #3, d0
                     bra.s TSTRTNE_RAM_PrintTestResult_print
 
-                    TSTRTNE_RAM_PrintTestResult_setfailed:              ;set failed flag
+                    TSTRTNE_RAM_PrintTestResult_setfailed:                  ;set failed flag
                     lea RAMTESTFAILED, a0
                     move.w #4, d0
-                    bra.s TSTRTNE_RAM_PrintTestResult_print
-
-                    TSTRTNE_RAM_PrintTestResult_exception:              ;set untested flag: only for shared RAM
-                    lea RAMTESTUNTESTED, a0
-                    move.w #5, d0
+                    ;bra.s TSTRTNE_RAM_PrintTestResult_print
 
                     TSTRTNE_RAM_PrintTestResult_print:
                         move.l a0, -(sp)
@@ -841,7 +836,7 @@ TESTMENUITEM10  dc.w '10.Return to title screen', $0000
                         add.l #2, a0                    ;addr+2
                         dbf d1, TSTRTNE_RAM_SwitchScrn_vloop
                     addq #1, d0
-                    move.b #1, $5E008                                       ;kick the watchdog
+                    move.b #1, $5E008                   ;kick the watchdog
                     move.b #0, $5E008
                     move.w #$800, d7
                     TSTRTNE_RAM_SwitchScrn_scrolldelay:
@@ -851,11 +846,183 @@ TESTMENUITEM10  dc.w '10.Return to title screen', $0000
             
             TSTRTNE_RAM_KeyInDelay_b:
                 bsr.w funcCheckInput                    ;check P1 button input
-                move.w (sp)+, d0                         ;get latest input 
+                move.w (sp)+, d0                        ;get latest input 
                 btst.l #$4, d0                          ;power-up(gradius) or fire(twinbee)
                 beq.w TESTMENU
                 jsr funcFixedDelay
                 bra.s TSTRTNE_RAM_KeyInDelay_b
+
+            TSTRTNE_RAM_additionaltest:
+                jsr funcClearTilemap
+
+                lea RAMTESTWAIT, a0                                 ;print nowloading
+                move.l a0, -(sp)
+                move.w #5, -(sp)
+                move.w #10, -(sp)
+                move.w #15, -(sp)
+                move.w #0, -(sp)
+                bsr.w PRINTTEXT
+
+                move.l $800, d7                                     ;load RAM test result from 0x800
+
+                move.w #1, -(sp)                                    ;Shared RAM
+                move.l #$00000, -(sp)                
+                move.l #$1000, -(sp)                   
+                jsr funcRamTestHoldVal
+                move.w (sp)+, d2   
+                or.w d2, d7                                         ;save test result in d7[0]
+
+                move.w #0, -(sp)                                    ;Z80 RAM test
+                move.l #$20004, -(sp)                
+                move.l #$1FFC, -(sp)                   
+                jsr funcRamTestInit
+                move.w (sp)+, d2
+                lsl.w #2, d2
+                or.w d2, d7                                         ;save test result in d7[2]
+
+                move.w #0, -(sp)                                    ;Z80 RAM test
+                move.l #$22000, -(sp)                
+                move.l #$2000, -(sp)                   
+                jsr funcRamTestInit
+                move.w (sp)+, d2
+                lsl.w #2, d2
+                or.w d2, d7                                         ;save test result in d7[2]
+
+                move.w #0, -(sp)                                    ;Z80 RAM test
+                move.l #$24000, -(sp)                
+                move.l #$2000, -(sp)                   
+                jsr funcRamTestInit
+                move.w (sp)+, d2
+                lsl.w #2, d2
+                or.w d2, d7                                         ;save test result in d7[2]
+
+                move.w #0, -(sp)                                    ;Z80 RAM test
+                move.l #$26000, -(sp)                
+                move.l #$2000, -(sp)                   
+                jsr funcRamTestInit
+                move.w (sp)+, d2
+                lsl.w #2, d2
+                or.w d2, d7                                         ;save test result in d7[2]
+
+                move.b #0, $5E004                                   ;Z80 interrupt
+                nop
+                nop
+                move.b #1, $5E004
+
+                move.l d7, $800                                     ;load RAM test result from 0x800
+
+                jsr funcClearTilemap
+
+                rts
+
+
+            ;
+            ;           FUNCTION RAMTEST WITH VALUE HOLDING
+            ;
+            funcRamTestHoldVal:                         ;bit width flag -> start address -> test length -> return address
+                movea.l (sp)+, a2                       ;pop return address
+                move.l (sp)+, d1                        ;pop test length
+                movea.l (sp)+, a1                       ;pop start address
+
+                lea $5E008, a6                          ;load watchdog address
+            
+                lsr.l #1, d1                            ;divide by 2
+                subi.l #1, d1                           ;test length - 1
+
+                move.w (sp)+, d2                        ;pop bit width flag(0 = 8bit, 1 = 16bit)
+                btst.l #$0, d2                          ;1 = WORDTEST 0 = BYTETEST
+                beq.s HoldVal_ByteTest                  ;if 0(Z=1), go to BYTETEST if 1(Z=0) go to WORDTEST
+
+                move.w #0, d2                           ;initialize d2
+
+                    HoldVal_WordTest:
+                        move.w #$FFFF, d3
+                        bsr.w HoldVal_WordTest_FillWord
+                        move.w #$5555, d3
+                        bsr.w HoldVal_WordTest_FillWord
+                        move.w #$AAAA, d3
+                        bsr.w HoldVal_WordTest_FillWord
+                        move.w #$0000, d3
+                        bsr.w HoldVal_WordTest_FillWord
+
+                        move.b #1, (a6)                         ;kick the Z80 watchdog
+                        move.b #0, (a6)
+
+                        move.w d2, -(sp)                        ;set ok/failed flag
+                        move.l a2, -(sp)                        ;push return address
+
+                        rts  
+
+                        HoldVal_WordTest_FillWord:
+                            move.b #1, (a6)                     ;kick the Z80 watchdog
+                            move.b #0, (a6)
+
+                            move.l d1, d0                       ;move loop counter to d0
+                            movea.l a1, a0                      ;move start address to a0
+                            HoldVal_WordTest_FillWord_rw:
+                                move.w (a0), d4                 ;backup the value
+                                move.w d3, (a0)                 ;write $FFFF, 5555, AAAA, 0000
+                                cmp.w (a0), d3                  ;read and compare
+                                bne.s HoldVal_ByteTest_FillWord_err     ;if not matches, goto ERROR
+                                move.w d4, (a0)+                ;rewrite
+                                dbf d0, HoldVal_WordTest_FillWord_rw    ;loop
+                            
+                            rts
+
+                            HoldVal_ByteTest_FillWord_err:
+                                move.w d4, (a0)+                ;rewrite
+                                bsr.s HoldVal_Error
+                                dbf d0, HoldVal_WordTest_FillWord_rw      
+
+                    HoldVal_ByteTest:
+                        addq.l #1, a1                            ;start addr +1(BYTE ACCESS)   
+
+                        move.w #$FF, d3
+                        bsr.w HoldVal_ByteTest_FillByte
+                        move.w #$55, d3
+                        bsr.w HoldVal_ByteTest_FillByte
+                        move.w #$AA, d3
+                        bsr.w HoldVal_ByteTest_FillByte
+                        move.w #$00, d3
+                        bsr.w HoldVal_ByteTest_FillByte
+
+                        move.b #1, (a6)                         ;kick the Z80 watchdog
+                        move.b #0, (a6)
+
+                        move.w d2, -(sp)                        ;set ok/failed flag
+                        move.l a2, -(sp)                        ;push return address
+                        rts
+
+                        HoldVal_ByteTest_FillByte:
+                            move.b #1, (a6)                         ;kick the Z80 watchdog
+                            move.b #0, (a6)
+
+                            move.l d1, d0                       ;move loop counter to d0
+                            movea.l a1, a0                      ;move start address to a0
+                            HoldVal_ByteTest_FillByte_rw:
+                                move.b (a0), d4
+                                move.b d3, (a0)                 ;write $FF, 55, AA, 00
+                                nop
+                                nop
+                                nop
+                                cmp.b (a0), d3                  ;read and compare
+                                bne.s HoldVal_ByteTest_FillByte_err     ;if not matches, goto ERROR
+                                move.b d4, (a0)                 ;rewrite
+                                addq.l #2, a0                   ;+2 increment
+                                dbf d0, HoldVal_ByteTest_FillByte_rw    ;loop
+
+                            rts
+
+                            HoldVal_ByteTest_FillByte_err:
+                                move.b d4, (a0)                 ;rewrite
+                                addq.l #2, a0                   ;+2 increment
+                                bsr.s HoldVal_Error
+                                dbf d0, HoldVal_ByteTest_FillByte_rw
+
+                    HoldVal_Error:
+                        move.w #1, d2                           ;set error flag
+                        rts        
+
 
 RAMTESTMESSAGE1 dc.w 'CPU BOARD'
 RAMTESTMESSAGE2 dc.w 'VIDEO BOARD'
@@ -882,9 +1049,11 @@ RAM8B           dc.w '  15D 6264*1', $0000
 RAM9B           dc.w '  25D 6116*1', $0000
 RAM10B          dc.w '2-7AB 4416*8', $0000
 
-RAMTESTUNTESTED dc.w 'UNTESTED', $0000
+RAMTESTWAIT     dc.w 'WAIT A MOMENT', $0000
 RAMTESTPASSED   dc.w 'PASSED', $0000
 RAMTESTFAILED   dc.w 'FAILED', $0000
+
+
 
 
 
@@ -908,7 +1077,7 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
             lea NOWLOADING, a0                  ;print nowloading
             move.l a0, -(sp)
             move.w #5, -(sp)
-            move.w #9, -(sp)
+            move.w #10, -(sp)
             move.w #15, -(sp)
             move.w #0, -(sp)
             bsr.w PRINTTEXT
@@ -1025,7 +1194,7 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
                 jsr funcFixedDelay
                 bra.s TSTRTNE_Screen_KeyInDelay_b
 
-NOWLOADING      dc.w 'WAIT A MOMENT', $0000
+NOWLOADING      dc.w 'NOW LOADING', $0000
 
 
 
@@ -1667,7 +1836,7 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
             move.w #2, -(sp)
             move.w #2, -(sp)
             move.w #$F1D0, -(sp)                                ;vertical tile
-            move.w #$0004, -(sp)                                ;red
+            move.w #$000C, -(sp)                                ;red/green
             move.w #15, -(sp)
             move.w #10, -(sp)
             move.w #0, -(sp)
@@ -1676,7 +1845,7 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
             move.w #2, -(sp)
             move.w #2, -(sp)
             move.w #$F1D4, -(sp)                                ;horizontal tile
-            move.w #$0003, -(sp)                                ;green
+            move.w #$000E, -(sp)                                ;cyan/magenta
             move.w #15, -(sp)
             move.w #10, -(sp)
             move.w #1, -(sp)
@@ -1684,23 +1853,14 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
             
             ;SPRITE 1 
             lea $56102, a0                                      ;0: reletive priority: EF
-            move.w #$0020, (a0)+                                ;2: 8*8 = size 3'b100
+            move.w #$0038, (a0)+                                ;2: 16*16 = size 3'b111
             move.w #$0080, (a0)+                                ;4: no zoom
-            move.w #$00EC, (a0)+                                ;6: 8*8 filled block
-            move.w #$000A, (a0)+                                ;8: xpos MSB
+            move.w #$00EC, (a0)+                                ;6: 16*16 filled block
+            move.w #$001A, (a0)+                                ;8: xpos MSB
             move.w #$0078, (a0)+                                ;A: 120px
             move.w #$0050, (a0)+                                ;C: 80px
             move.w #$0000, (a0)+                                ;E: not used
             
-            ;SPRITE 2
-            lea $56202, a0                                      ;0: reletive priority: DF
-            move.w #$0020, (a0)+                                ;2: 8*8 = size 3'b100
-            move.w #$0080, (a0)+                                ;4: no zoom
-            move.w #$00EC, (a0)+                                ;6: 8*8 filled block
-            move.w #$000A, (a0)+                                ;8: xpos MSB
-            move.w #$0078, (a0)+                                ;A: 120px
-            move.w #$0058, (a0)+                                ;C: 88px
-            move.w #$0000, (a0)+                                ;E: not used
 
             TSTRTNE_Pr_InEval:                                  ;evaluate key input
                 bsr.w funcCheckInput                            ;check P1 button input
@@ -1771,7 +1931,7 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
                 move.w #2, -(sp)
                 move.w #2, -(sp)
                 move.w d1, -(sp)                                ;empty tile
-                move.w #$0004, -(sp)                            ;red
+                move.w #$000C, -(sp)                            ;red/green
                 move.w #15, -(sp)
                 move.w #10, -(sp)
                 move.w #0, -(sp)
@@ -1786,7 +1946,7 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
                 move.w #2, -(sp)
                 move.w #2, -(sp)
                 move.w d1, -(sp)                                ;empty tile
-                move.w #$0003, -(sp)                            ;green
+                move.w #$000E, -(sp)                            ;cyan/magenta
                 move.w #15, -(sp)
                 move.w #10, -(sp)
                 move.w #1, -(sp)
@@ -2991,12 +3151,12 @@ LINE8           dc.w '  - Copyright 2019-2021 Raki -  ', $0000
 LINE9           dc.w '          bubsys85.net          ', $0000
 LINE10          dc.w '      --------------------      ', $0000
 
-LINE11          dc.w '        Special thanks to       ', $0000
+LINE11          dc.w '       Special thanks to        ', $0000
 LINE12          dc.w '              ----              ', $0000
 LINE13          dc.w '      v9938          MAKI       ', $0000
-LINE14          dc.w '     Kudouta        akamig      ', $0000
-LINE15          dc.w '          CSG Akatian           ', $0000
-LINE16          dc.w '                                ', $0000
+LINE14          dc.w '   CSG Akatian      akamig      ', $0000
+LINE15          dc.w '                                ', $0000
+LINE16          dc.w '              MAME              ', $0000
 LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
 
             
