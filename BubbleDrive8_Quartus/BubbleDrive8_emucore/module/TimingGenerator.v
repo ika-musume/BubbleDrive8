@@ -48,6 +48,7 @@ module TimingGenerator
 
     //Input control
     input   wire            nEN,
+    input   wire            TIMINGSEL,
 
     //Bubble control signal inputs
     input   wire            nBSS,
@@ -65,7 +66,14 @@ module TimingGenerator
     output  wire    [11:0]  ABSPAGE
 );
 
-localparam  INITIAL_ABS_PAGE = 12'd1951; //0-2052
+localparam      INITIAL_ABS_PAGE = 12'd1951; //0-2052
+wire    [9:0]   BOUT_TIMING =   (nEN == 1'b1) ? 
+                                    10'd0 :
+                                    (TIMINGSEL == 1'b0) ?   //0 = 오리지널, 1 = 5us 빨리 보내기
+                                        10'd328 - 10'd2 :   //propagation delay보상을 위해 오리지널보다 신호를 15ns정도 일찍 보내기; 오래된 기판의 경우 LS244가 느려짐
+                                        10'd328 - 10'd216;  //오리지널보다 신호를 4.5us 빨리 보내기
+reg             __REF_ORIG_BOUTCLKEN = 1'b0;
+reg             __REF_CLK12M = 1'b0;
 
 
 /*
@@ -109,39 +117,39 @@ reg             nSWAPEN_intl;
 */
 
 reg     [4:0]   counter12 = 4'd0;
-reg             ref_clk12m = 1'b0;
+
 
 always @(posedge MCLK)
 begin
     if(counter12 == 4'd1)
     begin
-        ref_clk12m <= 1'b1;
+        __REF_CLK12M <= 1'b1;
         counter12 <= counter12 + 4'd1;
     end
     else if(counter12 == 4'd3)
     begin
-        ref_clk12m <= 1'b0;
+        __REF_CLK12M <= 1'b0;
         counter12 <= counter12 + 4'd1;
     end
     else if(counter12 == 4'd5)
     begin
-        ref_clk12m <= 1'b1;
+        __REF_CLK12M <= 1'b1;
         CLKOUT <= 1'b1;
         counter12 <= counter12 + 4'd1;
     end
     else if(counter12 == 4'd7)
     begin
-        ref_clk12m <= 1'b0;
+        __REF_CLK12M <= 1'b0;
         counter12 <= counter12 + 4'd1;
     end
     else if(counter12 == 4'd9)
     begin
-        ref_clk12m <= 1'b1;
+        __REF_CLK12M <= 1'b1;
         counter12 <= counter12 + 4'd1;
     end
     else if(counter12 == 4'd11)
     begin
-        ref_clk12m <= 1'b0;
+        __REF_CLK12M <= 1'b0;
         CLKOUT <= 1'b0;
         counter12 <= 4'd0;
     end
@@ -746,13 +754,32 @@ begin
         nBOUTCLKEN <= 1'b0;
     end
     //버블 -Y에서 체크
-    else if(MCLK_counter == 10'd328 - 10'd2) //propagation delay보상을 위해 신호를 15ns정도 일찍 보내기; 오래된 기판의 경우 LS244가 느려짐
+    else if(MCLK_counter == BOUT_TIMING) //propagation delay보상을 위해 신호를 15ns정도 일찍 보내기; 오래된 기판의 경우 LS244가 느려짐
     begin
         nBOUTCLKEN <= 1'b0;
     end
     else
     begin
         nBOUTCLKEN <= 1'b1;
+    end
+end
+
+//bubble output clock enable generator(for reference)
+always @(posedge MCLK)
+begin
+    //리셋상태
+    if(MCLK_counter == 10'd0)
+    begin
+        __REF_ORIG_BOUTCLKEN <= 1'b1;
+    end
+    //버블 -Y에서 체크
+    else if(MCLK_counter == 10'd328) //propagation delay보상을 위해 신호를 15ns정도 일찍 보내기; 오래된 기판의 경우 LS244가 느려짐
+    begin
+        __REF_ORIG_BOUTCLKEN <= 1'b0;
+    end
+    else
+    begin
+        __REF_ORIG_BOUTCLKEN <= 1'b1;
     end
 end
 

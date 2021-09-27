@@ -75,11 +75,12 @@ module BubbleDrive8_top
     output  wire            nLED_PWROK
 );
 
-reg     [8:0]   dip_switch_settings; //4MBIT/reserved/flash-FRAM type/FANEN _ delay[1:0] _ IMGNUM[2:0]
+reg     [8:0]   dip_switch_settings; //4MBIT/BOUT timing/flash-FRAM type/FANEN _ delay[1:0] _ IMGNUM[2:0]
 
-wire            bitwidth4 = dip_switch_settings[8];
-wire    [2:0]   tempsense_setting = dip_switch_settings[5:3];
-wire    [2:0]   image_number = dip_switch_settings[2:0];
+wire            bitwidth4           = dip_switch_settings[8];
+wire            bout_timings        = dip_switch_settings[7];
+wire    [2:0]   tempsense_setting   = dip_switch_settings[5:3];
+wire    [2:0]   image_number        = dip_switch_settings[2:0];
 
 assign n4BEN = SETTINGSW[3];
 
@@ -330,6 +331,7 @@ BubbleDrive8_emucore BubbleDrive8_emucore_0
     .nEN            (emucore_en     ),
     .IMGNUM         (image_number   ),
     .BITWIDTH4      (bitwidth4      ),
+    .TIMINGSEL      (bout_timings   ),
 
     .CLKOUT         (CLKOUT         ),
     .nBSS           (nBSS           ),

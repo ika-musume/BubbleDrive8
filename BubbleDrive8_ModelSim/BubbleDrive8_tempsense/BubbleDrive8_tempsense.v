@@ -35,7 +35,7 @@ module BubbleDrive8_tempsense
 localparam      CHECKING_PERIOD = 16'd20;
 
 reg signed  [31:0]  delaying_time = 32'd0;
-wire [23:0] test = delaying_time[31:8];
+wire        [23:0]  __REF_UNSIGNED_DELAYINGTIME = delaying_time[31:8];
 
 
 

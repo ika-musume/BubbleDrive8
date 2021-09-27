@@ -3,7 +3,7 @@
 * Written by : Raki
 * Date       : 2021-09-23
 * Description: BubbleDrive8 Test Program
-*              B85:K:A:C:2021092402
+*              B85:K:A:C:2021092702
 *-----------------------------------------------------------
 
     ORG     $0
@@ -611,7 +611,7 @@ VERSION         dc.w 'B85:K:A:C:2021092402', $0000
                 
 
                 TESTMENUINCREASE:
-                    cmpi #10, d6                             ;if 10
+                    cmpi #10, d6                            ;if 10
                     beq TESTMENUKEYINDELAY
                     addq.w #1, d6
                     bra.s TESTMENUMOVECURSOR
@@ -2063,9 +2063,9 @@ PRTILEMAPA      dc.w 'TM-A', $0000
 PRTILEMAPB      dc.w 'TM-B', $0000
 PRBITZERO       dc.w '0', $0000
 PRBITONE        dc.w '1', $0000
-PRMESSAGE0      dc.w ' Scarlet V-block   TM-A ', $0000
-PRMESSAGE1      dc.w '  Green H-block    TM-B ', $0000
-PRMESSAGE2      dc.w ' Saffron V-block   OBJ  ', $0000
+PRMESSAGE0      dc.w 'Red+Green Hblock    TM-A', $0000
+PRMESSAGE1      dc.w 'Cyan+Magenta Vblock TM-B', $0000
+PRMESSAGE2      dc.w 'Grey+Black Vblock   OBJ ', $0000
 PRMESSAGE3      dc.w 'Press A to apply changes', $0000
 PRAUTOINC       dc.w 'Auto increment', $0000
 

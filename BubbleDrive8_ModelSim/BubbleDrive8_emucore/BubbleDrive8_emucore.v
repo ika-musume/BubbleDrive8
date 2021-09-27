@@ -12,6 +12,9 @@ module BubbleDrive8_emucore
     //4bit width mode
     input   wire            BITWIDTH4,
 
+    //BOUT timing select
+    input   wire            TIMINGSEL,
+
     //4MHz output clock
     output  wire            CLKOUT,
 
@@ -68,6 +71,7 @@ TimingGenerator TimingGenerator_0
     .MCLK           (MCLK           ),
 
     .nEN            (nEN            ),
+    .TIMINGSEL      (TIMINGSEL      ),
 
     .CLKOUT         (CLKOUT         ),
     .nBSS           (nBSS           ),

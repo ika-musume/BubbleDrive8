@@ -78,7 +78,7 @@ BubbleDrive8_top Main
     .ROMIO2         (ROMIO2         ),
     .ROMIO3         (ROMIO3         ),
 
-    .SETTINGSW      (4'b1110        ),
+    .SETTINGSW      (4'b1010        ),
 
     //temperature detector
     .DELAYSW        (2'b00          ),
