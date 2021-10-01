@@ -1,9 +1,9 @@
 *-----------------------------------------------------------
 * Title      : BubbleDrive8_testprogram
 * Written by : Raki
-* Date       : 2021-09-23
+* Date       : 2021-10-01
 * Description: BubbleDrive8 Test Program
-*              B85:K:A:C:2021092702
+*              B85:K:A:C:2021100102
 *-----------------------------------------------------------
 
     ORG     $0
@@ -238,7 +238,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
         move.b #0, (a6)
 
         move.l #$10000, -(sp)
-        move.w #71, -(sp)                                   ;72 pages
+        move.w #72, -(sp)                                   ;72 pages
         move.w #7, -(sp)                                    ;from 0x380
         bsr.w funcLoadBubble
 
@@ -545,7 +545,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
 TITLEMESSAGE1   dc.w 'BubbleDrive8', $0000
 TITLEMESSAGE2   dc.w 'System Test Program', $0000
 TITLEMESSAGE3   dc.w '(C) 2020-2021 Raki', $0000
-VERSION         dc.w 'B85:K:A:C:2021092402', $0000
+VERSION         dc.w 'B85:K:A:C:2021100102', $0000
 
 
         *--------------------------------------------------------
@@ -1297,9 +1297,19 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
 
                     move.w #12, d5                                          ;reset ypos
                     addq.w #5, d4                                           ;next xpos
-                    add.l #2, a5                                            ;next dip switch addr
 
+                    cmp.l #$5CC08, a5
+                    beq.s TSTRTNE_Input_ChkAll_btn_ldp4                     ;set P4 addr(5C400)
+                    cmp.l #$5C400, a5
+                    beq.s TSTRTNE_Input_ChkAll_btn_ldp4
+
+                    add.l #2, a5                                            ;next dip switch addr
                     dbf d7, TSTRTNE_Input_ChkAll_btn
+
+                    TSTRTNE_Input_ChkAll_btn_ldp4:
+                        lea $5C400, a5
+                        dbf d7, TSTRTNE_Input_ChkAll_btn
+
 
 
                 move.w #2, d7                               ;dipsw x3
@@ -3147,7 +3157,7 @@ LINE4           dc.w '         developed for          ', $0000
 LINE5           dc.w '                                ', $0000
 LINE6           dc.w '     "Konami Bubble System"     ', $0000
 LINE7           dc.w '                                ', $0000
-LINE8           dc.w '  - Copyright 2019-2021 Raki -  ', $0000
+LINE8           dc.w '  - Copyright 2020-2021 Raki -  ', $0000
 LINE9           dc.w '          bubsys85.net          ', $0000
 LINE10          dc.w '      --------------------      ', $0000
 

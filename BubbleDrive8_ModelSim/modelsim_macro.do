@@ -32,8 +32,8 @@ add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenera
 add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/MCLK_counter
 add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/bout_bootloop_cycle_counter
 add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/BOUTCYCLENUM
+add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/__REF_nBOUTCLKEN_ORIG
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/nBOUTCLKEN
-add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/__REF_ORIG_BOUTCLKEN
 add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/BOUT_TIMING
 add wave -noupdate /BubbleDrive8_top_tb/Main/DOUT3
 add wave -noupdate /BubbleDrive8_top_tb/Main/DOUT2

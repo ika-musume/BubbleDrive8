@@ -72,7 +72,7 @@ wire    [9:0]   BOUT_TIMING =   (nEN == 1'b1) ?
                                     (TIMINGSEL == 1'b0) ?   //0 = 오리지널, 1 = 5us 빨리 보내기
                                         10'd328 - 10'd2 :   //propagation delay보상을 위해 오리지널보다 신호를 15ns정도 일찍 보내기; 오래된 기판의 경우 LS244가 느려짐
                                         10'd328 - 10'd216;  //오리지널보다 신호를 4.5us 빨리 보내기
-reg             __REF_ORIG_BOUTCLKEN = 1'b0;
+reg             __REF_nBOUTCLKEN_ORIG = 1'b0;
 reg             __REF_CLK12M = 1'b0;
 
 
@@ -199,7 +199,7 @@ end
 
 
 /*
-    ACCESS STATE STATE MACHINE
+    ACCESS TYPE STATE MACHINE
 */
 
 /*
@@ -770,16 +770,16 @@ begin
     //리셋상태
     if(MCLK_counter == 10'd0)
     begin
-        __REF_ORIG_BOUTCLKEN <= 1'b1;
+        __REF_nBOUTCLKEN_ORIG <= 1'b1;
     end
     //버블 -Y에서 체크
     else if(MCLK_counter == 10'd328) //propagation delay보상을 위해 신호를 15ns정도 일찍 보내기; 오래된 기판의 경우 LS244가 느려짐
     begin
-        __REF_ORIG_BOUTCLKEN <= 1'b0;
+        __REF_nBOUTCLKEN_ORIG <= 1'b0;
     end
     else
     begin
-        __REF_ORIG_BOUTCLKEN <= 1'b1;
+        __REF_nBOUTCLKEN_ORIG <= 1'b1;
     end
 end
 

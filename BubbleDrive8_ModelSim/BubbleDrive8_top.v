@@ -163,7 +163,7 @@ end
 //declare states
 localparam RESET_S0 = 3'b000;           //최초 리셋
 
-localparam MODE_SELECT_S0 = 3'b001;     //에뮬/MPSSE 선택
+localparam EVALUATION_S0 = 3'b001;      //에뮬/MPSSE 선택
 
 localparam EMULATOR_S0 = 3'b010;        //4비트 모드 체크
 localparam EMULATOR_S1 = 3'b011;        //버블 모듈 enable, FIFO enable, MPSSE disable
@@ -197,9 +197,9 @@ wire            fifo_en = fifo_en_reg | ~temperature_low;
 always @(posedge MCLK)
 begin
     case(emulator_state)
-        RESET_S0: emulator_state <= MODE_SELECT_S0;
+        RESET_S0: emulator_state <= EVALUATION_S0;
 
-        MODE_SELECT_S0: 
+        EVALUATION_S0: 
             case({PWRSTAT, MRST})
                 2'b00: emulator_state <= EMULATOR_S1;
                 2'b01: emulator_state <= ERROR_S0;
@@ -262,14 +262,36 @@ begin
             dip_switch_settings <= {~SETTINGSW, ~DELAYSW, ~IMGNUMSW};
         end
 
-        MODE_SELECT_S0:
+        EVALUATION_S0:
         begin 
-            
+            emucore_en <= 1'b1;
+            tempsense_en <= 1'b1;
+            fifo_en_reg <= 1'b1;
+            mpsse_en <= 1'b1;
+
+            ledctrl_delaying <= 1'b1;
+            ledctrl_pwrok <= 1'b1;
+            ledctrl_standby <= 1'b1;
+
+            blinker_stop <= 1'b0;
+            blinker_start <= 1'b1;
+
         end
 
         EMULATOR_S0:
         begin
-            
+            emucore_en <= 1'b1;
+            tempsense_en <= 1'b1;
+            fifo_en_reg <= 1'b1;
+            mpsse_en <= 1'b1;
+
+            ledctrl_delaying <= 1'b1;
+            ledctrl_pwrok <= 1'b1;
+            ledctrl_standby <= 1'b1;
+
+            blinker_stop <= 1'b0;
+            blinker_start <= 1'b1;
+
         end
         EMULATOR_S1:
         begin
@@ -303,6 +325,11 @@ begin
 
         ERROR_S0:
         begin
+            emucore_en <= 1'b1;
+            tempsense_en <= 1'b1;
+            fifo_en_reg <= 1'b1;
+            mpsse_en <= 1'b1;
+
             ledctrl_delaying <= 1'b1;
             ledctrl_pwrok <= 1'b1;
             ledctrl_standby <= 1'b1;
@@ -312,6 +339,11 @@ begin
         end
         ERROR_S1:
         begin
+            emucore_en <= 1'b1;
+            tempsense_en <= 1'b1;
+            fifo_en_reg <= 1'b1;
+            mpsse_en <= 1'b1;
+
             ledctrl_delaying <= 1'b1;
             ledctrl_pwrok <= 1'b1;
             ledctrl_standby <= 1'b1;
