@@ -1,9 +1,9 @@
 *-----------------------------------------------------------
 * Title      : BubbleDrive8_testprogram
 * Written by : Raki
-* Date       : 2021-10-01
+* Date       : 2021-10-02
 * Description: BubbleDrive8 Test Program
-*              B85:K:A:C:2021100102
+*              B85:K:A:C:2021100202
 *-----------------------------------------------------------
 
     ORG     $0
@@ -425,6 +425,9 @@ VECTORS dc.l $00000800                                      ;reset initial SP
         *
         *--------------------------------------------------------
 
+        move.b #$00, $20001                                 ;write 00 to Z80 $4000
+        move.b #$00, $20003                                 ;write 00 to Z80 $4001
+
         TITLEPROGRAM:
             jsr funcClearTilemap
 
@@ -545,7 +548,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
 TITLEMESSAGE1   dc.w 'BubbleDrive8', $0000
 TITLEMESSAGE2   dc.w 'System Test Program', $0000
 TITLEMESSAGE3   dc.w '(C) 2020-2021 Raki', $0000
-VERSION         dc.w 'B85:K:A:C:2021100102', $0000
+VERSION         dc.w 'B85:K:A:C:2021100202', $0000
 
 
         *--------------------------------------------------------
@@ -555,6 +558,8 @@ VERSION         dc.w 'B85:K:A:C:2021100102', $0000
         *--------------------------------------------------------
 
         TESTMENU:
+            move.b #$FF, $27FF9                             ;initialize Z80 status(halt escape??) register
+
             jsr funcClearTilemap
 
             lea $50000, a0
@@ -703,7 +708,21 @@ TESTMENUITEM10  dc.w '10.Return to title screen', $0000
         *--------------------------------------------------------
 
         TSTRTNE_RAM:
+            move.b #$01, $20003                         ;excute Z80 checksum calculation routine
+
             jsr TSTRTNE_RAM_additionaltest
+
+            move.b #$04, $27FF9                         ;always wrong checksum, nop loop escape command
+            move.b #$00, $20003                         ;disable cheksum execute flag
+
+            move.b #0, $5E004                           ;Z80 interrupt
+            nop
+            nop
+            move.b #1, $5E004
+
+            ;I just wanted to execute RAM test routine maintaining original data while Z80 calculates checksum of 0x4000-0x7DFF.
+            ;The code worked well on MAME, but the real machine spits Z80 RAM error. Its behavior is quite different from MAME's.
+            ;I thought there was no way, so I decided to simply initialize all the data and request a Z80 interrupt.
 
             lea RAMTESTMESSAGE1, a0
             move.l a0, -(sp)
@@ -865,6 +884,12 @@ TESTMENUITEM10  dc.w '10.Return to title screen', $0000
 
                 move.l $800, d7                                     ;load RAM test result from 0x800
 
+                ;bit 0: shared RAM
+                ;bit 2: Z80 RAM
+
+                bclr.l #0, d7
+                bclr.l #2, d7
+
                 move.w #1, -(sp)                                    ;Shared RAM
                 move.l #$00000, -(sp)                
                 move.l #$1000, -(sp)                   
@@ -872,7 +897,7 @@ TESTMENUITEM10  dc.w '10.Return to title screen', $0000
                 move.w (sp)+, d2   
                 or.w d2, d7                                         ;save test result in d7[0]
 
-                move.w #0, -(sp)                                    ;Z80 RAM test
+                 move.w #0, -(sp)                                    ;Z80 RAM test
                 move.l #$20004, -(sp)                
                 move.l #$1FFC, -(sp)                   
                 jsr funcRamTestInit
@@ -904,10 +929,7 @@ TESTMENUITEM10  dc.w '10.Return to title screen', $0000
                 lsl.w #2, d2
                 or.w d2, d7                                         ;save test result in d7[2]
 
-                move.b #0, $5E004                                   ;Z80 interrupt
-                nop
-                nop
-                move.b #1, $5E004
+                
 
                 move.l d7, $800                                     ;load RAM test result from 0x800
 
@@ -975,7 +997,7 @@ TESTMENUITEM10  dc.w '10.Return to title screen', $0000
                                 dbf d0, HoldVal_WordTest_FillWord_rw      
 
                     HoldVal_ByteTest:
-                        addq.l #1, a1                            ;start addr +1(BYTE ACCESS)   
+                        addq.l #1, a1                            ;start addr +1(BYTE ACCESS)
 
                         move.w #$FF, d3
                         bsr.w HoldVal_ByteTest_FillByte
@@ -1002,15 +1024,11 @@ TESTMENUITEM10  dc.w '10.Return to title screen', $0000
                             HoldVal_ByteTest_FillByte_rw:
                                 move.b (a0), d4
                                 move.b d3, (a0)                 ;write $FF, 55, AA, 00
-                                nop
-                                nop
-                                nop
                                 cmp.b (a0), d3                  ;read and compare
                                 bne.s HoldVal_ByteTest_FillByte_err     ;if not matches, goto ERROR
                                 move.b d4, (a0)                 ;rewrite
                                 addq.l #2, a0                   ;+2 increment
                                 dbf d0, HoldVal_ByteTest_FillByte_rw    ;loop
-
                             rts
 
                             HoldVal_ByteTest_FillByte_err:
