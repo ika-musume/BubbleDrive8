@@ -66,12 +66,23 @@ module TimingGenerator
     output  wire    [11:0]  ABSPAGE
 );
 
+/*
+        +Y 568
+-X 208           +X 448
+        -Y 328
+*/
+
 localparam      INITIAL_ABS_PAGE = 12'd1951; //0-2052
-wire    [9:0]   BOUT_TIMING =   (nEN == 1'b1) ? 
-                                    10'd0 :
-                                    (TIMINGSEL == 1'b0) ?   //0 = 오리지널, 1 = 5us 빨리 보내기
-                                        10'd328 - 10'd2 :   //propagation delay보상을 위해 오리지널보다 신호를 15ns정도 일찍 보내기; 오래된 기판의 경우 LS244가 느려짐
-                                        10'd328 - 10'd216;  //오리지널보다 신호를 4.5us 빨리 보내기
+wire    [9:0]   OUTBUFFER_CLKEN_TIMING =    (nEN == 1'b1) ? 
+                                                10'd0 :
+                                                (TIMINGSEL == 1'b0) ?   //0 = 오리지널, 1 = 6.275us 빨리 보내기
+                                                    10'd328 - 10'd2 :   //propagation delay보상을 위해 오리지널보다 신호를 15ns정도 일찍 보내기; 오래된 기판의 경우 LS244가 느려짐
+                                                    10'd508;            //오리지널보다 신호를 6.275us 빨리 보내기
+wire    [9:0]   CYCLECOUNTER_TIMING =       (nEN == 1'b1) ? 
+                                                10'd568 :
+                                                (TIMINGSEL == 1'b0) ?   //0 = 오리지널, 1 = 6.275us 빨리 보내기
+                                                    10'd568 :           //오리지널 타이밍
+                                                    10'd568 - 10'd120;  //오리지널보다 카운터를 2.5us 빨리 증가시킴
 reg             __REF_nBOUTCLKEN_ORIG = 1'b0;
 reg             __REF_CLK12M = 1'b0;
 
@@ -615,7 +626,7 @@ begin
     end
 
     //+Y에서 한번씩 체크
-    else if(MCLK_counter == 10'd568) //magnetic field rotation activated
+    else if(MCLK_counter == CYCLECOUNTER_TIMING) //magnetic field rotation activated
     begin
         if(access_type[1] == 1'b0) //IDLE 또는 SWAP: 실제로 데이터가 나가지 않음
         begin
@@ -754,7 +765,7 @@ begin
         nBOUTCLKEN <= 1'b0;
     end
     //버블 -Y에서 체크
-    else if(MCLK_counter == BOUT_TIMING) //propagation delay보상을 위해 신호를 15ns정도 일찍 보내기; 오래된 기판의 경우 LS244가 느려짐
+    else if(MCLK_counter == OUTBUFFER_CLKEN_TIMING) //propagation delay보상을 위해 신호를 15ns정도 일찍 보내기; 오래된 기판의 경우 LS244가 느려짐
     begin
         nBOUTCLKEN <= 1'b0;
     end
