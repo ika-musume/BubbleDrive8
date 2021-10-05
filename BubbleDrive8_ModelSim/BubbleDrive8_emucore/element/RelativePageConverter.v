@@ -6,7 +6,7 @@ module RelativePageConverter
     output  reg     [11:0]  RELPAGE = 12'd4095
 );
 
-always @ (negedge MCLK)
+always @ (posedge MCLK)
 begin
     if(nCONV == 1'b0)
     begin

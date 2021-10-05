@@ -162,7 +162,7 @@ reg             D0_outbuffer[8191:0];
 reg             D0_outbuffer_read_data;
 assign          DOUT0 = ~D0_outbuffer_read_data;
 
-always @(negedge MCLK)
+always @(posedge MCLK)
 begin
     if(nOUTBUFWRCLKEN == 1'b0)
     begin
@@ -173,7 +173,7 @@ begin
     end
 end
 
-always @(negedge MCLK) //read 
+always @(posedge MCLK) //read 
 begin
     if(nBOUTCLKEN == 1'b0)
     begin
@@ -192,7 +192,7 @@ reg             D1_outbuffer[8191:0];
 reg             D1_outbuffer_read_data;
 assign          DOUT1 = ~D1_outbuffer_read_data;
 
-always @(negedge MCLK)
+always @(posedge MCLK)
 begin
     if(nOUTBUFWRCLKEN == 1'b0)
     begin
@@ -203,7 +203,7 @@ begin
     end
 end
 
-always @(negedge MCLK) //read 
+always @(posedge MCLK) //read 
 begin   
     if(nBOUTCLKEN == 1'b0)
     begin
@@ -222,7 +222,7 @@ reg             D2_outbuffer[8191:0];
 reg             D2_outbuffer_read_data;
 assign          DOUT2 = (BITWIDTH4 == 1'b0) ? ~1'b1 : ~D2_outbuffer_read_data;
 
-always @(negedge MCLK)
+always @(posedge MCLK)
 begin
     if(nOUTBUFWRCLKEN == 1'b0)
     begin
@@ -233,7 +233,7 @@ begin
     end
 end
 
-always @(negedge MCLK) //read 
+always @(posedge MCLK) //read 
 begin
     if(nBOUTCLKEN == 1'b0)
     begin
@@ -252,7 +252,7 @@ reg             D3_outbuffer[8191:0];
 reg             D3_outbuffer_read_data;
 assign          DOUT3 = (BITWIDTH4 == 1'b0) ? ~1'b1 : ~D3_outbuffer_read_data;
 
-always @(negedge MCLK)
+always @(posedge MCLK)
 begin
     if(nOUTBUFWRCLKEN == 1'b0)
     begin
@@ -263,7 +263,7 @@ begin
     end
 end
 
-always @(negedge MCLK) //read 
+always @(posedge MCLK) //read 
 begin
     if(nBOUTCLKEN == 1'b0)
     begin

@@ -12,7 +12,7 @@ module RAM1k1
 
 reg             RAM1k1 [1023:0];
 
-always @(negedge MCLK)
+always @(posedge MCLK)
 begin
     if(nWRCLKEN == 1'b0)
     begin
@@ -23,7 +23,7 @@ begin
     end
 end
 
-always @(negedge MCLK) //read 
+always @(posedge MCLK) //read 
 begin
     if(nRDCLKEN == 1'b0)
     begin

@@ -20,12 +20,15 @@ wire            bubble_out_1;
 reg             i;
 
 
-wire            nROMCS;
-wire            ROMCLK;
-wire            ROMIO0;
-wire            ROMIO1;
-wire            ROMIO2;
-wire            ROMIO3;
+wire            CONFIGROM_nCS;
+wire            CONFIGROM_CLK;
+wire            CONFIGROM_MOSI;
+wire            CONFIGROM_MISO;
+wire            USERROM_FLASH_nCS;
+wire            USERROM_FRAM_nCS;
+wire            USERROM_CLK;
+wire            USERROM_MOSI;   
+wire            USERROM_MISO;  
 
 wire            nTEMPCS;
 wire            TEMPCLK;
@@ -69,14 +72,18 @@ BubbleDrive8_top Main
     .DOUT3          (               ),
     .n4BEN          (               ),
 
-    .IMGNUMSW       (3'b111         ),
+    .IMGSELSW       (4'b1111        ),
 
-    .nROMCS         (nROMCS         ),
-    .ROMCLK         (ROMCLK         ),
-    .ROMIO0         (ROMIO0         ),
-    .ROMIO1         (ROMIO1         ),
-    .ROMIO2         (ROMIO2         ),
-    .ROMIO3         (ROMIO3         ),
+    .CONFIGROM_nCS  (CONFIGROM_nCS      ),
+    .CONFIGROM_CLK  (CONFIGROM_CLK      ),
+    .CONFIGROM_MOSI (CONFIGROM_MOSI     ),
+    .CONFIGROM_MISO (CONFIGROM_MISO     ),
+
+    .USERROM_FLASH_nCS  (USERROM_FLASH_nCS  ),
+    .USERROM_FRAM_nCS   (USERROM_FRAM_nCS   ),
+    .USERROM_CLK    (USERROM_CLK        ),
+    .USERROM_MOSI   (USERROM_MOSI       ),
+    .USERROM_MISO   (USERROM_MISO       ),
 
     .SETTINGSW      (4'b1010        ),
 
@@ -102,17 +109,35 @@ BubbleDrive8_top Main
     .nLED_PWROK     (nLED_PWROK     )
 );
 
+wire            CONFIGROM_nWP;      assign CONFIGROM_nWP = 1'b1;
+wire            CONFIGROM_nHOLD;    assign CONFIGROM_nHOLD = 1'b1;
 
-W25Q32JVxxIM SPIFlash_0 
+W25Q80DL SPIFlash_CONFIG
 (
-    .CSn            (nROMCS         ),
-    .CLK            (ROMCLK         ),
-    .DO             (ROMIO1         ),
-    .DIO            (ROMIO0         ),
+    .CSn            (CONFIGROM_nCS      ),
+    .CLK            (CONFIGROM_CLK      ),
+    .DO             (CONFIGROM_MISO     ),
+    .DIO            (CONFIGROM_MOSI     ),
     
-    .WPn            (ROMIO2         ),
-    .HOLDn          (ROMIO3         ),
-    .RESETn         (ROMIO3         )
+    .WPn            (CONFIGROM_nWP      ),
+    .HOLDn          (CONFIGROM_nHOLD    )
+);
+
+
+wire            USERROM_nWP;        assign USERROM_nWP = 1'bZ;
+wire            USERROM_nHOLD;      assign USERROM_nHOLD = 1'bZ;
+wire            USERROM_nRESET;     assign USERROM_nRESET = 1'bZ;
+
+W25Q32JVxxIM SPIFlash_USER
+(
+    .CSn            (USERROM_FLASH_nCS  ),
+    .CLK            (USERROM_CLK        ),
+    .DO             (USERROM_MISO       ),
+    .DIO            (USERROM_MOSI       ),
+    
+    .WPn            (USERROM_nWP        ),
+    .HOLDn          (USERROM_nHOLD      ),
+    .RESETn         (USERROM_nRESET     )
 );
 
 TC77_fake TC77_0

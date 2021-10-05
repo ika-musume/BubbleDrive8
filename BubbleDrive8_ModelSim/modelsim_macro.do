@@ -27,38 +27,44 @@ add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenera
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/nREPEN_intl
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/ACCTYPE
 add wave -noupdate -radix decimal /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/ABSPAGE
-add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/Main/RELPAGE
+add wave -noupdate -radix hexadecimal /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/Main/RELPAGE
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/__REF_CLK12M
 add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/MCLK_counter
 add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/bout_bootloop_cycle_counter
 add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/BOUTCYCLENUM
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/__REF_nBOUTCLKEN_ORIG
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/nBOUTCLKEN
-add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/BOUT_TIMING
 add wave -noupdate /BubbleDrive8_top_tb/Main/DOUT3
 add wave -noupdate /BubbleDrive8_top_tb/Main/DOUT2
 add wave -noupdate /BubbleDrive8_top_tb/Main/DOUT1
 add wave -noupdate /BubbleDrive8_top_tb/Main/DOUT0
+add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/spi_state
+add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/map_table
+add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/map_addr
+add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/map_write_enable
+add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/map_write_clken
+add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/map_data_in
+add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/map_read_clken
+add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/map_data_out
+add wave -noupdate /BubbleDrive8_top_tb/Main/USERROM_FLASH_nCS
+add wave -noupdate /BubbleDrive8_top_tb/Main/USERROM_CLK
+add wave -noupdate /BubbleDrive8_top_tb/Main/USERROM_MOSI
+add wave -noupdate /BubbleDrive8_top_tb/Main/USERROM_MISO
+add wave -noupdate /BubbleDrive8_top_tb/Main/CONFIGROM_nCS
+add wave -noupdate /BubbleDrive8_top_tb/Main/CONFIGROM_CLK
+add wave -noupdate /BubbleDrive8_top_tb/Main/CONFIGROM_MOSI
+add wave -noupdate /BubbleDrive8_top_tb/Main/CONFIGROM_MISO
 add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/OUTBUFWRADDR
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/nOUTBUFWRCLKEN
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/OUTBUFWRDATA
 add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/FIFOBUFWRADDR
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/nFIFOBUFWRCLKEN
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/FIFOBUFWRDATA
-add wave -noupdate /BubbleDrive8_top_tb/Main/nROMCS
-add wave -noupdate /BubbleDrive8_top_tb/Main/ROMCLK
-add wave -noupdate /BubbleDrive8_top_tb/Main/ROMIO0
-add wave -noupdate /BubbleDrive8_top_tb/Main/ROMIO1
-add wave -noupdate /BubbleDrive8_top_tb/ROMIO2
-add wave -noupdate /BubbleDrive8_top_tb/ROMIO3
-add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/mosi_enable
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/spi_instruction
-add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/SPI_OUTLATCH
 add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/general_counter
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/spi_state
 add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/SIPOBuffer_0/SIPOWRADDR
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/SIPOBuffer_0/D7/nWRCLKEN
-add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/SIPOBuffer_0/D7/DIN
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/nFIFOSENDBOOT
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPILoader_0/nFIFOSENDUSER
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/return_fifo_state
@@ -77,9 +83,9 @@ add wave -noupdate -radix hexadecimal /BubbleDrive8_top_tb/Main/BubbleDrive8_usb
 add wave -noupdate -radix ascii /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/ADBUS
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/ACBUS
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {6149020 ns} 0} {{Cursor 3} {79513600 ns} 1}
+WaveRestoreCursors {{Cursor 1} {79534582 ns} 0} {{Cursor 3} {79513600 ns} 1}
 quietly wave cursor active 1
-configure wave -namecolwidth 150
+configure wave -namecolwidth 251
 configure wave -valuecolwidth 100
 configure wave -justifyvalue left
 configure wave -signalnamewidth 1
@@ -93,4 +99,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {0 ns} {16227268 ns}
+WaveRestoreZoom {79532645 ns} {79539623 ns}
