@@ -46,3 +46,5 @@ Added TC77 temperature sensor to make an "realistic" heating delay.
 FT232HL async FIFO implementation completed.
 ### v1.5 - Sep. 10, 2021
 Bubble System test program B85:K:A:A:2021091002 released.
+### v1.55 - Oct. 11, 2021
+Bubble System test program B85:K:A:A:2021101102 released.

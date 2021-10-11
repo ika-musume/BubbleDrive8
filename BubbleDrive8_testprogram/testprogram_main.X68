@@ -1,9 +1,9 @@
 *-----------------------------------------------------------
 * Title      : BubbleDrive8_testprogram
 * Written by : Raki
-* Date       : 2021-10-03
+* Date       : 2021-10-11
 * Description: BubbleDrive8 Test Program
-*              B85:K:A:C:2021100302
+*              B85:K:A:C:2021101102
 *-----------------------------------------------------------
 
     ORG     $0
@@ -359,6 +359,8 @@ VECTORS dc.l $00000800                                      ;reset initial SP
             move.w (sp)+, d1                                ;pop consecutive page length
             movea.l (sp)+, a2                               ;pop destination address
 
+            lea $5E008, a6
+
             lea $40000, a1                                  ;bubble memory controller register
             subi.l #1, d1                                   ;consecutive page length - 1 
 
@@ -548,7 +550,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
 TITLEMESSAGE1   dc.w 'BubbleDrive8', $0000
 TITLEMESSAGE2   dc.w 'System Test Program', $0000
 TITLEMESSAGE3   dc.w '(C) 2020-2021 Raki', $0000
-VERSION         dc.w 'B85:K:A:C:2021100302', $0000
+VERSION         dc.w 'B85:K:A:C:2021101102', $0000
 
 
         *--------------------------------------------------------
