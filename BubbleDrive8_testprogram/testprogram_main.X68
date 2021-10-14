@@ -60,8 +60,8 @@ VECTORS dc.l $00000800                                      ;reset initial SP
 
         move.w #0, $4(a0)                                   ;initialize controller
         move.w #$1, d1                                      ;set page 0x001 in D1
-        move.w #5, d0                                       ;consecutive 6 pages
-        lea $A00, a1                                        ;copy pages from A00
+        move.w #7, d0                                       ;consecutive 8 pages
+        lea $900, a1                                        ;copy pages from 900
         BOOTLOADER_LoadRAMTest:
             move.w #0, $4(a0)                               ;initialize controller
             move.w d1, $0(a0)                               ;set page
@@ -93,7 +93,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
             dbf d0, BOOTLOADER_LoadRAMTest                  ;repeat 6 times
 
         move.w #0, $4(a0)                                   ;initialize controller
-        jmp $A00
+        jmp $900
 
         BOOTLOADER_funcBubbleWait:
             move.w #$8000, d7                               ;signed -32768
@@ -109,7 +109,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
             bra.w BOOTLOADER
 
 
-    ORG     $A00
+    ORG     $900
     INITIALIZATION:                                         ;initial RAM test routines        
         move.b #1, (a6)                                     ;kick the Z80 watchdog
         move.b #0, (a6)
@@ -142,13 +142,13 @@ VECTORS dc.l $00000800                                      ;reset initial SP
         ;bit 6: TM Code RAM
         ;bit 7: TM Color RAM
         ;bit 8: OBJ List RAM
-        ;bit 9: Character RAM
+        ;bit 9: Character RAMd
 
 
         move.w #1, -(sp)                                    ;Palette RAM test
         move.l #$5A000, -(sp)
         move.l #$1000, -(sp)
-        bsr.w funcRamTestInit
+        bsr.w volatileRamTestInit
         move.w (sp)+, d2
         lsl.w #3, d2
         or.w d2, d7                                         ;save test result in d7[3]
@@ -156,7 +156,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
         move.w #1, -(sp)                                    ;Work RAM test
         move.l #$10000, -(sp)
         move.l #$10000, -(sp)
-        bsr.w funcRamTestInit
+        bsr.w volatileRamTestInit
         move.w (sp)+, d2
         lsl.w #1, d2
         or.w d2, d7                                         ;save test result in d7[1]
@@ -164,7 +164,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
         move.w #0, -(sp)                                    ;scroll RAM test
         move.l #$50000, -(sp)                
         move.l #$1000, -(sp)                   
-        bsr.w funcRamTestInit
+        bsr.w volatileRamTestInit
         move.w (sp)+, d2
         lsl.w #5, d2           
         or.w d2, d7                                         ;save test result in d7[5]
@@ -172,7 +172,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
         move.w #1, -(sp)                                    ;tilemap RAM test
         move.l #$52000, -(sp)                
         move.l #$2000, -(sp)                   
-        bsr.w funcRamTestInit
+        bsr.w volatileRamTestInit
         move.w (sp)+, d2
         lsl.w #6, d2         
         or.w d2, d7                                         ;save test result in d7[6]
@@ -180,7 +180,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
         move.w #0, -(sp)                                    ;tile color RAM test
         move.l #$54000, -(sp)                
         move.l #$2000, -(sp)                   
-        bsr.w funcRamTestInit
+        bsr.w volatileRamTestInit
         move.w (sp)+, d2
         lsl.w #7, d2           
         or.w d2, d7                                         ;save test result in d7[7]
@@ -188,7 +188,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
         move.w #0, -(sp)                                    ;sprite RAM test
         move.l #$56000, -(sp)                
         move.l #$1000, -(sp)                   
-        bsr.w funcRamTestInit
+        bsr.w volatileRamTestInit
         move.w (sp)+, d2
         lsl.w #8, d2           
         or.w d2, d7                                         ;save test result in d7[8]
@@ -196,7 +196,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
         move.w #1, -(sp)                                    ;Character RAM test
         move.l #$30000, -(sp)                
         move.l #$10000, -(sp)                   
-        bsr.w funcRamTestInit                  
+        bsr.w volatileRamTestInit                  
         move.w (sp)+, d2
         lsl.w #8, d2
         lsl.w #1, d2                
@@ -205,7 +205,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
         move.w #1, -(sp)                                    ;expansion RAM
         move.l #$70000, -(sp)                
         move.l #$4000, -(sp)                   
-        jsr funcRamTestInit
+        jsr volatileRamTestInit
         move.w (sp)+, d2
         lsl.w #4, d2           
         or.w d2, d7                                         ;save test result in d7[4]
@@ -238,8 +238,8 @@ VECTORS dc.l $00000800                                      ;reset initial SP
         move.b #0, (a6)
 
         move.l #$10000, -(sp)
-        move.w #72, -(sp)                                   ;72 pages
-        move.w #7, -(sp)                                    ;from 0x380
+        move.w #96, -(sp)                                   ;96 pages
+        move.w #9, -(sp)                                    ;from 0x480
         bsr.w funcLoadBubble
 
         move.b #1, (a6)                                     ;kick the Z80 watchdog
@@ -247,10 +247,117 @@ VECTORS dc.l $00000800                                      ;reset initial SP
 
         jmp $10000                                          ;goto work ram
 
-        ;
-        ;           FUNCTION RAMTEST WITH INITIALIZATION
-        ;
-        funcRamTestInit:                                    ;bit width flag -> start address -> test length -> return address
+
+
+        *--------------------------------------------------------
+        *
+        *       system: SaveReg
+        *
+        *--------------------------------------------------------
+        sysSaveReg:
+            move.b #1, $5E008                                   ;kick the watchdog
+            move.b #0, $5E008
+
+            move.l a7, $6FC                                     ;save current SP address
+            lea $6FC, a7                                        ;change stack pointer
+
+            move.l a6, -(sp)
+            move.l a5, -(sp)
+            move.l a4, -(sp)
+            move.l a3, -(sp)
+            move.l a2, -(sp)
+            move.l a1, -(sp)
+            move.l a0, -(sp)
+
+            move.l d7, -(sp)
+            move.l d6, -(sp)
+            move.l d5, -(sp)
+            move.l d4, -(sp)
+            move.l d3, -(sp)
+            move.l d2, -(sp)
+            move.l d1, -(sp)
+            move.l d0, -(sp)
+
+            move.l #0, d0
+            move.l #0, d1
+            move.l #0, d2
+            move.l #0, d3
+            move.l #0, d4
+            move.l #0, d5
+            move.l #0, d6
+            move.l #0, d7
+
+            movea.l #0, a0
+            movea.l #0, a1
+            movea.l #0, a2
+            movea.l #0, a3
+            movea.l #0, a4
+            movea.l #0, a5
+            movea.l #0, a6
+
+            move.l $6FC, a7                                     ;restore SP
+
+            rts
+
+        *--------------------------------------------------------
+        *
+        *       system: LoadReg
+        *
+        *--------------------------------------------------------
+        sysLoadReg:
+            move.b #1, $5E008                                   ;kick the watchdog
+            move.b #0, $5E008
+
+            move.l a7, $6FC                                     ;save current SP address
+            lea $6C0, a7                                        ;change stack pointer
+
+            move.l #0, d0
+            move.l #0, d1
+            move.l #0, d2
+            move.l #0, d3
+            move.l #0, d4
+            move.l #0, d5
+            move.l #0, d6
+            move.l #0, d7
+
+            movea.l #0, a0
+            movea.l #0, a1
+            movea.l #0, a2
+            movea.l #0, a3
+            movea.l #0, a4
+            movea.l #0, a5
+            movea.l #0, a6
+
+            move.l (sp)+, d0
+            move.l (sp)+, d1
+            move.l (sp)+, d2
+            move.l (sp)+, d3
+            move.l (sp)+, d4
+            move.l (sp)+, d5
+            move.l (sp)+, d6
+            move.l (sp)+, d7
+
+            move.l (sp)+, a0
+            move.l (sp)+, a1
+            move.l (sp)+, a2
+            move.l (sp)+, a3
+            move.l (sp)+, a4
+            move.l (sp)+, a5
+            move.l (sp)+, a6
+            
+            move.l $6FC, a7                                     ;restore SP
+
+            rts
+
+
+
+        *--------------------------------------------------------
+        *
+        *       volatile: RamTestInit
+        *
+        *--------------------------------------------------------
+
+        volatileRamTestInit:                                ;bit width flag -> start address -> test length -> return address
             movea.l (sp)+, a2                               ;pop return address
             move.l (sp)+, d1                                ;pop test length
             movea.l (sp)+, a1                               ;pop start address
@@ -346,14 +453,19 @@ VECTORS dc.l $00000800                                      ;reset initial SP
                     rts        
 
 
-        ;
-        ;           FUNCTION LOADBUBBLE
-        ;
+        *--------------------------------------------------------
+        *
+        *       function: funcLoadBubble
+        *
+        *--------------------------------------------------------
+
         ;ARGS: START PAGE ADDRESS
         ;      CONSECUTIVE PAGE LENGTH
         ;      DESTINATION MEMORY ADDRESS   
         ;JSR:  RETURN ADDRESS 
         funcLoadBubble:                                     ;start page -> consecutive page length - > destination address -> return address
+            jsr sysSaveReg
+
             movea.l (sp)+, a3                               ;pop return address
             move.w (sp)+, d0                                ;pop start page
             move.w (sp)+, d1                                ;pop consecutive page length
@@ -364,7 +476,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
             lea $40000, a1                                  ;bubble memory controller register
             subi.l #1, d1                                   ;consecutive page length - 1 
 
-            READ:
+            funcLoadBubble_Read:
                 move.w #0, $4(a1)                           ;initialize controller
                 move.w d0, (a1)                             ;set page
                 nop
@@ -374,32 +486,34 @@ VECTORS dc.l $00000800                                      ;reset initial SP
                 move.b #0, (a6)
 
                 move.w #$8000, d3
-                WAIT:
+                funcLoadBubble_Read_wait:
                     nop
-                    dbf d3, WAIT                            ;loop
+                    dbf d3, funcLoadBubble_Read_wait        ;loop
 
                 move.w (a1), d2                             ;move last byte to d2
                 move.w d2, $F80                             ;move last byte to F80
 
                 lea $F00, a0                                ;first address of the page
                 move.w #65, d3
-                SHIFT:
+                funcLoadBubble_Read_shift:
                     move.l (a0), d2                         ;get raw data
                     lsl.l #6, d2                            ;shift 6 bits left
                     swap d2                                 ;high 16 low 16 swap
                     move.w d2, (a0)+                        ;write shifted data
-                    dbf d3, SHIFT                           ;loop 66 times
+                    dbf d3, funcLoadBubble_Read_shift       ;loop 66 times
 
                 lea $F00, a0                                ;first address of the page
                 move.w #31, d3
-                COPY:
+                funcLoadBubble_Read_copy:
                     move.l (a0)+, (a2)+
-                    dbf d3, COPY                            ;loop 32 times
+                    dbf d3, funcLoadBubble_Read_copy        ;loop 32 times
 
                 addq.w #1, d0                               ;start page +1
-                dbf d1, READ
+                dbf d1, funcLoadBubble_Read
 
             move.l a3, -(sp)                                ;push return address
+
+            jsr sysLoadReg
             rts 
 
 
@@ -417,8 +531,12 @@ VECTORS dc.l $00000800                                      ;reset initial SP
         move.w #1024, -(sp)
         jsr funcLoadBubble
 
+        move.w #1, $804                                 ;initialize menu item indicator register
         move.w #$FFFF, $810                             ;initialize current key input comparison register to FFFF
         move.w #$FFFF, $812                             ;initialize previous key input comparison register to FFFF
+        move.w #$FFFF, $818                             ;initialize long input previous value
+        move.w #0, $81A                                 ;initialize long input trigger counter
+        move.w #0, $81C                                 ;initialize long input pulse counter
 
 
         *--------------------------------------------------------
@@ -440,7 +558,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
             move.w #0, -(sp)
             move.w #18, -(sp)
             move.w #0, -(sp)
-            bsr.w DRAWTILEMAP
+            bsr.w funcDrawTilemap
 
             move.w #0, d7
             move.w #7, d6
@@ -452,7 +570,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
                 move.w d7, -(sp)
                 move.w #3, -(sp)
                 move.w #1, -(sp)
-                bsr.w DRAWTILEMAP
+                bsr.w funcDrawTilemap
                 addi.w #8, d7
                 dbf d6, DRAWUPPERTITLEBANNER
 
@@ -466,7 +584,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
                 move.w d7, -(sp)
                 move.w #27, -(sp)
                 move.w #1, -(sp)
-                bsr.w DRAWTILEMAP
+                bsr.w funcDrawTilemap
                 addi.w #8, d7
                 dbf d6, DRAWLOWERTITLEBANNER
 
@@ -478,7 +596,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
                 move.w #7, -(sp)
                 move.w #8, -(sp)
                 move.w #0, -(sp)
-                bsr.w DRAWTILEMAP
+                bsr.w funcDrawTilemap
 
             lea TITLEMESSAGE2, a0
             move.l a0, -(sp)
@@ -577,7 +695,7 @@ VERSION         dc.w 'B85:K:A:C:2021101102', $0000
                 move.w #$FF, (a0)+
                 dbf d1, TESTMENU_ObjClr_hloop               ;repeat 6 times
 
-            move.w #9, d6                                   ;print test menu items: 10 lines
+            move.w #11, d6                                  ;print test menu items: 12 lines
             move.w #8, d7                                   ;YPOS of first line
             lea TESTMENUITEM1, a4
             TESTMENU_PrintList:
@@ -593,8 +711,9 @@ VERSION         dc.w 'B85:K:A:C:2021101102', $0000
 
                 dbf  d6, TESTMENU_PrintList
 
-            move.w #1, d6                                   ;menu item indicator register
-            move.w #8, d5                                   ;initialize cursor position
+            move.w $804, d6                                 ;menu item indicator register
+            move.w d6, d5                                   ;
+            addi.w #7, d5                                   ;cursor position
 
             move.w #1, -(sp)                                ;draw cursor on 1st position
             move.w #1, -(sp)
@@ -603,11 +722,11 @@ VERSION         dc.w 'B85:K:A:C:2021101102', $0000
             move.w #3, -(sp)
             move.w d5, -(sp)
             move.w #0, -(sp)
-            bsr.w DRAWTILEMAP
+            bsr.w funcDrawTilemap
 
             TESTMENUKEYINWAIT:
                 bsr.w funcCheckInput                        ;check P1 button input
-                move.w (sp)+, d0                             ;get latest input 
+                move.w (sp)+, d0                            ;get latest input 
                 btst.l #$4, d0                              ;check for power-up(gradius) or fire(twinbee)
                 beq TESTMENUSWITCHER
                 btst.l #$3, d0                              ;check for DOWN
@@ -618,7 +737,7 @@ VERSION         dc.w 'B85:K:A:C:2021101102', $0000
                 
 
                 TESTMENUINCREASE:
-                    cmpi #10, d6                            ;if 10
+                    cmpi #12, d6                            ;if 12
                     beq TESTMENUKEYINDELAY
                     addq.w #1, d6
                     bra.s TESTMENUMOVECURSOR
@@ -635,8 +754,9 @@ VERSION         dc.w 'B85:K:A:C:2021101102', $0000
                     move.w #3, -(sp)
                     move.w d5, -(sp)
                     move.w #0, -(sp)
-                    bsr.w DRAWTILEMAP
+                    bsr.w funcDrawTilemap
 
+                    move.w d6, $804                         ;save item indicator value
                     move.w d6, d5                           ;update cursor position
                     addi.w #7, d5
 
@@ -647,7 +767,7 @@ VERSION         dc.w 'B85:K:A:C:2021101102', $0000
                     move.w #3, -(sp)
                     move.w d5, -(sp)
                     move.w #0, -(sp)
-                    bsr.w DRAWTILEMAP
+                    bsr.w funcDrawTilemap
 
                 TESTMENUKEYINDELAY:
                     jsr funcFixedDelay
@@ -655,14 +775,16 @@ VERSION         dc.w 'B85:K:A:C:2021101102', $0000
 
 TESTMENUITEM1   dc.w '1.Show RAM test result   ', $0000
 TESTMENUITEM2   dc.w '2.Screen test            ', $0000
-TESTMENUITEM3   dc.w '3.Button/DIPSW input test', $0000
-TESTMENUITEM4   dc.w '4.RF2 IO board test      ', $0000
-TESTMENUITEM5   dc.w '5.Jump to 0x78002        ', $0000
-TESTMENUITEM6   dc.w '6.Show CHARRAM data      ', $0000
-TESTMENUITEM7   dc.w '7.Priority test          ', $0000
-TESTMENUITEM8   dc.w '8.BMC debug program      ', $0000
-TESTMENUITEM9   dc.w '9.Contributors           ', $0000
-TESTMENUITEM10  dc.w '10.Return to title screen', $0000
+TESTMENUITEM3   dc.w '3.Scroll test            ', $0000
+TESTMENUITEM4   dc.w '4.Sprite test            ', $0000
+TESTMENUITEM5   dc.w '5.Button/DIPSW input test', $0000
+TESTMENUITEM6   dc.w '6.RF2 IO board test      ', $0000
+TESTMENUITEM7   dc.w '7.Jump to 0x78002        ', $0000
+TESTMENUITEM8   dc.w '8.Show CHARRAM data      ', $0000
+TESTMENUITEM9   dc.w '9.Priority test          ', $0000
+TESTMENUITEM10  dc.w '10.BMC debug program     ', $0000
+TESTMENUITEM11  dc.w '11.Contributors          ', $0000
+TESTMENUITEM12  dc.w '12.Return to title screen', $0000
 
 
 
@@ -679,20 +801,22 @@ TESTMENUITEM10  dc.w '10.Return to title screen', $0000
                     cmpi #2, d6
                     beq TSTRTNE_Screen
                     cmpi #3, d6
-                    beq TSTRTNE_Input
-                    cmpi #4, d6
-                    beq TSTRTNE_RF2IO
+                    beq TSTRTNE_Scroll
                     cmpi #5, d6
-                    beq TSTRTNE_JMP
+                    beq TSTRTNE_Input
                     cmpi #6, d6
-                    beq TSTRTNE_CHARRAM
+                    beq TSTRTNE_RF2IO
                     cmpi #7, d6
-                    beq TSTRTNE_Pr
+                    beq TSTRTNE_JMP
                     cmpi #8, d6
-                    beq TSTRTNE_BMC
+                    beq TSTRTNE_CHARRAM
                     cmpi #9, d6
-                    beq TSTRTNE_Contributors
+                    beq TSTRTNE_Pr
                     cmpi #10, d6
+                    beq TSTRTNE_BMC
+                    cmpi #11, d6
+                    beq TSTRTNE_Contributors
+                    cmpi #12, d6
                     beq TSTRTNE_Return
                     bra.w TESTMENUKEYINWAIT
 
@@ -902,7 +1026,7 @@ TESTMENUITEM10  dc.w '10.Return to title screen', $0000
                  move.w #0, -(sp)                                    ;Z80 RAM test
                 move.l #$20004, -(sp)                
                 move.l #$1FFC, -(sp)                   
-                jsr funcRamTestInit
+                jsr volatileRamTestInit
                 move.w (sp)+, d2
                 lsl.w #2, d2
                 or.w d2, d7                                         ;save test result in d7[2]
@@ -910,7 +1034,7 @@ TESTMENUITEM10  dc.w '10.Return to title screen', $0000
                 move.w #0, -(sp)                                    ;Z80 RAM test
                 move.l #$22000, -(sp)                
                 move.l #$2000, -(sp)                   
-                jsr funcRamTestInit
+                jsr volatileRamTestInit
                 move.w (sp)+, d2
                 lsl.w #2, d2
                 or.w d2, d7                                         ;save test result in d7[2]
@@ -918,7 +1042,7 @@ TESTMENUITEM10  dc.w '10.Return to title screen', $0000
                 move.w #0, -(sp)                                    ;Z80 RAM test
                 move.l #$24000, -(sp)                
                 move.l #$2000, -(sp)                   
-                jsr funcRamTestInit
+                jsr volatileRamTestInit
                 move.w (sp)+, d2
                 lsl.w #2, d2
                 or.w d2, d7                                         ;save test result in d7[2]
@@ -926,7 +1050,7 @@ TESTMENUITEM10  dc.w '10.Return to title screen', $0000
                 move.w #0, -(sp)                                    ;Z80 RAM test
                 move.l #$26000, -(sp)                
                 move.l #$2000, -(sp)                   
-                jsr funcRamTestInit
+                jsr volatileRamTestInit
                 move.w (sp)+, d2
                 lsl.w #2, d2
                 or.w d2, d7                                         ;save test result in d7[2]
@@ -1122,7 +1246,7 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
                 move.w #0, -(sp)
                 move.w #2, -(sp)
                 move.w #0, -(sp)
-                bsr.w DRAWTILEMAP
+                bsr.w funcDrawTilemap
 
                 move.w #$0007, d7               ;palette
                 move.w #11, d6                  ;ypos
@@ -1135,7 +1259,7 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
                     move.w #9, -(sp)
                     move.w d6, -(sp)
                     move.w #0, -(sp)
-                    bsr.w DRAWTILEMAP
+                    bsr.w funcDrawTilemap
 
                     addq.w #1, d7
                     addq.w #2, d6
@@ -1174,7 +1298,7 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
                         move.w d1, -(sp)
                         move.w d0, -(sp)
                         move.w #0, -(sp)
-                        bsr.w DRAWTILEMAP
+                        bsr.w funcDrawTilemap
 
                         dbf d6, TSTRTNE_Screen_1_red_looph
 
@@ -1200,7 +1324,7 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
                         move.w d1, -(sp)
                         move.w d0, -(sp)
                         move.w #0, -(sp)
-                        bsr.w DRAWTILEMAP
+                        bsr.w funcDrawTilemap
 
                         dbf d6, TSTRTNE_Screen_1_white_looph
 
@@ -1215,6 +1339,284 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
                 bra.s TSTRTNE_Screen_KeyInDelay_b
 
 NOWLOADING      dc.w 'NOW LOADING', $0000
+
+
+
+        *--------------------------------------------------------
+        *
+        *       TESTMENU_Scroll subroutine
+        *
+        *--------------------------------------------------------
+
+        TSTRTNE_Scroll:
+
+            move.l #$3FC00, -(sp)                       ;copy tiles(2D400 ~400 on ROM)
+            move.w #8, -(sp)
+            move.w #1448, -(sp)
+            jsr funcLoadBubble
+
+
+            lea $830, a6                                ;load register address
+            move.w #0, (a6)                             ;tilemap code
+            move.w #0, $2(a6)                           ;Xscroll binary
+            move.w #0, $4(a6)                           ;Yscroll binary
+            move.w #$0000, $6(a6)                       ;Xscroll BCD
+            move.w #$0000, $8(a6)                       ;Yscroll BCD
+
+            TSTRTNE_Scroll_InEval:
+                bsr.w funcCheckInput                    ;check P1 button input
+                move.w (sp)+, d0                        ;get latest input 
+
+                btst.l #$4, d0                          ;power-up(gradius) or fire(twinbee)
+                beq.w TSTRTNE_Scroll_TMSwap
+
+                bsr.w funcCheckLongInput
+                move.w (sp)+, d1                        ;get long input trigger
+                and.w d1, d0
+
+                ;TSTRTNE_Scroll_InEval_yinc
+                    btst.l #$3, d0                                  ;check for DOWN
+                    bne.s TSTRTNE_Scroll_InEval_ydec
+                    addq.w #1, $4(a6)
+                TSTRTNE_Scroll_InEval_ydec:
+                    btst.l #$2, d0                                  ;check for UP
+                    bne.s TSTRTNE_Scroll_InEval_xdec
+                    subq.w #1, $4(a6)
+                TSTRTNE_Scroll_InEval_xdec:
+                    btst.l #$1, d0                                  ;check for RIGHT
+                    bne.s TSTRTNE_Scroll_InEval_xinc
+                    subq.w #1, $2(a6)
+                TSTRTNE_Scroll_InEval_xinc:
+                    btst.l #$0, d0                                  ;check for LEFT
+                    bne.w TSTRTNE_Scroll_BCD
+                    addq.w #1, $2(a6)
+                bra.w TSTRTNE_Scroll_BCD
+
+    
+            TSTRTNE_Scroll_TMSwap:                                  ;0=A 1=B
+                eori.b #$01, $1(a6)                                 ;flip value
+
+                cmpi.b #$00, $1(a6)                                 ;if TM-B
+                bne.w TSTRTNE_Scroll_TMSwap_a2b
+
+                ;TSTRTNE_Scroll_TMSwap_b2a                          ;B -> A
+                    lea $50400, a0
+                    lea $50000, a1
+                    move.w #$200, d0
+                    bsr.w TSTRTNE_Scroll_blockcopy                  ;Xscroll copy 
+
+                    lea $50F00, a0
+                    lea $50F80, a1
+                    move.w #$40, d0
+                    bsr.w TSTRTNE_Scroll_blockcopy                  ;Yscroll copy
+
+                    lea $53000, a0
+                    lea $52000, a1
+                    move.w #$800, d0
+                    bsr.w TSTRTNE_Scroll_blockcopy                  ;Tile code copy
+
+                    lea $55000, a0
+                    lea $54000, a1
+                    move.w #$800, d0
+                    bsr.w TSTRTNE_Scroll_blockcopy                  ;Tile palette copy
+
+                    move.w #$F000, -(sp)                            ;clear tilemap B with black(transparent) tiles
+                    move.w #$0006, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w funcFillTilemap
+
+                    lea $50400, a0
+                    move.w #$200, d0                                ;50400-507FF
+                    move.w #0, d1
+                    bsr.w TSTRTNE_Scroll_set
+
+                    lea $50F00, a0
+                    move.w #$40, d0                                 ;50F00-50F7F
+                    move.w #0, d1
+                    bsr.w TSTRTNE_Scroll_set
+
+                    bra.w TSTRTNE_Scroll_BCD
+
+                TSTRTNE_Scroll_TMSwap_a2b:                          ;A -> B
+                    lea $50000, a0
+                    lea $50400, a1
+                    move.w #$200, d0
+                    bsr.w TSTRTNE_Scroll_blockcopy                  ;Xscroll copy 
+
+                    lea $50F80, a0
+                    lea $50F00, a1
+                    move.w #$40, d0
+                    bsr.w TSTRTNE_Scroll_blockcopy                  ;Yscroll copy
+
+                    lea $52000, a0
+                    lea $53000, a1
+                    move.w #$800, d0
+                    bsr.w TSTRTNE_Scroll_blockcopy                  ;Tile code copy
+
+                    lea $54000, a0
+                    lea $55000, a1
+                    move.w #$800, d0
+                    bsr.w TSTRTNE_Scroll_blockcopy                  ;Tile palette copy
+
+                    move.w #$F000, -(sp)                            ;clear tilemap A with black(transparent) tiles
+                    move.w #$0006, -(sp)
+                    move.w #1, -(sp)
+                    bsr.w funcFillTilemap
+
+
+                    lea $50000, a0
+                    move.w #$200, d0                                ;50000-503FF
+                    move.w #0, d1
+                    bsr.w TSTRTNE_Scroll_set
+
+                    lea $50F80, a0
+                    move.w #$40, d0                                 ;50F80-50FFF
+                    move.w #0, d1
+                    bsr.w TSTRTNE_Scroll_set
+
+                    bra.w TSTRTNE_Scroll_BCD
+
+                
+
+            TSTRTNE_Scroll_BCD:
+                TSTRTNE_Scroll_BCD_X:
+                    move.l #0, d7                                   ;initialize d7
+                    move.w $2(a6), d7                               ;get binary value
+                    andi.w #$01FF, d7                               ;xscroll value 0-511
+                    move.w #2, d0                                   ;3 digits
+                    TSTRTNE_Scroll_BCD_X_digit:
+                        move.w d0, d1
+                        move.w #1, d6
+                        TSTRTNE_Scroll_BCD_X_digit_getdenom:
+                            mulu.w #10, d6                          ;1*10*10*10
+                            dbf d1, TSTRTNE_Scroll_BCD_X_digit_getdenom
+                            divu.w #10, d6                          ;(1*10*10*10)/10
+                        divu.w d6, d7                               ;d7/d6
+                        move.l #0, d5                               ;initialize d5
+                        move.w d7, d5                               ;move quotient to d5
+            
+                        move.w #$FFF0, d4                           ;initialize d4 with FFF0
+                        move.w #4, d1                               ;load 4
+                        mulu.w d0, d1                               ;loop counter * 4
+                        rol.w d1, d4                                ;rotate d4 left
+                        lsl.w d1, d5                                ;shift d5 left
+                        and.w d4, $6(a6)                            ;erase the corresponding digit
+                        or.w d5, $6(a6)                             ;write BCD number
+
+                        swap d7                                     ;swap quotient with remainder
+                        andi.l #$0000FFFF, d7                       ;remove quotient
+
+                    dbf d0, TSTRTNE_Scroll_BCD_X_digit
+                    
+                TSTRTNE_Scroll_BCD_Y:
+                    move.l #0, d7                                   ;initialize d7
+                    move.w $4(a6), d7                               ;get binary value
+                    andi.w #$00FF, d7                               ;yscroll value 0-255
+                    move.w #2, d0                                   ;3 digits
+                    TSTRTNE_Scroll_BCD_Y_digit:
+                        move.w d0, d1
+                        move.w #1, d6
+                        TSTRTNE_Scroll_BCD_Y_digit_getdenom:
+                            mulu.w #10, d6                          ;1*10*10*10
+                            dbf d1, TSTRTNE_Scroll_BCD_Y_digit_getdenom
+                            divu.w #10, d6                          ;(1*10*10*10)/10
+                        divu.w d6, d7                               ;d7/d6
+                        move.l #0, d5                               ;initialize d5
+                        move.w d7, d5                               ;move quotient to d5
+            
+                        move.w #$FFF0, d4                           ;initialize d4 with FFF0
+                        move.w #4, d1                               ;load 4
+                        mulu.w d0, d1                               ;loop counter * 4
+                        rol.w d1, d4                                ;rotate d4 left
+                        lsl.w d1, d5                                ;shift d5 left
+                        and.w d4, $8(a6)                            ;erase the corresponding digit
+                        or.w d5, $8(a6)                             ;write BCD number
+
+                        swap d7                                     ;swap quotient with remainder
+                        andi.l #$0000FFFF, d7                       ;remove quotient
+
+                    dbf d0, TSTRTNE_Scroll_BCD_Y_digit
+
+            TSTRTNE_Scroll_UpdateVal:
+                cmpi.b #$00, $1(a6)                                 ;if TM-B
+                bne.w TSTRTNE_Scroll_UpdateVal_b
+
+                ;TSTRTNE_Scroll_UpdateVal_a
+                    lea $50000, a0
+                    move.w #$100, d0                                ;50000-501FF(SCROLL[7:0])
+                    move.w $2(a6), d1
+                    andi.w #$00FF, d1
+                    bsr.w TSTRTNE_Scroll_set
+
+                    lea $50200, a0
+                    move.w #$100, d0                                ;50000-501FF(SCROLL[8])
+                    move.w $2(a6), d1
+                    lsr.w #8, d1
+                    andi.w #$0001, d1
+                    bsr.w TSTRTNE_Scroll_set
+
+                    lea $50F80, a0
+                    move.w #$40, d0                                 ;50F80-50FFF
+                    move.w $4(a6), d1
+                    bsr.w TSTRTNE_Scroll_set
+
+                    bra.s TSTRTNE_Scroll_PrintVal
+
+                TSTRTNE_Scroll_UpdateVal_b:
+                    lea $50400, a0
+                    move.w #$100, d0                                ;50400-505FF(SCROLL[7:0])
+                    move.w $2(a6), d1
+                    andi.w #$00FF, d1
+                    bsr.w TSTRTNE_Scroll_set
+
+                    lea $50600, a0
+                    move.w #$100, d0                                ;50600-507FF(SCROLL[8])
+                    move.w $2(a6), d1
+                    lsr.w #8, d1
+                    andi.w #$0001, d1
+                    bsr.w TSTRTNE_Scroll_set
+
+                    lea $50F00, a0
+                    move.w #$40, d0                                 ;50F00-50F7F
+                    move.w $4(a6), d1
+                    bsr.w TSTRTNE_Scroll_set
+
+            TSTRTNE_Scroll_PrintVal:
+                move.l #0, d0
+                move.l #0, d1
+
+                
+
+            TSTRTNE_Scroll_KeyInDelay:
+                move.w $5CC02, d0
+                cmpi.b #$EE, d0
+                beq.w TESTMENU
+                jsr funcFixedDelay
+                bra.w TSTRTNE_Scroll_InEval
+
+            TSTRTNE_Scroll_blockcopy:
+                move.b #1, $5E008                               ;kick the watchdog
+                move.b #0, $5E008
+                
+                subq.w #1, d0
+                TSTRTNE_Scroll_blockcopy_loop:
+                    move.w (a0)+, (a1)+                         ;copy
+                    dbf d0, TSTRTNE_Scroll_blockcopy_loop
+                
+                rts
+
+            TSTRTNE_Scroll_set:
+                move.b #1, $5E008                               ;kick the watchdog
+                move.b #0, $5E008
+
+                subq.w #1, d0
+                TSTRTNE_Scroll_set_loop:
+                    move.w d1, (a0)+                            ;set scroll value
+                    dbf d0, TSTRTNE_Scroll_set_loop
+
+                rts
+
+
 
 
 
@@ -1494,7 +1896,7 @@ BTNON           dc.w 'ON ', $0000
             move.w #8, -(sp)
             move.w #8, -(sp)
             move.w #1, -(sp)
-            bsr.w DRAWTILEMAP
+            bsr.w funcDrawTilemap
 
             move.w #16, -(sp)
             move.w #2, -(sp)
@@ -1503,7 +1905,7 @@ BTNON           dc.w 'ON ', $0000
             move.w #8, -(sp)
             move.w #14, -(sp)
             move.w #0, -(sp)
-            bsr.w DRAWTILEMAP
+            bsr.w funcDrawTilemap
 
             move.w #16, -(sp)
             move.w #2, -(sp)
@@ -1512,7 +1914,7 @@ BTNON           dc.w 'ON ', $0000
             move.w #8, -(sp)
             move.w #20, -(sp)
             move.w #0, -(sp)
-            bsr.w DRAWTILEMAP
+            bsr.w funcDrawTilemap
 
             lea RF2NEEDLE, a0
             move.l a0, -(sp)
@@ -1592,7 +1994,7 @@ BTNON           dc.w 'ON ', $0000
                         move.w d0, -(sp)
                         move.w #14, -(sp)
                         move.w #1, -(sp)
-                        bsr.w DRAWTILEMAP
+                        bsr.w funcDrawTilemap
 
                     dbf d7, TSTRTNE_RF2IO_ChkAll_brk
 
@@ -1628,7 +2030,7 @@ BTNON           dc.w 'ON ', $0000
                         move.w d0, -(sp)
                         move.w #20, -(sp)
                         move.w #1, -(sp)
-                        bsr.w DRAWTILEMAP
+                        bsr.w funcDrawTilemap
 
                     dbf d7, TSTRTNE_RF2IO_ChkAll_accel
 
@@ -1690,7 +2092,7 @@ RF2NEEDLE       dc.w '|', $0000
             move.l a0, -(sp)
             move.w #0, -(sp)
             move.w #11, -(sp)
-            move.w #20, -(sp)
+            move.w #24, -(sp)
             move.w #0, -(sp)
             bsr.w PRINTTEXT
 
@@ -1791,7 +2193,7 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
                 move.w #0, -(sp)
                 move.w #2, -(sp)
                 move.w #0, -(sp)
-                bsr.w DRAWTILEMAP
+                bsr.w funcDrawTilemap
 
             TSTRTNE_CHARRAM_KeyInDelay:
                 move.w $5CC02, d0
@@ -1870,7 +2272,7 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
             move.w #15, -(sp)
             move.w #10, -(sp)
             move.w #0, -(sp)
-            bsr.w DRAWTILEMAP
+            bsr.w funcDrawTilemap
 
             move.w #2, -(sp)
             move.w #2, -(sp)
@@ -1879,7 +2281,7 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
             move.w #15, -(sp)
             move.w #10, -(sp)
             move.w #1, -(sp)
-            bsr.w DRAWTILEMAP
+            bsr.w funcDrawTilemap
             
             ;SPRITE 1 
             lea $56102, a0                                      ;0: reletive priority: EF
@@ -1965,7 +2367,7 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
                 move.w #15, -(sp)
                 move.w #10, -(sp)
                 move.w #0, -(sp)
-                bsr.w DRAWTILEMAP
+                bsr.w funcDrawTilemap
 
                 move.w $2(a6), d0                               ;copy PR bits data
                 andi.w #$00F0, d0                               ;get TM-B data(0x00F0)
@@ -1980,7 +2382,7 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
                 move.w #15, -(sp)
                 move.w #10, -(sp)
                 move.w #1, -(sp)
-                bsr.w DRAWTILEMAP
+                bsr.w funcDrawTilemap
 
                 bra.s TSTRTNE_Pr_PrntVal
 
@@ -2113,12 +2515,12 @@ PRAUTOINC       dc.w 'Auto increment', $0000
         *--------------------------------------------------------
 
         TSTRTNE_BMC:
-            move.l #$3C000, -(sp)                                   ;copy tiles
+            move.l #$3C000, -(sp)                                   ;copy tiles(2C000 on ROM)
             move.w #4, -(sp)
             move.w #1408, -(sp)
             jsr funcLoadBubble
 
-            move.l #$3C400, -(sp)                                   ;copy tiles(2CC00 on ROM)
+            move.l #$3C400, -(sp)                                   ;copy tiles(2C400 on ROM)
             move.w #16, -(sp)
             move.w #1416, -(sp)
             jsr funcLoadBubble
@@ -2132,7 +2534,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
             move.w #0, -(sp)
             move.w #13, -(sp)
             move.w #1, -(sp)
-            bsr.w DRAWTILEMAP
+            bsr.w funcDrawTilemap
 
             move.w #15, d5                                          ;repeat 16 times
             TSTRTNE_BMC_RamViewer_bgloop:
@@ -2146,7 +2548,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                 move.w #0, -(sp)
                 move.w d0, -(sp)
                 move.w #1, -(sp)
-                bsr.w DRAWTILEMAP
+                bsr.w funcDrawTilemap
 
                 dbf d5, TSTRTNE_BMC_RamViewer_bgloop
 
@@ -3111,7 +3513,7 @@ DATACOPYTARGET  dc.w '  Target', $0000
         *--------------------------------------------------------
 
         TSTRTNE_Contributors:
-            move.l #$3CC00, -(sp)                                       ;copy tiles(2C400 on ROM)
+            move.l #$3CC00, -(sp)                                       ;copy tiles(2CC00 on ROM)
             move.w #16, -(sp)
             move.w #1432, -(sp)
             jsr funcLoadBubble
@@ -3126,7 +3528,7 @@ DATACOPYTARGET  dc.w '  Target', $0000
             move.w #8, -(sp)
             move.w #16, -(sp)
             move.w #0, -(sp)
-            bsr.w DRAWTILEMAP
+            bsr.w funcDrawTilemap
 
 
             lea LINE0, a4
@@ -3229,9 +3631,11 @@ LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
         ;      GRAPHIC Y POSITION
         ;      TILEMAP A=0/B=1
         ;JSR:  RETURN ADDRESS 
-        DRAWTILEMAP:                                        
+        funcDrawTilemap:                                        
                                                             ;Width -> Height -> VRAM priority/flip/CHARRAMADDR
                                                             ;color RAM flip/palette -> Xpos -> Ypos -> tilemap A/B -> return address
+
+            jsr sysSaveReg
 
             move.l #0, d0                                   ;initialize
             move.l #0, d1
@@ -3287,6 +3691,8 @@ LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
 
             addq.l #2, sp                                   ;move stack pointer
             move.l a2, -(sp)                                ;push return address
+
+            jsr sysLoadReg
             rts 
 
 
@@ -3447,6 +3853,65 @@ LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
 
         *--------------------------------------------------------
         *
+        *       function: CheckLongInput
+        *
+        *--------------------------------------------------------
+
+        funcCheckLongInput:
+            jsr sysSaveReg
+
+            move.l (sp)+, a0                                    ;pop return address
+            
+            lea $818, a1                                        ;load register start address
+            move.w $5CC02, d0                                   ;get P1 button register
+            ori.w #$FF00, d0                                    ;padding data
+            move.w $2(a1), d1                                   ;get trigger counter value
+            move.w $4(a1), d2                                   ;get long input pulse counter value
+
+            cmpi.w #$FFFF, d0                                   ;no input
+            beq.s funcCheckLongInput_rstcntr
+
+            cmp.w (a1), d0                                      ;compare with previous input
+            bne.s funcCheckLongInput_rstcntr
+            ;funcCheckLongInput_inccntr
+                addq.w #1, d1                                   ;increase trigger counter
+
+                cmpi.w #27, d1                                  ;if d1 > 27
+                bgt.s funcCheckLongInput_trig                   ;long input triggered
+                move.w #$FFFF, -(sp)                            ;no triggered input
+                bra.s funcCheckLongInput_exit                   ;if not, goto exit
+
+            funcCheckLongInput_trig:
+                subq.w #1, d1                                   ;decrease trigger counter(hold previous value)
+
+                addq.w #1, d2                                   ;increase pulse counter
+                cmpi.w #0, d2                                   ;if d2 > 0
+                bgt.s funcCheckLongInput_trig_setflag
+                move.w #$FFFF, -(sp)                            ;no triggered input
+                bra.s funcCheckLongInput_exit
+
+                funcCheckLongInput_trig_setflag:
+                    move.w #0, d2                               ;reset trigger counter
+                    move.w d0, -(sp)                            ;push input value
+                    bra.s funcCheckLongInput_exit         
+
+            funcCheckLongInput_rstcntr:
+                move.w #0, d1                                   ;reset trigger counter
+                move.w #0, d2                                   ;reset pulse counter
+                move.w #$FFFF, -(sp)                            ;no triggered input
+
+            funcCheckLongInput_exit:
+                move.w d0, (a1)                                 ;write current input
+                move.w d1, $2(a1)                               ;write trigger counter value
+                move.w d2, $4(a1)                               ;write pulse counter value
+
+            move.l a0, -(sp)                                    ;push return address
+
+            jsr sysLoadReg
+            rts
+
+        *--------------------------------------------------------
+        *
         *       function: ClearTilemap
         *
         *--------------------------------------------------------
@@ -3518,6 +3983,8 @@ LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
                     rts
 
 EXITMESSAGE   dc.w 'Press A+LEFT(1P) to exit back to menu screen', $0000
+
+        
 
 
 
