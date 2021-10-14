@@ -683,9 +683,9 @@ VERSION         dc.w 'B85:K:A:C:2021101102', $0000
             jsr funcClearTilemap
 
             lea $50000, a0
-            move.w #1023, d0                                ;vloop 512 times * 2
+            move.w #$7FF, d0
             TESTMENU_scrollreset:
-                move.w #$0000, (a0)+                        ;move scroll value
+                move.w #0, (a0)+                            ;set scroll value
                 dbf d0, TESTMENU_scrollreset
             
             ;Clear SPRITES 1 
@@ -770,7 +770,7 @@ VERSION         dc.w 'B85:K:A:C:2021101102', $0000
                     bsr.w funcDrawTilemap
 
                 TESTMENUKEYINDELAY:
-                    jsr funcFixedDelay
+                    jsr funcFixedDelaySlow
                     bra.w TESTMENUKEYINWAIT  
 
 TESTMENUITEM1   dc.w '1.Show RAM test result   ', $0000
@@ -967,7 +967,7 @@ TESTMENUITEM12  dc.w '12.Return to title screen', $0000
                 move.w (sp)+, d0                         ;get latest input 
                 btst.l #$4, d0                          ;power-up(gradius) or fire(twinbee)
                 beq.s TSTRTNE_RAM_SwitchScrn
-                jsr funcFixedDelay
+                jsr funcFixedDelaySlow
                 bra.s TSTRTNE_RAM_KeyInDelay_a
 
             TSTRTNE_RAM_SwitchScrn:
@@ -994,7 +994,7 @@ TESTMENUITEM12  dc.w '12.Return to title screen', $0000
                 move.w (sp)+, d0                        ;get latest input 
                 btst.l #$4, d0                          ;power-up(gradius) or fire(twinbee)
                 beq.w TESTMENU
-                jsr funcFixedDelay
+                jsr funcFixedDelaySlow
                 bra.s TSTRTNE_RAM_KeyInDelay_b
 
             TSTRTNE_RAM_additionaltest:
@@ -1270,7 +1270,7 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
                 move.w (sp)+, d0                        ;get latest input 
                 btst.l #$4, d0                          ;power-up(gradius) or fire(twinbee)
                 beq.s TSTRTNE_Screen_1
-                jsr funcFixedDelay
+                jsr funcFixedDelaySlow
                 bra.s TSTRTNE_Screen_KeyInDelay_a
 
             TSTRTNE_Screen_1:
@@ -1335,7 +1335,7 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
                 move.w (sp)+, d0                        ;get latest input 
                 btst.l #$4, d0                          ;power-up(gradius) or fire(twinbee)
                 beq.w TESTMENU
-                jsr funcFixedDelay
+                jsr funcFixedDelaySlow
                 bra.s TSTRTNE_Screen_KeyInDelay_b
 
 NOWLOADING      dc.w 'NOW LOADING', $0000
@@ -1380,18 +1380,21 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
                     addq.w #1, $4(a6)
                 TSTRTNE_Scroll_InEval_ydec:
                     btst.l #$2, d0                                  ;check for UP
-                    bne.s TSTRTNE_Scroll_InEval_xdec
-                    subq.w #1, $4(a6)
-                TSTRTNE_Scroll_InEval_xdec:
-                    btst.l #$1, d0                                  ;check for RIGHT
                     bne.s TSTRTNE_Scroll_InEval_xinc
-                    subq.w #1, $2(a6)
+                    subq.w #1, $4(a6)
                 TSTRTNE_Scroll_InEval_xinc:
+                    btst.l #$1, d0                                  ;check for RIGHT
+                    bne.s TSTRTNE_Scroll_InEval_xdec
+                    addq.w #1, $2(a6)
+                TSTRTNE_Scroll_InEval_xdec:
                     btst.l #$0, d0                                  ;check for LEFT
                     bne.w TSTRTNE_Scroll_BCD
-                    addq.w #1, $2(a6)
+                    subq.w #1, $2(a6)
                 bra.w TSTRTNE_Scroll_BCD
 
+            ;                   TM-B TM-A
+            ;OBJ over A over B: XX10 1110
+            ;OBJ over B over A: XX10 1010
     
             TSTRTNE_Scroll_TMSwap:                                  ;0=A 1=B
                 eori.b #$01, $1(a6)                                 ;flip value
@@ -1412,18 +1415,21 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
 
                     lea $53000, a0
                     lea $52000, a1
-                    move.w #$800, d0
-                    bsr.w TSTRTNE_Scroll_blockcopy                  ;Tile code copy
+                    move.w #$7FF, d0
+                    TSTRTNE_Scroll_TMSwap_b2a_movetilemap:
+                        move.w (a0), d1                             ;fetch code
+                        move.w $2000(a0), d2                        ;fetch palette
 
-                    lea $55000, a0
-                    lea $54000, a1
-                    move.w #$800, d0
-                    bsr.w TSTRTNE_Scroll_blockcopy                  ;Tile palette copy
+                        andi.w #$0FFF, d1
+                        ori.w #$E000, d1                            ;change PR code to E
 
-                    move.w #$F000, -(sp)                            ;clear tilemap B with black(transparent) tiles
-                    move.w #$0006, -(sp)
-                    move.w #0, -(sp)
-                    bsr.w funcFillTilemap
+                        move.w d2, $2000(a1)                        ;copy palette to target
+                        move.w d1, (a1)+                            ;copy code to target
+
+                        move.w #$0006, $2000(a0)                    ;change source address color
+                        move.w #$2000, (a0)+                        ;change source address code
+
+                        dbf d0, TSTRTNE_Scroll_TMSwap_b2a_movetilemap
 
                     lea $50400, a0
                     move.w #$200, d0                                ;50400-507FF
@@ -1450,19 +1456,21 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
 
                     lea $52000, a0
                     lea $53000, a1
-                    move.w #$800, d0
-                    bsr.w TSTRTNE_Scroll_blockcopy                  ;Tile code copy
+                    move.w #$7FF, d0
+                    TSTRTNE_Scroll_TMSwap_a2b_movetilemap:
+                        move.w (a0), d1                             ;fetch code
+                        move.w $2000(a0), d2                        ;fetch palette
 
-                    lea $54000, a0
-                    lea $55000, a1
-                    move.w #$800, d0
-                    bsr.w TSTRTNE_Scroll_blockcopy                  ;Tile palette copy
+                        andi.w #$0FFF, d1
+                        ori.w #$2000, d1                            ;change PR code to 2
 
-                    move.w #$F000, -(sp)                            ;clear tilemap A with black(transparent) tiles
-                    move.w #$0006, -(sp)
-                    move.w #1, -(sp)
-                    bsr.w funcFillTilemap
+                        move.w d2, $2000(a1)                        ;copy palette to target
+                        move.w d1, (a1)+                            ;copy code to target
 
+                        move.w #$0006, $2000(a0)                    ;change source address color
+                        move.w #$A000, (a0)+                        ;change source address code
+
+                        dbf d0, TSTRTNE_Scroll_TMSwap_a2b_movetilemap
 
                     lea $50000, a0
                     move.w #$200, d0                                ;50000-503FF
@@ -1591,13 +1599,10 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
                 move.w $5CC02, d0
                 cmpi.b #$EE, d0
                 beq.w TESTMENU
-                jsr funcFixedDelay
+                jsr funcFixedDelayFast
                 bra.w TSTRTNE_Scroll_InEval
 
             TSTRTNE_Scroll_blockcopy:
-                move.b #1, $5E008                               ;kick the watchdog
-                move.b #0, $5E008
-                
                 subq.w #1, d0
                 TSTRTNE_Scroll_blockcopy_loop:
                     move.w (a0)+, (a1)+                         ;copy
@@ -1606,9 +1611,6 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
                 rts
 
             TSTRTNE_Scroll_set:
-                move.b #1, $5E008                               ;kick the watchdog
-                move.b #0, $5E008
-
                 subq.w #1, d0
                 TSTRTNE_Scroll_set_loop:
                     move.w d1, (a0)+                            ;set scroll value
@@ -1851,7 +1853,7 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
                 move.w $5CC02, d0
                 cmpi.b #$EE, d0
                 beq.w TESTMENU
-                jsr funcFixedDelay
+                jsr funcFixedDelaySlow
                 bra.w TSTRTNE_Input_ChkAll
 
 DIPSW0          dc.w 'DIPSW1', $0000
@@ -2039,7 +2041,7 @@ BTNON           dc.w 'ON ', $0000
                 move.w (sp)+, d0                         ;get latest input 
                 btst.l #$4, d0                          ;power-up(gradius) or fire(twinbee)
                 beq.w TESTMENU
-                jsr funcFixedDelay
+                jsr funcFixedDelaySlow
                 bra.w TSTRTNE_RF2IO_ChkAll
 
             TSTRTNE_RF2IO_Needle_max:
@@ -2199,7 +2201,7 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
                 move.w $5CC02, d0
                 cmpi.b #$EE, d0
                 beq.w TESTMENU
-                jsr funcFixedDelay
+                jsr funcFixedDelaySlow
                 bra.w TSTRTNE_CHARRAM_InEval
 
 
@@ -2487,7 +2489,7 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
                 move.w $5CC02, d0
                 cmpi.b #$EE, d0
                 beq.w TESTMENU
-                jsr funcFixedDelay
+                jsr funcFixedDelaySlow
                 bra.w TSTRTNE_Pr_InEval
 
 
@@ -3478,7 +3480,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                 move.w $5CC02, d0
                 cmpi.b #$EE, d0
                 beq.w TESTMENU
-                jsr funcFixedDelay
+                jsr funcFixedDelaySlow
                 bra.w TSTRTNE_BMC_InEval
 
 BMCMESSAGE0     dc.w 'RD/WR Address', $0000
@@ -3568,7 +3570,7 @@ DATACOPYTARGET  dc.w '  Target', $0000
                 move.w (sp)+, d0                                        ;get latest input 
                 btst.l #$4, d0                                          ;power-up(gradius) or fire(twinbee)
                 beq.w TESTMENU
-                jsr funcFixedDelay
+                jsr funcFixedDelaySlow
                 bra.w TSTRTNE_Contributors_KeyInDelay
 
 LINE0           dc.w '      --------------------      ', $0000
@@ -3815,18 +3817,35 @@ LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
 
         *--------------------------------------------------------
         *
-        *       function: FixedDelay
+        *       function: FixedDelaySlow
         *
         *--------------------------------------------------------
 
-        funcFixedDelay:
+        funcFixedDelaySlow:
             move.b #1, $5E008                           ;kick the watchdog
             move.b #0, $5E008
             move.w #$8000, d0
-            funcFixedDelay_delayloop:
+            funcFixedDelaySlow_delayloop:
                 nop
-                dbf d0, funcFixedDelay_delayloop        ;loop
+                dbf d0, funcFixedDelaySlow_delayloop    ;loop
             rts
+
+
+        *--------------------------------------------------------
+        *
+        *       function: FixedDelaySlow
+        *
+        *--------------------------------------------------------
+
+        funcFixedDelayFast:
+            move.b #1, $5E008                           ;kick the watchdog
+            move.b #0, $5E008
+            move.w #$4000, d0
+            funcFixedDelayFast_delayloop:
+                nop
+                dbf d0, funcFixedDelayFast_delayloop    ;loop
+            rts
+
 
         *--------------------------------------------------------
         *
@@ -3876,7 +3895,7 @@ LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
             ;funcCheckLongInput_inccntr
                 addq.w #1, d1                                   ;increase trigger counter
 
-                cmpi.w #27, d1                                  ;if d1 > 27
+                cmpi.w #14, d1                                  ;if d1 > 14
                 bgt.s funcCheckLongInput_trig                   ;long input triggered
                 move.w #$FFFF, -(sp)                            ;no triggered input
                 bra.s funcCheckLongInput_exit                   ;if not, goto exit
@@ -3917,12 +3936,12 @@ LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
         *--------------------------------------------------------
 
         funcClearTilemap:
-            move.w #$3000, -(sp)                        ;clear tilemap A
+            move.w #$F000, -(sp)                        ;clear tilemap A
             move.w #$0000, -(sp)
             move.w #0, -(sp)
             bsr.w funcFillTilemap
 
-            move.w #$E05F, -(sp)                        ;clear tilemap B
+            move.w #$205F, -(sp)                        ;clear tilemap B
             move.w #$0002, -(sp)
             move.w #1, -(sp)
             bsr.w funcFillTilemap 
