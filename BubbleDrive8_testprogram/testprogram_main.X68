@@ -222,8 +222,9 @@ VECTORS dc.l $00000800                                      ;reset initial SP
         move.w #$FF, d2                                     ;sprite RAM loop (56000-56FFF)
         INITIALIZATION_ObjRAMInit_vloop:
             move.w d0, (a0)+                                ;write priority
+            move.w #$00E0, (a0)+                            ;minimize sprite drawing time(E0)
             
-            move.w #5, d1                                   ;inner loop
+            move.w #4, d1                                   ;inner loop
             INITIALIZATION_ObjRAMInit_hloop:
                 move.w #$FF, (a0)+
                 dbf d1, INITIALIZATION_ObjRAMInit_hloop     ;repeat 6 times
@@ -604,7 +605,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
             move.w #7, -(sp)
             move.w #16, -(sp)
             move.w #0, -(sp)
-            bsr.w PRINTTEXT
+            bsr.w funcPrintText
 
             lea TITLEMESSAGE1, a0
             move.l a0, -(sp)
@@ -612,7 +613,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
             move.w #16, -(sp)
             move.w #23, -(sp)
             move.w #0, -(sp)
-            bsr.w PRINTTEXT
+            bsr.w funcPrintText
 
             lea TITLEMESSAGE3, a0
             move.l a0, -(sp)
@@ -620,7 +621,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
             move.w #13, -(sp)
             move.w #24, -(sp)
             move.w #0, -(sp)
-            bsr.w PRINTTEXT
+            bsr.w funcPrintText
 
             lea VERSION, a0
             move.l a0, -(sp)
@@ -628,7 +629,7 @@ VECTORS dc.l $00000800                                      ;reset initial SP
             move.w #0, -(sp)
             move.w #2, -(sp)
             move.w #0, -(sp)
-            bsr.w PRINTTEXT
+            bsr.w funcPrintText
 
             TITLEKEYINWAIT:
                 move.b #1, $5E008                               ;kick the watchdog
@@ -685,15 +686,26 @@ VERSION         dc.w 'B85:K:A:C:2021101102', $0000
             lea $50000, a0
             move.w #$7FF, d0
             TESTMENU_scrollreset:
-                move.w #0, (a0)+                            ;set scroll value
+                move.w #0, (a0)+                                ;set scroll value
                 dbf d0, TESTMENU_scrollreset
             
-            ;Clear SPRITES 1 
-            lea $56102, a0                                  ;0: reletive priority: EF
-            move.w #5, d1                                   ;inner loop
-            TESTMENU_ObjClr_hloop:
-                move.w #$FF, (a0)+
-                dbf d1, TESTMENU_ObjClr_hloop               ;repeat 6 times
+            lea $56000, a0                                      ;sprite RAM
+            move.w #$FF, d0                                     ;sprite priority
+            move.w #$FF, d2                                     ;sprite RAM loop (56000-56FFF)
+            TESTMENU_ObjRAMInit_vloop:
+                move.w d0, (a0)+                                ;write priority
+                move.w #$00E0, (a0)+                            ;minimize sprite drawing time(E0)
+                
+                move.w #4, d1                                   ;inner loop
+                TESTMENU_ObjRAMInit_hloop:
+                    move.w #$FF, (a0)+
+                    dbf d1, TESTMENU_ObjRAMInit_hloop          ;repeat 6 times
+
+                move.w #$00, (a0)+
+
+                subq.w #1, d0                                   ;decrease priority
+
+                dbf d2, TESTMENU_ObjRAMInit_vloop
 
             move.w #11, d6                                  ;print test menu items: 12 lines
             move.w #8, d7                                   ;YPOS of first line
@@ -704,7 +716,7 @@ VERSION         dc.w 'B85:K:A:C:2021101102', $0000
                 move.w #4, -(sp)
                 move.w d7, -(sp)
                 move.w #0, -(sp)
-                bsr.w PRINTTEXT
+                bsr.w funcPrintText
 
                 addq.w #1, d7
                 add.l #28, a4                               ;get a new string from addr+28
@@ -856,7 +868,7 @@ TESTMENUITEM12  dc.w '12.Return to title screen', $0000
             move.w #11, -(sp)
             move.w #4, -(sp)
             move.w #0, -(sp)
-            bsr.w PRINTTEXT
+            bsr.w funcPrintText
 
             lea RAMTESTMESSAGE2, a0
             move.l a0, -(sp)
@@ -864,7 +876,7 @@ TESTMENUITEM12  dc.w '12.Return to title screen', $0000
             move.w #42, -(sp)
             move.w #4, -(sp)
             move.w #0, -(sp)
-            bsr.w PRINTTEXT
+            bsr.w funcPrintText
 
             ;
             ;   displays RAM address list
@@ -881,7 +893,7 @@ TESTMENUITEM12  dc.w '12.Return to title screen', $0000
                     move.w d4, -(sp)
                     move.w d5, -(sp)
                     move.w #0, -(sp)
-                    bsr.w PRINTTEXT
+                    bsr.w funcPrintText
 
                     addq.w #3, d5
                     add.l #32, a4
@@ -908,7 +920,7 @@ TESTMENUITEM12  dc.w '12.Return to title screen', $0000
                     move.w d4, -(sp)
                     move.w d5, -(sp)
                     move.w #0, -(sp)
-                    bsr.w PRINTTEXT
+                    bsr.w funcPrintText
 
                     addq.w #3, d5
                     add.l #14, a4
@@ -950,7 +962,7 @@ TESTMENUITEM12  dc.w '12.Return to title screen', $0000
                         move.w d4, -(sp)                                    ;xpos
                         move.w d5, -(sp)                                    ;ypos
                         move.w #0, -(sp)
-                        bsr.w PRINTTEXT
+                        bsr.w funcPrintText
 
                     addq.w #3, d5
                     addq.w #1, d3
@@ -1006,7 +1018,7 @@ TESTMENUITEM12  dc.w '12.Return to title screen', $0000
                 move.w #10, -(sp)
                 move.w #15, -(sp)
                 move.w #0, -(sp)
-                bsr.w PRINTTEXT
+                bsr.w funcPrintText
 
                 move.l $800, d7                                     ;load RAM test result from 0x800
 
@@ -1224,7 +1236,7 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
             move.w #10, -(sp)
             move.w #15, -(sp)
             move.w #0, -(sp)
-            bsr.w PRINTTEXT
+            bsr.w funcPrintText
 
             move.l #$34000, -(sp)               ;copy tiles
             move.w #256, -(sp)
@@ -1356,45 +1368,139 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
             jsr funcLoadBubble
 
 
-            lea $830, a6                                ;load register address
-            move.w #0, (a6)                             ;tilemap code
+            lea $880, a6                                ;load register address
+            move.w #2, (a6)                             ;tilemap mode/code
             move.w #0, $2(a6)                           ;Xscroll binary
             move.w #0, $4(a6)                           ;Yscroll binary
             move.w #$0000, $6(a6)                       ;Xscroll BCD
             move.w #$0000, $8(a6)                       ;Yscroll BCD
 
+            lea OBJ0, a0
+            move.w #10, d0
+            TSTRTNE_Scroll_drawobj:
+                move.w #7, d1
+                TSTRTNE_Scroll_drawobj_push:
+                    move.w (a0)+, -(sp)
+                    dbf d1, TSTRTNE_Scroll_drawobj_push
+                bsr.w funcDrawSprite
+                dbf d0, TSTRTNE_Scroll_drawobj
+
+            TSTRTNE_Scroll_DrawTM:
+                eori.b #02, $1(a6)                      ;flip value
+
+                btst.b #1, $1(a6)
+                bne.w TSTRTNE_Scroll_DrawTM_fullbg
+
+                ;TSTRTNE_Scroll_DrawTM_pattern
+                    lea $52000, a0
+                    lea $53000, a1
+                    move.w #$7FF, d0
+                    TSTRTNE_Scroll_DrawTM_pattern_clr:
+                        move.w #$0002, $2000(a0)                    ;TM-A color 0002
+                        move.w #$E000, (a0)+                        ;TM-A code E000
+
+                        move.w #$0002, $2000(a1)                    ;TM-B color 0002
+                        move.w #$0000, (a1)+                        ;TM-B code 0000
+
+                        dbf d0, TSTRTNE_Scroll_DrawTM_pattern_clr
+
+                    ;18*6 square 
+                    ;64*32 screen
+                    ;(2) 2 22 42
+                    ;(10) 3 23 43
+                    ;(18) 4 24 44
+                    ;(24) 5 25 45
+
+                    move.w #5, d0                                   ;offset reg
+                    move.w #3, d1                                   ;Y reg
+                    TSTRTNE_Scroll_DrawTM_pattern_yloop:
+                        move.w #2, d2                               ;X reg
+                        TSTRTNE_Scroll_DrawTM_pattern_xloop:
+                            move.w d2, d3                           ;get xloop counter
+                            mulu.w #20, d3                          ;20*xloop counter
+                            add.w d0, d3                            ;d3+offset
+                            
+                            move.w d1, d4                           ;get yloop counter
+                            lsl.w #3, d4                            ;8*yloop counter
+                            addq.w #2, d4                           ;d4+2
+
+                            move.w #18, -(sp)
+                            move.w #6, -(sp)
+                            move.w #$E100, -(sp)
+                            move.w #$0006, -(sp)
+                            move.w d3, -(sp)
+                            move.w d4, -(sp)
+                            move.w #0, -(sp)
+                            bsr.w funcDrawTilemap
+
+                            dbf d2, TSTRTNE_Scroll_DrawTM_pattern_xloop
+
+                        subq.w #1, d0                               ;offset - 1
+
+                        dbf d1, TSTRTNE_Scroll_DrawTM_pattern_yloop
+
+
+                    lea TOPLEFT, a0
+                    move.l a0, -(sp)
+                    move.w #5, -(sp)
+                    move.w #0, -(sp)
+                    move.w #0, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w funcPrintText
+
+                    lea BOTTOMRIGHT, a0
+                    move.l a0, -(sp)
+                    move.w #5, -(sp)
+                    move.w #56, -(sp)
+                    move.w #31, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w funcPrintText
+
+                    bra.w TSTRTNE_Scroll_InEval
+
+                TSTRTNE_Scroll_DrawTM_fullbg:
+                    bra.w TSTRTNE_Scroll_InEval
+
+
             TSTRTNE_Scroll_InEval:
                 bsr.w funcCheckInput                    ;check P1 button input
                 move.w (sp)+, d0                        ;get latest input 
 
+                btst.l #$5, d0
+                beq.w TSTRTNE_Scroll_DrawTM
+
+                btst.b #1, $1(a6)                       ;check (a6+1)[1]
+                bne.s TSTRTNE_Scroll_MoveTM
+
                 btst.l #$4, d0                          ;power-up(gradius) or fire(twinbee)
                 beq.w TSTRTNE_Scroll_TMSwap
 
+            TSTRTNE_Scroll_MoveTM:
                 bsr.w funcCheckLongInput
                 move.w (sp)+, d1                        ;get long input trigger
                 and.w d1, d0
 
-                ;TSTRTNE_Scroll_InEval_yinc
+                ;TSTRTNE_Scroll_MoveTM_yinc
                     btst.l #$3, d0                                  ;check for DOWN
-                    bne.s TSTRTNE_Scroll_InEval_ydec
+                    bne.s TSTRTNE_Scroll_MoveTM_ydec
                     addq.w #1, $4(a6)
-                TSTRTNE_Scroll_InEval_ydec:
+                TSTRTNE_Scroll_MoveTM_ydec:
                     btst.l #$2, d0                                  ;check for UP
-                    bne.s TSTRTNE_Scroll_InEval_xinc
+                    bne.s TSTRTNE_Scroll_MoveTM_xinc
                     subq.w #1, $4(a6)
-                TSTRTNE_Scroll_InEval_xinc:
+                TSTRTNE_Scroll_MoveTM_xinc:
                     btst.l #$1, d0                                  ;check for RIGHT
-                    bne.s TSTRTNE_Scroll_InEval_xdec
+                    bne.s TSTRTNE_Scroll_MoveTM_xdec
                     addq.w #1, $2(a6)
-                TSTRTNE_Scroll_InEval_xdec:
+                TSTRTNE_Scroll_MoveTM_xdec:
                     btst.l #$0, d0                                  ;check for LEFT
                     bne.w TSTRTNE_Scroll_BCD
                     subq.w #1, $2(a6)
                 bra.w TSTRTNE_Scroll_BCD
 
-            ;                   TM-B TM-A
-            ;OBJ over A over B: XX10 1110
-            ;OBJ over B over A: XX10 1010
+            ;            TM-B TM-A
+            ;OBJ over A: XX00 1110
+            ;OBJ over B: XX10 0000
     
             TSTRTNE_Scroll_TMSwap:                                  ;0=A 1=B
                 eori.b #$01, $1(a6)                                 ;flip value
@@ -1426,8 +1532,8 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
                         move.w d2, $2000(a1)                        ;copy palette to target
                         move.w d1, (a1)+                            ;copy code to target
 
-                        move.w #$0006, $2000(a0)                    ;change source address color
-                        move.w #$2000, (a0)+                        ;change source address code
+                        move.w #$0002, $2000(a0)                    ;change source address color
+                        move.w #$0000, (a0)+                        ;change source address code
 
                         dbf d0, TSTRTNE_Scroll_TMSwap_b2a_movetilemap
 
@@ -1467,8 +1573,8 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
                         move.w d2, $2000(a1)                        ;copy palette to target
                         move.w d1, (a1)+                            ;copy code to target
 
-                        move.w #$0006, $2000(a0)                    ;change source address color
-                        move.w #$A000, (a0)+                        ;change source address code
+                        move.w #$0002, $2000(a0)                    ;change source address color
+                        move.w #$0000, (a0)+                        ;change source address code
 
                         dbf d0, TSTRTNE_Scroll_TMSwap_a2b_movetilemap
 
@@ -1590,17 +1696,81 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
                     bsr.w TSTRTNE_Scroll_set
 
             TSTRTNE_Scroll_PrintVal:
-                move.l #0, d0
-                move.l #0, d1
+                lea OBJ2, a0
+                move.w #2, d0
+                TSTRTNE_Scroll_PrintVal_xval:
+                    move.w d0, d2                                   ;get loop counter
+                    mulu.w #4, d2
+                    
+                    move.w $6(a6), d1
+                    lsr.w d2, d1
+
+                    andi.w #$000F, d1
+                    addi.w #$03F0, d1
+
+                    move.w d1, $8(a0)
+                    add.l #$10, a0
+
+                    dbf d0, TSTRTNE_Scroll_PrintVal_xval
+
+                lea OBJ7, a0
+                move.w #2, d0
+                TSTRTNE_Scroll_PrintVal_yval:
+                    move.w d0, d2                                   ;get loop counter
+                    mulu.w #4, d2
+                    
+                    move.w $8(a6), d1
+                    lsr.w d2, d1
+
+                    andi.w #$000F, d1
+                    addi.w #$03F0, d1
+
+                    move.w d1, $8(a0)
+                    add.l #$10, a0
+
+                    dbf d0, TSTRTNE_Scroll_PrintVal_yval
+
+                lea OBJ2, a0
+                move.w #2, d0
+                TSTRTNE_Scroll_PrintVal_xdraw:
+                    move.w #7, d1
+                    TSTRTNE_Scroll_PrintVal_xdraw_push:
+                        move.w (a0)+, -(sp)
+                        dbf d1, TSTRTNE_Scroll_PrintVal_xdraw_push
+                    bsr.w funcDrawSprite
+                    dbf d0, TSTRTNE_Scroll_PrintVal_xdraw
+
+                lea OBJ7, a0
+                move.w #2, d0
+                TSTRTNE_Scroll_PrintVal_ydraw:
+                    move.w #7, d1
+                    TSTRTNE_Scroll_PrintVal_ydraw_push:
+                        move.w (a0)+, -(sp)
+                        dbf d1, TSTRTNE_Scroll_PrintVal_ydraw_push
+                    bsr.w funcDrawSprite
+                    dbf d0, TSTRTNE_Scroll_PrintVal_ydraw
 
                 
 
             TSTRTNE_Scroll_KeyInDelay:
                 move.w $5CC02, d0
                 cmpi.b #$EE, d0
-                beq.w TESTMENU
+                beq.s TSTRTNE_Scroll_Exit
                 jsr funcFixedDelayFast
                 bra.w TSTRTNE_Scroll_InEval
+
+            TSTRTNE_Scroll_Exit:
+                lea OBJ2, a0
+                move.w #1, d0
+                TSTRTNE_Scroll_Exit_outloop:
+                    move.w #2, d1
+                    TSTRTNE_Scroll_Exit_inloop:
+                        move.w #$03F0, $8(a0)
+                        add.l #$10, a0
+                        dbf d1, TSTRTNE_Scroll_Exit_inloop
+                    add.l #$20, a0
+                    dbf d0, TSTRTNE_Scroll_Exit_outloop
+                bra.w TESTMENU
 
             TSTRTNE_Scroll_blockcopy:
                 subq.w #1, d0
@@ -1618,7 +1788,19 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
 
                 rts
 
-
+TOPLEFT         dc.w '+(0,0)', $0000
+BOTTOMRIGHT     dc.w '(63,31)+' $0000
+OBJ0        dc.w $0004, $0080, $0004, $00E4, $03FA, $0004, $0000, $0010 ;(
+OBJ1        dc.w $0004, $0080, $000C, $00E4, $03FB, $0004, $0000, $0011 ;+
+OBJ2        dc.w $0004, $0080, $0014, $00E4, $03F0, $0004, $0000, $0012 ;digit2
+OBJ3        dc.w $0004, $0080, $001C, $00E4, $03F0, $0004, $0000, $0013 ;digit1
+OBJ4        dc.w $0004, $0080, $0024, $00E4, $03F0, $0004, $0000, $0014 ;digit0
+OBJ5        dc.w $0004, $0080, $002C, $00E4, $03FC, $0004, $0000, $0015 ;,
+OBJ6        dc.w $0004, $0080, $0034, $00E4, $03FB, $0004, $0000, $0016 ;+
+OBJ7        dc.w $0004, $0080, $003C, $00E4, $03F0, $0004, $0000, $0017 ;digit2
+OBJ8        dc.w $0004, $0080, $0044, $00E4, $03F0, $0004, $0000, $0018 ;digit1
+OBJ9        dc.w $0004, $0080, $004C, $00E4, $03F0, $0004, $0000, $0019 ;digit0
+OBJA        dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
 
 
 
@@ -1641,7 +1823,7 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
                 move.w d4, -(sp)
                 move.w d5, -(sp)
                 move.w #0, -(sp)
-                bsr.w PRINTTEXT
+                bsr.w funcPrintText
 
                 addq.w #1, d5
                 add.l #8, a4
@@ -1658,7 +1840,7 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
                 move.w d4, -(sp)
                 move.w d5, -(sp)
                 move.w #0, -(sp)
-                bsr.w PRINTTEXT
+                bsr.w funcPrintText
 
                 addq.w #1, d5
                 add.l #8, a4
@@ -1671,7 +1853,7 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
             move.w #11, -(sp)
             move.w #5, -(sp)
             move.w #0, -(sp)
-            bsr.w PRINTTEXT
+            bsr.w funcPrintText
 
             lea $50051, a0
             move.w #7, d1                                   ;PLAYER LIST shift, shift 8 lines
@@ -1686,7 +1868,7 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
             move.w #4, -(sp)
             move.w #26, -(sp)
             move.w #0, -(sp)
-            bsr.w PRINTTEXT
+            bsr.w funcPrintText
 
             TSTRTNE_Input_ChkAll:
                 move.w #3, d7                               ;button set x4
@@ -1714,7 +1896,7 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
                             move.w d4, -(sp)
                             move.w d5, -(sp)
                             move.w #0, -(sp)
-                            bsr.w PRINTTEXT
+                            bsr.w funcPrintText
 
                         subq.w #1, d5
                         dbf d6, TSTRTNE_Input_ChkAll_btn_bt
@@ -1759,7 +1941,7 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
                             move.w d4, -(sp)
                             move.w d5, -(sp)
                             move.w #0, -(sp)
-                            bsr.w PRINTTEXT
+                            bsr.w funcPrintText
 
                         subq.w #1, d4
                         dbf d6, TSTRTNE_Input_ChkAll_sw_bt
@@ -1793,7 +1975,7 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
                         move.w d4, -(sp)
                         move.w #13, -(sp)
                         move.w #0, -(sp)
-                        bsr.w PRINTTEXT
+                        bsr.w funcPrintText
 
                     subq.w #5, d4                                           ;xpos - 5
                     dbf d7, TSTRTNE_Input_ChkAll_st
@@ -1820,7 +2002,7 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
                         move.w d4, -(sp)
                         move.w #14, -(sp)
                         move.w #0, -(sp)
-                        bsr.w PRINTTEXT
+                        bsr.w funcPrintText
 
                     subq.w #5, d4                                           ;xpos - 5
                     dbf d7, TSTRTNE_Input_ChkAll_coin
@@ -1843,7 +2025,7 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
                     move.w #10, -(sp)
                     move.w #15, -(sp)
                     move.w #0, -(sp)
-                    bsr.w PRINTTEXT
+                    bsr.w funcPrintText
 
             jsr funcScrExitMessage
 
@@ -1924,7 +2106,7 @@ BTNON           dc.w 'ON ', $0000
             move.w #31, -(sp)
             move.w #8, -(sp)
             move.w #0, -(sp)
-            bsr.w PRINTTEXT
+            bsr.w funcPrintText
 
             lea $50081, a0
             move.w #7, d1                                   ;steering needle shift
@@ -1942,7 +2124,7 @@ BTNON           dc.w 'ON ', $0000
                 move.w #7, -(sp)                            ;xpos fixed
                 move.w d5, -(sp)
                 move.w #0, -(sp)
-                bsr.w PRINTTEXT
+                bsr.w funcPrintText
 
                 addq.w #6, d5
                 add.l #14, a4
@@ -2056,7 +2238,7 @@ BTNON           dc.w 'ON ', $0000
                     move.w #21, -(sp)
                     move.w #6, -(sp)
                     move.w #0, -(sp)
-                    bsr.w PRINTTEXT
+                    bsr.w funcPrintText
                     rts
 
                     TSTRTNE_RF2IO_Needle_max_draw:
@@ -2066,7 +2248,7 @@ BTNON           dc.w 'ON ', $0000
                         move.w #21, -(sp)
                         move.w #6, -(sp)
                         move.w #0, -(sp)
-                        bsr.w PRINTTEXT
+                        bsr.w funcPrintText
                         rts
 
 RF2STEERING     dc.w 'Steering   ', $0000
@@ -2096,7 +2278,7 @@ RF2NEEDLE       dc.w '|', $0000
             move.w #11, -(sp)
             move.w #24, -(sp)
             move.w #0, -(sp)
-            bsr.w PRINTTEXT
+            bsr.w funcPrintText
 
             move.b #1, $5E008                                       ;kick the watchdog
             move.b #0, $5E008
@@ -2219,7 +2401,7 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
         *--------------------------------------------------------
 
         TSTRTNE_Pr:
-            lea $830, a6
+            lea $880, a6
             move.w #0, $0(a6)                                   ;initialize PR digit number reg
             move.w #$00FF, $2(a6)                               ;initialize PR bit reg
                                                                 ; MSB <- BBBB/BBBB -> LSB (TM-B, TM-A)
@@ -2233,7 +2415,7 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
             move.w #4, -(sp)
             move.w #26, -(sp)
             move.w #0, -(sp)
-            bsr.w PRINTTEXT
+            bsr.w funcPrintText
 
             lea PRTILEMAPA, a0
             move.l a0, -(sp)
@@ -2241,7 +2423,7 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
             move.w #17, -(sp)
             move.w #6, -(sp)
             move.w #0, -(sp)
-            bsr.w PRINTTEXT
+            bsr.w funcPrintText
 
             lea PRTILEMAPB, a0
             move.l a0, -(sp)
@@ -2249,7 +2431,7 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
             move.w #11, -(sp)
             move.w #6, -(sp)
             move.w #0, -(sp)
-            bsr.w PRINTTEXT
+            bsr.w funcPrintText
 
             move.w #3, d6                                       ;repeat 4 times
             move.w #16, d5                                      ;ypos
@@ -2260,7 +2442,7 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
                 move.w #4, -(sp)                                ;xpos fixed
                 move.w d5, -(sp)
                 move.w #0, -(sp)
-                bsr.w PRINTTEXT
+                bsr.w funcPrintText
 
                 addq.w #1, d5
                 add.l #26, a4
@@ -2286,15 +2468,16 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
             bsr.w funcDrawTilemap
             
             ;SPRITE 1 
-            lea $56102, a0                                      ;0: reletive priority: EF
-            move.w #$0038, (a0)+                                ;2: 16*16 = size 3'b111
-            move.w #$0080, (a0)+                                ;4: no zoom
-            move.w #$00EC, (a0)+                                ;6: 16*16 filled block
-            move.w #$001A, (a0)+                                ;8: xpos MSB
-            move.w #$0078, (a0)+                                ;A: 120px
-            move.w #$0050, (a0)+                                ;C: 80px
-            move.w #$0000, (a0)+                                ;E: not used
-            
+            move.w #7, -(sp)
+            move.w #$0080, -(sp)
+            move.w #120, -(sp)
+            move.w #80, -(sp)
+            move.w #$00EC, -(sp)
+            move.w #5, -(sp)
+            move.w #0, -(sp)
+            move.w #$EF, -(sp)
+            bsr.w funcDrawSprite
+
 
             TSTRTNE_Pr_InEval:                                  ;evaluate key input
                 bsr.w funcCheckInput                            ;check P1 button input
@@ -2440,7 +2623,7 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
                             move.w d4, -(sp)
                             move.w #7, -(sp)
                             move.w #0, -(sp)
-                            bsr.w PRINTTEXT
+                            bsr.w funcPrintText
 
                         cmpi.w #4, d5                               ;if loop counter is 4
                         bne.s TSTRTNE_Pr_PrntVal_prntloop_incpos
@@ -2471,7 +2654,7 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
                     move.w #9, -(sp)
                     move.w #4, -(sp)
                     move.w #0, -(sp)
-                    bsr.w PRINTTEXT
+                    bsr.w funcPrintText
 
                     bra.s TSTRTNE_Pr_KeyInDelay
 
@@ -2482,7 +2665,7 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
                     move.w #9, -(sp)
                     move.w #4, -(sp)
                     move.w #0, -(sp)
-                    bsr.w PRINTTEXT
+                    bsr.w funcPrintText
 
 
             TSTRTNE_Pr_KeyInDelay:
@@ -2563,7 +2746,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                 move.w #4, -(sp)                                    ;xpos fixed
                 move.w d5, -(sp)
                 move.w #0, -(sp)
-                bsr.w PRINTTEXT
+                bsr.w funcPrintText
 
                 addq.w #1, d5                                       ;ypos+1
                 add.l #16, a4
@@ -2576,7 +2759,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
             move.w #6, -(sp)
             move.w #12, -(sp)
             move.w #0, -(sp)
-            bsr.w PRINTTEXT
+            bsr.w funcPrintText
 
             lea HEXDATAPREFIX, a4
             move.l a4, -(sp)
@@ -2584,21 +2767,21 @@ PRAUTOINC       dc.w 'Auto increment', $0000
             move.w #18, -(sp)                                       ;xpos fixed
             move.w #3, -(sp)
             move.w #0, -(sp)
-            bsr.w PRINTTEXT
+            bsr.w funcPrintText
 
             move.l a4, -(sp)
             move.w #1, -(sp)
             move.w #22, -(sp)                                       ;xpos fixed
             move.w #4, -(sp)
             move.w #0, -(sp)
-            bsr.w PRINTTEXT
+            bsr.w funcPrintText
 
             move.l a4, -(sp)
             move.w #1, -(sp)
             move.w #15, -(sp)                                       ;xpos fixed
             move.w #12, -(sp)
             move.w #0, -(sp)
-            bsr.w PRINTTEXT
+            bsr.w funcPrintText
 
             lea BMCMESSAGE2, a4
             move.w #1, d7                                           ;repeat 2 times
@@ -2612,7 +2795,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     move.w d6, -(sp)
                     move.w d4, -(sp)
                     move.w #0, -(sp)
-                    bsr.w PRINTTEXT
+                    bsr.w funcPrintText
 
                     addq.w #1, d4                                   ;ypos+1
                     add.l #8, a4
@@ -2629,10 +2812,10 @@ PRAUTOINC       dc.w 'Auto increment', $0000
             move.w #11, -(sp)
             move.w #9, -(sp)
             move.w #0, -(sp)
-            bsr.w PRINTTEXT
+            bsr.w funcPrintText
 
 
-            lea $830, a6
+            lea $880, a6
             move.w #$0000, $0(a6)                                   ;initialize menu number
             move.l #$00040000, $2(a6)                               ;initialize address data
             move.w #8, $6(a6)                                       ;initialize address digit
@@ -3090,7 +3273,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     move.w #6, -(sp)                                ;xpos fixed
                     move.w #10, -(sp)
                     move.w #0, -(sp)
-                    bsr.w PRINTTEXT
+                    bsr.w funcPrintText
 
                     move.l #0, d0                                   ;initialize d0, d1
                     move.l #0, d1
@@ -3104,7 +3287,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                         move.w #6, -(sp)                            ;xpos fixed
                         move.w #10, -(sp)
                         move.w #0, -(sp)
-                        bsr.w PRINTTEXT
+                        bsr.w funcPrintText
 
                         bra.w TSTRTNE_BMC_PrntMenu
 
@@ -3115,7 +3298,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                         move.w #6, -(sp)                            ;xpos fixed
                         move.w #10, -(sp)
                         move.w #0, -(sp)
-                        bsr.w PRINTTEXT
+                        bsr.w funcPrintText
 
                         bra.w TSTRTNE_BMC_PrntMenu
 
@@ -3126,7 +3309,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                         move.w #6, -(sp)                            ;xpos fixed
                         move.w #10, -(sp)
                         move.w #0, -(sp)
-                        bsr.w PRINTTEXT
+                        bsr.w funcPrintText
 
                         bra.w TSTRTNE_BMC_PrntMenu
 
@@ -3153,7 +3336,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     move.w #6, -(sp)                                ;xpos fixed
                     move.w #10, -(sp)
                     move.w #0, -(sp)
-                    bsr.w PRINTTEXT
+                    bsr.w funcPrintText
 
                     bra.w TSTRTNE_BMC_PrntMenu
 
@@ -3182,7 +3365,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     move.w #6, -(sp)                                ;xpos fixed
                     move.w #10, -(sp)
                     move.w #0, -(sp)
-                    bsr.w PRINTTEXT
+                    bsr.w funcPrintText
 
                     bra.w TSTRTNE_BMC_PrntMenu
 
@@ -3197,7 +3380,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     move.w #6, -(sp)                                ;xpos fixed
                     move.w #10, -(sp)
                     move.w #0, -(sp)
-                    bsr.w PRINTTEXT
+                    bsr.w funcPrintText
 
                     bra.w TSTRTNE_BMC_PrntMenu
 
@@ -3226,7 +3409,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     move.w #6, -(sp)                                ;xpos fixed
                     move.w #10, -(sp)
                     move.w #0, -(sp)
-                    bsr.w PRINTTEXT
+                    bsr.w funcPrintText
 
                     bra.w TSTRTNE_BMC_PrntMenu
 
@@ -3241,7 +3424,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     move.w #6, -(sp)                                ;xpos fixed
                     move.w #10, -(sp)
                     move.w #0, -(sp)
-                    bsr.w PRINTTEXT
+                    bsr.w funcPrintText
 
                     bra.w TSTRTNE_BMC_PrntMenu
 
@@ -3277,7 +3460,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                         move.w #4, -(sp)                                ;xpos fixed
                         move.w d5, -(sp)
                         move.w #0, -(sp)
-                        bsr.w PRINTTEXT
+                        bsr.w funcPrintText
 
                     addq.w #1, d5                                       ;ypos+1
                     add.l #16, a4
@@ -3298,7 +3481,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     move.w #6, -(sp)
                     move.w #12, -(sp)
                     move.w #0, -(sp)
-                    bsr.w PRINTTEXT
+                    bsr.w funcPrintText
 
                 bra.s TSTRTNE_BMC_PrntMenu_Options
 
@@ -3309,7 +3492,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     move.w #4, -(sp)                                        ;xpos fixed
                     move.w #3, -(sp)
                     move.w #0, -(sp)
-                    bsr.w PRINTTEXT
+                    bsr.w funcPrintText
 
                     lea DATACOPYLENGTH, a0
                     move.l a0, -(sp)
@@ -3317,7 +3500,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     move.w #4, -(sp)                                        ;xpos fixed
                     move.w #4, -(sp)
                     move.w #0, -(sp)
-                    bsr.w PRINTTEXT
+                    bsr.w funcPrintText
 
                     lea DATACOPYTARGET, a0
                     move.l a0, -(sp)
@@ -3325,7 +3508,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     move.w #6, -(sp)                                        ;xpos fixed
                     move.w #12, -(sp)
                     move.w #0, -(sp)
-                    bsr.w PRINTTEXT
+                    bsr.w funcPrintText
 
                 TSTRTNE_BMC_PrntMenu_Options:
                     lea BMCMESSAGE2, a4
@@ -3354,7 +3537,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                                 move.w d6, -(sp)
                                 move.w d4, -(sp)
                                 move.w #0, -(sp)
-                                bsr.w PRINTTEXT
+                                bsr.w funcPrintText
 
                             addq.w #1, d4                                   ;ypos+1
                             add.l #8, a4
@@ -3542,7 +3725,7 @@ DATACOPYTARGET  dc.w '  Target', $0000
                 move.w #0, -(sp)                                        ;xpos fixed
                 move.w d5, -(sp)
                 move.w #0, -(sp)
-                bsr.w PRINTTEXT
+                bsr.w funcPrintText
 
                 addq.w #1, d5
                 add.l #34, a4
@@ -3558,7 +3741,7 @@ DATACOPYTARGET  dc.w '  Target', $0000
                 move.w #0, -(sp)                                        ;xpos fixed
                 move.w d5, -(sp)
                 move.w #0, -(sp)
-                bsr.w PRINTTEXT
+                bsr.w funcPrintText
 
                 addq.w #1, d5
                 add.l #34, a4
@@ -3752,7 +3935,9 @@ LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
         ;      YPOS
         ;      TILEMAP A=0/B=1
         ;JSR:  RETURN ADDRESS
-        PRINTTEXT:
+        funcPrintText:
+            jsr sysSaveReg
+
             movea.l (sp)+, a3                               ;pop return address
 
             move.w (sp)+, d0                                ;pop tilemap A/B
@@ -3790,7 +3975,7 @@ LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
                 beq TYPEQUIT                                ;goto TYPEQUIT
 
                 subi #32, d0                                ;subtract 8'd32 to make the ASCII code to CHARRAM address
-                move.w #$F000, d1                           ;initialize d1
+                move.w #$E000, d1                           ;initialize d1
                 or.b d0, d1                                 ;write CHARRAM code
 
                 move.w d1, (a0)+
@@ -3802,7 +3987,7 @@ LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
                 beq TYPEQUIT
 
                 subi #32, d0                                ;subtract 8'd32 to make the ASCII code to CHARRAM address
-                move.w #$F000, d1                           ;initialize d1
+                move.w #$E000, d1                           ;initialize d1
                 or.b d0, d1                                 ;write CHARRAM code
 
                 move.w d1, (a0)+
@@ -3810,9 +3995,99 @@ LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
 
                 bra TYPELOOP
 
-                TYPEQUIT:
-                    move.l a3, -(sp)                                ;push return address
-                    rts
+            TYPEQUIT:
+                move.l a3, -(sp)                                ;push return address
+
+                jsr sysLoadReg
+                rts
+
+        *--------------------------------------------------------
+        *
+        *       function: DrawSprite
+        *
+        *--------------------------------------------------------
+
+        ;ARGS: OBJ SIZE[2:0] 0=32*32 1=16*32 2=32*16 3=64*64 4=8*8 5=16*8 6=8*16 7*16*16 
+        ;      OBJ ZOOM[9:0] DENOMINATOR
+        ;      OBJ XPOS[8:0]
+        ;      OBJ YPOS[7:0]
+        ;      OBJ CODE[9:0] 
+        ;      OBJ COLOR[3:0]
+        ;      OBJ VFLIP[1], HFLIP[0]
+        ;      OBJ PRIORITY[7:0]
+        ;      Note that all args are words
+        ;JSR:  RETURN ADDRESS 
+        funcDrawSprite:                                        
+            jsr sysSaveReg
+            move.l (sp)+, a5                                    ;pop return address
+
+            ;set priority
+            move.l #0, d0                                       ;initialize d0
+            move.w (sp)+, d0                                    ;pop priority
+            eori.w #$00FF, d0                                   ;invert[7:0]
+            lsl.w #4, d0
+            lea $56000, a0                                      ;load OBJRAM address
+            add.l d0, a0                                        ;get OBJRAM address
+
+            ;set OBJLATCH_D
+            move.l #0, d0                                       ;initialize d0
+            move.l #0, d1                                       ;initialize d1
+
+            move.w (sp)+, d7                                    ;pop FLIP bits
+            move.w (sp)+, d0                                    ;pop COLOR
+            lsl.w #1, d0
+
+            move.w (sp)+, d6                                    ;pop CODE
+            move.w d6, d1                                       ;copy CODE
+            lsr.w #2, d1
+            andi.w #$00C0, d1                                   ;mask [5:0]
+            or.w d1, d0
+
+                ;set OBJLATCH_F
+                move.w (sp)+, $C(a0)                            ;pop YPOS
+
+            move.w (sp)+, d5                                    ;pop XPOS
+            move.w d5, d1
+            lsr.w #8, d1
+            or.w d1, d0
+
+            move.w d7, d1                                       ;copy FLIP bits
+            lsl.w #4, d1                                        ;VFLIP
+            andi.w #$0020, d1
+            or.w d1, d0
+
+            move.w d0, $8(a0)
+
+            ;set OBJLATCH_E
+            andi.w #$00FF, d5
+            move.w d5, $A(a0)
+
+            ;set OBJLATCH_C
+            andi.w #$00FF, d6
+            move.w d6, $6(a0)
+
+            ;set OBJLATCH_B
+            move.w (sp)+, d1                                    ;pop ZOOM
+            move.w d1, d0
+            andi.w #$00FF, d0
+            move.w d0, $4(a0)
+
+            ;set OBJLATCH_A
+            lsr.w #2, d1
+            andi.w #$00C0, d1
+            move.w d1, d0
+            move.w (sp)+, d1                                    ;pop SIZE
+            lsl.w #3, d1
+            or.w d1, d0
+            andi.w #0001, d7
+            or.w d7, d0
+            andi.w #$00F9, d0
+            move.w d0, $2(a0)
+
+            move.l a5, -(sp)                                    ;push return address
+
+            jsr sysLoadReg
+            rts 
 
 
         *--------------------------------------------------------
@@ -3936,7 +4211,7 @@ LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
         *--------------------------------------------------------
 
         funcClearTilemap:
-            move.w #$F000, -(sp)                        ;clear tilemap A
+            move.w #$E000, -(sp)                        ;clear tilemap A
             move.w #$0000, -(sp)
             move.w #0, -(sp)
             bsr.w funcFillTilemap
