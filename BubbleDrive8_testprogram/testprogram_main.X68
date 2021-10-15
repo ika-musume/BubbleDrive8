@@ -1375,8 +1375,8 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
             move.w #$0000, $6(a6)                       ;Xscroll BCD
             move.w #$0000, $8(a6)                       ;Yscroll BCD
 
-            lea OBJ0, a0
-            move.w #10, d0
+            lea SCROBJ0, a0
+            move.w #16, d0                              ;15 sprites
             TSTRTNE_Scroll_drawobj:
                 move.w #7, d1
                 TSTRTNE_Scroll_drawobj_push:
@@ -1696,7 +1696,57 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
                     bsr.w TSTRTNE_Scroll_set
 
             TSTRTNE_Scroll_PrintVal:
-                lea OBJ2, a0
+                ;masks offset value to move +
+                lea SCROBJB, a0
+                move.w $2(a6), d0
+                move.w $4(a6), d1
+                andi.w #$01FF, d0
+                andi.w #$00FF, d1
+                TSTRTNE_Scroll_PrintVal_xmsk10:
+                    cmpi.w #10, d0
+                    blt.s TSTRTNE_Scroll_PrintVal_xmsk10_en        ;less than 10
+                    bra.s TSTRTNE_Scroll_PrintVal_xmsk100
+                    TSTRTNE_Scroll_PrintVal_xmsk10_en:
+                        move.w #$00EF, $8(a0)
+                        move.w #$00EF, $18(a0)
+                        move.w #$03FB, $28(a0)
+                        bra.s TSTRTNE_Scroll_PrintVal_ymsk10
+                TSTRTNE_Scroll_PrintVal_xmsk100:
+                    cmpi.w #100, d0
+                    blt.s TSTRTNE_Scroll_PrintVal_xmsk100_en        ;less than 100
+                    move.w #$0000, $8(a0)
+                    move.w #$0000, $18(a0)
+                    move.w #$0000, $28(a0)
+                    bra.s TSTRTNE_Scroll_PrintVal_ymsk10
+                    TSTRTNE_Scroll_PrintVal_xmsk100_en:
+                        move.w #$00EF, $8(a0)
+                        move.w #$03FB, $18(a0)
+                        move.w #$0000, $28(a0)
+
+                TSTRTNE_Scroll_PrintVal_ymsk10:
+                    cmpi.w #10, d1
+                    blt.s TSTRTNE_Scroll_PrintVal_ymsk10_en         ;less than 10
+                    bra.s TSTRTNE_Scroll_PrintVal_ymsk100
+                    TSTRTNE_Scroll_PrintVal_ymsk10_en:
+                        move.w #$00EF, $38(a0)
+                        move.w #$00EF, $48(a0)
+                        move.w #$03FB, $58(a0)
+                        bra.s TSTRTNE_Scroll_PrintVal_mskend
+                TSTRTNE_Scroll_PrintVal_ymsk100:
+                    cmpi.w #100, d1
+                    blt.s TSTRTNE_Scroll_PrintVal_ymsk100_en        ;less than 100
+                    move.w #$0000, $38(a0)
+                    move.w #$0000, $48(a0)
+                    move.w #$0000, $58(a0)
+                    bra.s TSTRTNE_Scroll_PrintVal_mskend
+                    TSTRTNE_Scroll_PrintVal_ymsk100_en:
+                        move.w #$00EF, $38(a0)
+                        move.w #$03FB, $48(a0)
+                        move.w #$0000, $58(a0)
+                TSTRTNE_Scroll_PrintVal_mskend:
+
+                ;update CODE
+                lea SCROBJ2, a0
                 move.w #2, d0
                 TSTRTNE_Scroll_PrintVal_xval:
                     move.w d0, d2                                   ;get loop counter
@@ -1713,7 +1763,7 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
 
                     dbf d0, TSTRTNE_Scroll_PrintVal_xval
 
-                lea OBJ7, a0
+                lea SCROBJ7, a0
                 move.w #2, d0
                 TSTRTNE_Scroll_PrintVal_yval:
                     move.w d0, d2                                   ;get loop counter
@@ -1730,7 +1780,18 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
 
                     dbf d0, TSTRTNE_Scroll_PrintVal_yval
 
-                lea OBJ2, a0
+                ;draw
+                lea SCROBJB, a0
+                move.w #5, d0
+                TSTRTNE_Scroll_PrintVal_mskdraw:
+                    move.w #7, d1
+                    TSTRTNE_Scroll_PrintVal_mskdraw_push:
+                        move.w (a0)+, -(sp)
+                        dbf d1, TSTRTNE_Scroll_PrintVal_mskdraw_push
+                    bsr.w funcDrawSprite
+                    dbf d0, TSTRTNE_Scroll_PrintVal_mskdraw
+
+                lea SCROBJ2, a0
                 move.w #2, d0
                 TSTRTNE_Scroll_PrintVal_xdraw:
                     move.w #7, d1
@@ -1740,7 +1801,7 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
                     bsr.w funcDrawSprite
                     dbf d0, TSTRTNE_Scroll_PrintVal_xdraw
 
-                lea OBJ7, a0
+                lea SCROBJ7, a0
                 move.w #2, d0
                 TSTRTNE_Scroll_PrintVal_ydraw:
                     move.w #7, d1
@@ -1760,7 +1821,7 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
                 bra.w TSTRTNE_Scroll_InEval
 
             TSTRTNE_Scroll_Exit:
-                lea OBJ2, a0
+                lea SCROBJ2, a0
                 move.w #1, d0
                 TSTRTNE_Scroll_Exit_outloop:
                     move.w #2, d1
@@ -1790,21 +1851,30 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
 
 TOPLEFT         dc.w '+(0,0)', $0000
 BOTTOMRIGHT     dc.w '(63,31)+' $0000
-OBJ0        dc.w $0004, $0080, $0004, $00E4, $03FA, $0004, $0000, $0010 ;(
-OBJ1        dc.w $0004, $0080, $000C, $00E4, $03FB, $0004, $0000, $0011 ;+
-OBJ2        dc.w $0004, $0080, $0014, $00E4, $03F0, $0004, $0000, $0012 ;digit2
-OBJ3        dc.w $0004, $0080, $001C, $00E4, $03F0, $0004, $0000, $0013 ;digit1
-OBJ4        dc.w $0004, $0080, $0024, $00E4, $03F0, $0004, $0000, $0014 ;digit0
-OBJ5        dc.w $0004, $0080, $002C, $00E4, $03FC, $0004, $0000, $0015 ;,
-OBJ6        dc.w $0004, $0080, $0034, $00E4, $03FB, $0004, $0000, $0016 ;+
-OBJ7        dc.w $0004, $0080, $003C, $00E4, $03F0, $0004, $0000, $0017 ;digit2
-OBJ8        dc.w $0004, $0080, $0044, $00E4, $03F0, $0004, $0000, $0018 ;digit1
-OBJ9        dc.w $0004, $0080, $004C, $00E4, $03F0, $0004, $0000, $0019 ;digit0
-OBJA        dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
+SCROBJ0         dc.w $0004, $0080, $0004, $00E4, $03FA, $0004, $0000, $0010 ;(
+SCROBJ1         dc.w $0004, $0080, $000C, $00E4, $03FB, $0004, $0000, $0011 ;+
+SCROBJ2         dc.w $0004, $0080, $0014, $00E4, $03F0, $0004, $0000, $0012 ;digit2
+SCROBJ3         dc.w $0004, $0080, $001C, $00E4, $03F0, $0004, $0000, $0013 ;digit1
+SCROBJ4         dc.w $0004, $0080, $0024, $00E4, $03F0, $0004, $0000, $0014 ;digit0
+SCROBJ5         dc.w $0004, $0080, $002C, $00E4, $03FC, $0004, $0000, $0015 ;,
+SCROBJ6         dc.w $0004, $0080, $0034, $00E4, $03FB, $0004, $0000, $0016 ;+
+SCROBJ7         dc.w $0004, $0080, $003C, $00E4, $03F0, $0004, $0000, $0017 ;digit2
+SCROBJ8         dc.w $0004, $0080, $0044, $00E4, $03F0, $0004, $0000, $0018 ;digit1
+SCROBJ9         dc.w $0004, $0080, $004C, $00E4, $03F0, $0004, $0000, $0019 ;digit0
+SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
+SCROBJB         dc.w $0004, $0080, $000C, $00E4, $00EF, $0004, $0000, $0020 ;MASK(EF)1
+SCROBJC         dc.w $0004, $0080, $0014, $00E4, $00EF, $0004, $0000, $0021 ;MASK2
+SCROBJD         dc.w $0004, $0080, $001C, $00E4, $03FB, $0004, $0000, $0022 ;MASK3
+SCROBJE         dc.w $0004, $0080, $0034, $00E4, $00EF, $0004, $0000, $0023 ;MASK4
+SCROBJF         dc.w $0004, $0080, $003C, $00E4, $00EF, $0004, $0000, $0024 ;MASK5
+SCROBJ10        dc.w $0004, $0080, $0044, $00E4, $03FB, $0004, $0000, $0025 ;MASK6
+        ;+ = 3FB
+        ;mask = EF
 
 
 
-        *--------------------------------------------------------
+
+       *--------------------------------------------------------
         *
         *       TESTMENU_INPUT subroutine
         *
