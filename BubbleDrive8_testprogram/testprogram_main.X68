@@ -6,8 +6,23 @@
 *              B85:K:A:C:2021101102
 *-----------------------------------------------------------
 
+;MEMORY STRUCTURE
+;0x00000: bootloader
+;~0x00600: program stack
+;~0x00700: register backup stack
+;0x00700: sprite properties(max 16)
+;0x00800: RAM test result(long), menu indicator(word)
+;0x00810: single input detector reg
+;0x00818: long input detector reg
+;0x00820: data loaded flags
+;0x00880: user RAM
+;0x00900: initializer program
+;0x00D00; MBM error map
+;0x00F00: BMC page data
+
+
     ORG     $0
-VECTORS dc.l $00000800                                      ;reset initial SP
+VECTORS dc.l $00000600                                      ;reset initial SP
         dc.l $00000008                                      ;reset initial PC
 
     ORG     $8
@@ -814,6 +829,8 @@ TESTMENUITEM12  dc.w '12.Return to title screen', $0000
                     beq TSTRTNE_Screen
                     cmpi #3, d6
                     beq TSTRTNE_Scroll
+                    cmpi #4, d6
+                    beq TSTRTNE_OBJ
                     cmpi #5, d6
                     beq TSTRTNE_Input
                     cmpi #6, d6
@@ -1361,12 +1378,10 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
         *--------------------------------------------------------
 
         TSTRTNE_Scroll:
-
             move.l #$3FC00, -(sp)                       ;copy tiles(2D400 ~400 on ROM)
             move.w #8, -(sp)
             move.w #1448, -(sp)
             jsr funcLoadBubble
-
 
             lea $880, a6                                ;load register address
             move.w #2, (a6)                             ;tilemap mode/code
@@ -1375,15 +1390,18 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
             move.w #$0000, $6(a6)                       ;Xscroll BCD
             move.w #$0000, $8(a6)                       ;Yscroll BCD
 
+            ;0x700 sprite list
             lea SCROBJ0, a0
-            move.w #16, d0                              ;15 sprites
-            TSTRTNE_Scroll_drawobj:
-                move.w #7, d1
-                TSTRTNE_Scroll_drawobj_push:
+            lea $700, a5
+            move.w #10, d0                              ;11 sprites
+            TSTRTNE_Scroll_copyobj_list:
+                move.w #7, d1                           ;8 properties
+                TSTRTNE_Scroll_copyobj_push:
+                    move.w (a0), (a5)+
                     move.w (a0)+, -(sp)
-                    dbf d1, TSTRTNE_Scroll_drawobj_push
+                    dbf d1, TSTRTNE_Scroll_copyobj_push
                 bsr.w funcDrawSprite
-                dbf d0, TSTRTNE_Scroll_drawobj
+                dbf d0, TSTRTNE_Scroll_copyobj_list
 
             TSTRTNE_Scroll_DrawTM:
                 eori.b #02, $1(a6)                      ;flip value
@@ -1593,63 +1611,52 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
                 
 
             TSTRTNE_Scroll_BCD:
+                move.w $2(a6), d0                                   ;get xscroll binary value
+                move.w #0, $6(a6)                                   ;initialize xscroll bcd 
+                lea INTCONST+2, a0                                  ;set constant address+2
+
+                move.w #8, d1                                       ;set loop counter
                 TSTRTNE_Scroll_BCD_X:
-                    move.l #0, d7                                   ;initialize d7
-                    move.w $2(a6), d7                               ;get binary value
-                    andi.w #$01FF, d7                               ;xscroll value 0-511
-                    move.w #2, d0                                   ;3 digits
-                    TSTRTNE_Scroll_BCD_X_digit:
-                        move.w d0, d1
-                        move.w #1, d6
-                        TSTRTNE_Scroll_BCD_X_digit_getdenom:
-                            mulu.w #10, d6                          ;1*10*10*10
-                            dbf d1, TSTRTNE_Scroll_BCD_X_digit_getdenom
-                            divu.w #10, d6                          ;(1*10*10*10)/10
-                        divu.w d6, d7                               ;d7/d6
-                        move.l #0, d5                               ;initialize d5
-                        move.w d7, d5                               ;move quotient to d5
-            
-                        move.w #$FFF0, d4                           ;initialize d4 with FFF0
-                        move.w #4, d1                               ;load 4
-                        mulu.w d0, d1                               ;loop counter * 4
-                        rol.w d1, d4                                ;rotate d4 left
-                        lsl.w d1, d5                                ;shift d5 left
-                        and.w d4, $6(a6)                            ;erase the corresponding digit
-                        or.w d5, $6(a6)                             ;write BCD number
+                    btst.l d1, d0                                   ;test bit from 8 to 0
+                    beq.s TSTRTNE_Scroll_BCD_X_skip
 
-                        swap d7                                     ;swap quotient with remainder
-                        andi.l #$0000FFFF, d7                       ;remove quotient
+                    lea $888, a1                                    ;set xscroll bcd reg addr
+                    andi.b #$EF, CCR                                ;clear X bit
+                    move.w #1, d2                                   ;set loop counter
+                    TSTRTNE_Scroll_BCD_X_addconst:
+                        abcd -(a0), -(a1)                           ;Add BCD, byte instruction
+                                                                    ;-(a0)+-(a1)+Xbit=-(a1)
+                        dbf d2, TSTRTNE_Scroll_BCD_X_addconst
+                    add.l #2, a0                                    ;next constant
 
-                    dbf d0, TSTRTNE_Scroll_BCD_X_digit
+                    TSTRTNE_Scroll_BCD_X_skip:
+                        add.l #2, a0                                ;next constant
+
+                    dbf d1, TSTRTNE_Scroll_BCD_X
+
                     
+                move.w $4(a6), d0                                   ;get yscroll binary value
+                move.w #0, $8(a6)                                   ;initialize yscroll bcd 
+                lea INTCONST+4, a0                                  ;set constant address+4
+
+                move.w #7, d1                                       ;set loop counter
                 TSTRTNE_Scroll_BCD_Y:
-                    move.l #0, d7                                   ;initialize d7
-                    move.w $4(a6), d7                               ;get binary value
-                    andi.w #$00FF, d7                               ;yscroll value 0-255
-                    move.w #2, d0                                   ;3 digits
-                    TSTRTNE_Scroll_BCD_Y_digit:
-                        move.w d0, d1
-                        move.w #1, d6
-                        TSTRTNE_Scroll_BCD_Y_digit_getdenom:
-                            mulu.w #10, d6                          ;1*10*10*10
-                            dbf d1, TSTRTNE_Scroll_BCD_Y_digit_getdenom
-                            divu.w #10, d6                          ;(1*10*10*10)/10
-                        divu.w d6, d7                               ;d7/d6
-                        move.l #0, d5                               ;initialize d5
-                        move.w d7, d5                               ;move quotient to d5
-            
-                        move.w #$FFF0, d4                           ;initialize d4 with FFF0
-                        move.w #4, d1                               ;load 4
-                        mulu.w d0, d1                               ;loop counter * 4
-                        rol.w d1, d4                                ;rotate d4 left
-                        lsl.w d1, d5                                ;shift d5 left
-                        and.w d4, $8(a6)                            ;erase the corresponding digit
-                        or.w d5, $8(a6)                             ;write BCD number
+                    btst.l d1, d0                                   ;test bit from 8 to 0
+                    beq.s TSTRTNE_Scroll_BCD_Y_skip
 
-                        swap d7                                     ;swap quotient with remainder
-                        andi.l #$0000FFFF, d7                       ;remove quotient
+                    lea $88A, a1                                    ;set yscroll bcd reg addr
+                    andi.b #$EF, CCR                                ;clear X bit
+                    move.w #1, d2                                   ;set loop counter
+                    TSTRTNE_Scroll_BCD_Y_addconst:
+                        abcd -(a0), -(a1)                           ;Add BCD, byte instruction
+                                                                    ;-(a0)+-(a1)+Xbit=-(a1)
+                        dbf d2, TSTRTNE_Scroll_BCD_Y_addconst
+                    add.l #2, a0                                    ;next constant
 
-                    dbf d0, TSTRTNE_Scroll_BCD_Y_digit
+                    TSTRTNE_Scroll_BCD_Y_skip:
+                        add.l #2, a0                                ;next constant
+
+                    dbf d1, TSTRTNE_Scroll_BCD_Y
 
             TSTRTNE_Scroll_UpdateVal:
                 cmpi.b #$00, $1(a6)                                 ;if TM-B
@@ -1696,59 +1703,37 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
                     bsr.w TSTRTNE_Scroll_set
 
             TSTRTNE_Scroll_PrintVal:
-                ;masks offset value to move +
-                lea SCROBJB, a0
-                move.w $2(a6), d0
-                move.w $4(a6), d1
-                andi.w #$01FF, d0
-                andi.w #$00FF, d1
-                TSTRTNE_Scroll_PrintVal_xmsk10:
-                    cmpi.w #10, d0
-                    blt.s TSTRTNE_Scroll_PrintVal_xmsk10_en        ;less than 10
-                    bra.s TSTRTNE_Scroll_PrintVal_xmsk100
-                    TSTRTNE_Scroll_PrintVal_xmsk10_en:
-                        move.w #$00EF, $8(a0)
-                        move.w #$00EF, $18(a0)
-                        move.w #$03FB, $28(a0)
-                        bra.s TSTRTNE_Scroll_PrintVal_ymsk10
-                TSTRTNE_Scroll_PrintVal_xmsk100:
-                    cmpi.w #100, d0
-                    blt.s TSTRTNE_Scroll_PrintVal_xmsk100_en        ;less than 100
-                    move.w #$0000, $8(a0)
-                    move.w #$0000, $18(a0)
-                    move.w #$0000, $28(a0)
-                    bra.s TSTRTNE_Scroll_PrintVal_ymsk10
-                    TSTRTNE_Scroll_PrintVal_xmsk100_en:
-                        move.w #$00EF, $8(a0)
-                        move.w #$03FB, $18(a0)
-                        move.w #$0000, $28(a0)
-
-                TSTRTNE_Scroll_PrintVal_ymsk10:
-                    cmpi.w #10, d1
-                    blt.s TSTRTNE_Scroll_PrintVal_ymsk10_en         ;less than 10
-                    bra.s TSTRTNE_Scroll_PrintVal_ymsk100
-                    TSTRTNE_Scroll_PrintVal_ymsk10_en:
-                        move.w #$00EF, $38(a0)
-                        move.w #$00EF, $48(a0)
-                        move.w #$03FB, $58(a0)
-                        bra.s TSTRTNE_Scroll_PrintVal_mskend
-                TSTRTNE_Scroll_PrintVal_ymsk100:
-                    cmpi.w #100, d1
-                    blt.s TSTRTNE_Scroll_PrintVal_ymsk100_en        ;less than 100
-                    move.w #$0000, $38(a0)
-                    move.w #$0000, $48(a0)
-                    move.w #$0000, $58(a0)
-                    bra.s TSTRTNE_Scroll_PrintVal_mskend
-                    TSTRTNE_Scroll_PrintVal_ymsk100_en:
-                        move.w #$00EF, $38(a0)
-                        move.w #$03FB, $48(a0)
-                        move.w #$0000, $58(a0)
-                TSTRTNE_Scroll_PrintVal_mskend:
-
                 ;update CODE
-                lea SCROBJ2, a0
-                move.w #2, d0
-                TSTRTNE_Scroll_PrintVal_xval:
+                lea $700, a0
+                move.w $2(a6), d0
+                andi.w #$01FF, d0
+
+                cmpi.w #10, d0                                      ;less than 10
+                blt.s TSTRTNE_Scroll_PrintVal_xval10
+                cmpi.w #100, d0                                     ;less than 100
+                blt.s TSTRTNE_Scroll_PrintVal_xval100
+
+                ;TSTRTNE_Scroll_PrintVal_xval1000:
+                    move.w #$03FB, $8(a0)
+                    move.w #2, d0
+                    add.l #$10, a0                                  ;draws decimal value only
+                    bra.s TSTRTNE_Scroll_PrintVal_xval_updt
+
+                TSTRTNE_Scroll_PrintVal_xval100:
+                    move.w #$00EF, $8(a0)
+                    move.w #$03FB, $18(a0)
+                    move.w #1, d0
+                    add.l #$20, a0
+                    bra.s TSTRTNE_Scroll_PrintVal_xval_updt
+
+                TSTRTNE_Scroll_PrintVal_xval10:
+                    move.w #$00EF, $8(a0)
+                    move.w #$00EF, $18(a0)
+                    move.w #$03FB, $28(a0)
+                    move.w #0, d0
+                    add.l #$30, a0
+                    
+                TSTRTNE_Scroll_PrintVal_xval_updt:
                     move.w d0, d2                                   ;get loop counter
                     mulu.w #4, d2
                     
@@ -1761,11 +1746,40 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
                     move.w d1, $8(a0)
                     add.l #$10, a0
 
-                    dbf d0, TSTRTNE_Scroll_PrintVal_xval
+                    dbf d0, TSTRTNE_Scroll_PrintVal_xval_updt
 
-                lea SCROBJ7, a0
-                move.w #2, d0
-                TSTRTNE_Scroll_PrintVal_yval:
+
+                ;update CODE
+                lea $740, a0
+                move.w $4(a6), d0
+                andi.w #$00FF, d0
+
+                cmpi.w #10, d0                                      ;less than 10
+                blt.s TSTRTNE_Scroll_PrintVal_yval10
+                cmpi.w #100, d0                                     ;less than 100
+                blt.s TSTRTNE_Scroll_PrintVal_yval100
+
+                ;TSTRTNE_Scroll_PrintVal_yval1000:
+                    move.w #$03FB, $8(a0)
+                    move.w #2, d0
+                    add.l #$10, a0
+                    bra.s TSTRTNE_Scroll_PrintVal_yval_updt
+
+                TSTRTNE_Scroll_PrintVal_yval100:
+                    move.w #$00EF, $8(a0)
+                    move.w #$03FB, $18(a0)
+                    move.w #1, d0
+                    add.l #$20, a0
+                    bra.s TSTRTNE_Scroll_PrintVal_yval_updt
+
+                TSTRTNE_Scroll_PrintVal_yval10:
+                    move.w #$00EF, $8(a0)
+                    move.w #$00EF, $18(a0)
+                    move.w #$03FB, $28(a0)
+                    move.w #0, d0
+                    add.l #$30, a0
+
+                TSTRTNE_Scroll_PrintVal_yval_updt:
                     move.w d0, d2                                   ;get loop counter
                     mulu.w #4, d2
                     
@@ -1778,67 +1792,31 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
                     move.w d1, $8(a0)
                     add.l #$10, a0
 
-                    dbf d0, TSTRTNE_Scroll_PrintVal_yval
+                    dbf d0, TSTRTNE_Scroll_PrintVal_yval_updt
 
                 ;draw
-                lea SCROBJB, a0
-                move.w #5, d0
-                TSTRTNE_Scroll_PrintVal_mskdraw:
+                lea $700, a0
+                move.w #7, d0
+                TSTRTNE_Scroll_PrintVal_draw:
                     move.w #7, d1
-                    TSTRTNE_Scroll_PrintVal_mskdraw_push:
+                    TSTRTNE_Scroll_PrintVal_draw_push:
                         move.w (a0)+, -(sp)
-                        dbf d1, TSTRTNE_Scroll_PrintVal_mskdraw_push
+                        dbf d1, TSTRTNE_Scroll_PrintVal_draw_push
                     bsr.w funcDrawSprite
-                    dbf d0, TSTRTNE_Scroll_PrintVal_mskdraw
-
-                lea SCROBJ2, a0
-                move.w #2, d0
-                TSTRTNE_Scroll_PrintVal_xdraw:
-                    move.w #7, d1
-                    TSTRTNE_Scroll_PrintVal_xdraw_push:
-                        move.w (a0)+, -(sp)
-                        dbf d1, TSTRTNE_Scroll_PrintVal_xdraw_push
-                    bsr.w funcDrawSprite
-                    dbf d0, TSTRTNE_Scroll_PrintVal_xdraw
-
-                lea SCROBJ7, a0
-                move.w #2, d0
-                TSTRTNE_Scroll_PrintVal_ydraw:
-                    move.w #7, d1
-                    TSTRTNE_Scroll_PrintVal_ydraw_push:
-                        move.w (a0)+, -(sp)
-                        dbf d1, TSTRTNE_Scroll_PrintVal_ydraw_push
-                    bsr.w funcDrawSprite
-                    dbf d0, TSTRTNE_Scroll_PrintVal_ydraw
-
-                
+                    dbf d0, TSTRTNE_Scroll_PrintVal_draw
 
             TSTRTNE_Scroll_KeyInDelay:
                 move.w $5CC02, d0
                 cmpi.b #$EE, d0
-                beq.s TSTRTNE_Scroll_Exit
+                beq.w TESTMENU
                 jsr funcFixedDelayFast
                 bra.w TSTRTNE_Scroll_InEval
-
-            TSTRTNE_Scroll_Exit:
-                lea SCROBJ2, a0
-                move.w #1, d0
-                TSTRTNE_Scroll_Exit_outloop:
-                    move.w #2, d1
-                    TSTRTNE_Scroll_Exit_inloop:
-                        move.w #$03F0, $8(a0)
-                        add.l #$10, a0
-                        dbf d1, TSTRTNE_Scroll_Exit_inloop
-                    add.l #$20, a0
-                    dbf d0, TSTRTNE_Scroll_Exit_outloop
-                bra.w TESTMENU
 
             TSTRTNE_Scroll_blockcopy:
                 subq.w #1, d0
                 TSTRTNE_Scroll_blockcopy_loop:
                     move.w (a0)+, (a1)+                         ;copy
                     dbf d0, TSTRTNE_Scroll_blockcopy_loop
-                
                 rts
 
             TSTRTNE_Scroll_set:
@@ -1846,32 +1824,412 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
                 TSTRTNE_Scroll_set_loop:
                     move.w d1, (a0)+                            ;set scroll value
                     dbf d0, TSTRTNE_Scroll_set_loop
-
                 rts
 
 TOPLEFT         dc.w '+(0,0)', $0000
 BOTTOMRIGHT     dc.w '(63,31)+' $0000
-SCROBJ0         dc.w $0004, $0080, $0004, $00E4, $03FA, $0004, $0000, $0010 ;(
-SCROBJ1         dc.w $0004, $0080, $000C, $00E4, $03FB, $0004, $0000, $0011 ;+
-SCROBJ2         dc.w $0004, $0080, $0014, $00E4, $03F0, $0004, $0000, $0012 ;digit2
-SCROBJ3         dc.w $0004, $0080, $001C, $00E4, $03F0, $0004, $0000, $0013 ;digit1
-SCROBJ4         dc.w $0004, $0080, $0024, $00E4, $03F0, $0004, $0000, $0014 ;digit0
-SCROBJ5         dc.w $0004, $0080, $002C, $00E4, $03FC, $0004, $0000, $0015 ;,
-SCROBJ6         dc.w $0004, $0080, $0034, $00E4, $03FB, $0004, $0000, $0016 ;+
-SCROBJ7         dc.w $0004, $0080, $003C, $00E4, $03F0, $0004, $0000, $0017 ;digit2
-SCROBJ8         dc.w $0004, $0080, $0044, $00E4, $03F0, $0004, $0000, $0018 ;digit1
-SCROBJ9         dc.w $0004, $0080, $004C, $00E4, $03F0, $0004, $0000, $0019 ;digit0
+SCROBJ0         dc.w $0004, $0080, $000C, $00E4, $00EF, $0004, $0000, $0011 ;+
+SCROBJ1         dc.w $0004, $0080, $0014, $00E4, $00EF, $0004, $0000, $0012 ;digit2
+SCROBJ2         dc.w $0004, $0080, $001C, $00E4, $03FB, $0004, $0000, $0013 ;digit1
+SCROBJ3         dc.w $0004, $0080, $0024, $00E4, $03F0, $0004, $0000, $0014 ;digit0
+SCROBJ4         dc.w $0004, $0080, $0034, $00E4, $00EF, $0004, $0000, $0016 ;+
+SCROBJ5         dc.w $0004, $0080, $003C, $00E4, $00EF, $0004, $0000, $0017 ;digit2
+SCROBJ6         dc.w $0004, $0080, $0044, $00E4, $03FB, $0004, $0000, $0018 ;digit1
+SCROBJ7         dc.w $0004, $0080, $004C, $00E4, $03F0, $0004, $0000, $0019 ;digit0
+SCROBJ8         dc.w $0004, $0080, $0004, $00E4, $03FA, $0004, $0000, $0010 ;(
+SCROBJ9         dc.w $0004, $0080, $002C, $00E4, $03FC, $0004, $0000, $0015 ;,
 SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
-SCROBJB         dc.w $0004, $0080, $000C, $00E4, $00EF, $0004, $0000, $0020 ;MASK(EF)1
-SCROBJC         dc.w $0004, $0080, $0014, $00E4, $00EF, $0004, $0000, $0021 ;MASK2
-SCROBJD         dc.w $0004, $0080, $001C, $00E4, $03FB, $0004, $0000, $0022 ;MASK3
-SCROBJE         dc.w $0004, $0080, $0034, $00E4, $00EF, $0004, $0000, $0023 ;MASK4
-SCROBJF         dc.w $0004, $0080, $003C, $00E4, $00EF, $0004, $0000, $0024 ;MASK5
-SCROBJ10        dc.w $0004, $0080, $0044, $00E4, $03FB, $0004, $0000, $0025 ;MASK6
         ;+ = 3FB
         ;mask = EF
 
 
+
+
+        *--------------------------------------------------------
+        *
+        *       TESTMENU_OBJ subroutine
+        *
+        *--------------------------------------------------------
+
+        TSTRTNE_OBJ:
+            move.l #$3FC00, -(sp)                       ;copy tiles(2D400 ~400 on ROM)
+            move.w #8, -(sp)
+            move.w #1448, -(sp)
+            jsr funcLoadBubble
+
+            lea $880, a6                                ;load register address
+            move.w #0, (a6)                             ;initialize sprite edit menu code
+            move.w #0, $2(a6)                           ;initialize UNDER MODIFICATION flag
+            move.w #$0080, $4(a6)                       ;initialize ZOOM binary value: 00_1.000_0000
+            move.l #$0, $6(a6)                          ;initialize ZOOM BCD: 1.0000000
+            move.w #0, $A(a6)                           ;initialize SIZE binary
+            move.w #0, $C(a6)                           ;initialize FLIP binary
+            move.w #0, $E(a6)                           ;initialize Xpos binary
+            move.w #0, $10(a6)                          ;initialize Ypos binary
+            move.w #$0000, $12(a6)                      ;initialize Xpos BCD
+            move.w #$0000, $14(a6)                      ;initialize Ypos BCD
+            
+
+            ;[USER INTERFACE]
+            ;XPOS:(read only) YPOS:(read only)
+            ;OBJ TYPE:A(32*16)...(selectable) (0)
+            ;ZOOM: 0x080 = 1.0000000(adjustable)
+            ;HFLIP:0  VFLIP:0 (1, 2)
+            ;EDIT SPRITE (3)
+
+            ;[SPRITE TYPE LIST]
+            ;0=32*32 1=16*32 2=32*16 3=64*64  4=8*8 5=16*8 6=8*16 7=16*16
+            ;8=32*64 9=16*64 A=32*32 B=64*128 C=8*8 D=16*8 E=8*16 F=16*16
+            ;=16+8+8+64+2+2+2+4+32+16+16+128 + (2+2+2+4) = 298+10
+            ;32 tiles per tileline = 11 tilelines
+            ;32*11=352 tiles, 88 pages
+
+            ;[SPRITE CODE LIST]
+            ;                CODE
+            ;TYPE0/A = 6A0 = 350
+            ;TYPE1   = 6B0 = 358
+            ;TYPE2   = 6B8 = 35C
+            ;TYPE3   = 6C0 = 360
+            ;TYPE4/C = 700 = 380
+            ;TYPE5/D = 702 = 381
+            ;TYPE6/E = 704 = 382
+            ;TYPE7/F = 706 = 383
+            ;TYPE8   = 710 = 388
+            ;TYPE9   = 730 = 398
+            ;TYPEB   = 780 = 3C0
+
+            move.w #$F000, -(sp)                            ;clear tilemap A
+            move.w #$0000, -(sp)
+            move.w #0, -(sp)
+            bsr.w funcFillTilemap
+
+            move.w #$205F, -(sp)                            ;clear tilemap B
+            move.w #$0002, -(sp)
+            move.w #1, -(sp)
+            bsr.w funcFillTilemap
+
+            move.w #5, d0                                   ;repeat 6 times
+            move.w #5, d1                                   ;ypos
+            lea OBJTSTMSG0, a0
+            TSTRTNE_OBJ_PrntMenu_loop:
+                move.l a0, -(sp)
+                move.w #1, -(sp)
+                move.w #8, -(sp)                            ;xpos fixed
+                move.w d1, -(sp)
+                move.w #0, -(sp)
+                bsr.w funcPrintText
+
+                addq.w #2, d1
+                add.l #18, a0
+
+                dbf d0, TSTRTNE_OBJ_PrntMenu_loop
+            
+            addq.w #2, d1
+            move.l a0, -(sp)
+            move.w #1, -(sp)
+            move.w #8, -(sp)                                ;xpos fixed
+            move.w d1, -(sp)
+            move.w #0, -(sp)
+            bsr.w funcPrintText
+            
+            TSTRTNE_OBJ_ModeEval:
+                move.w (a6), d0                                 ;get menu number
+                
+                cmpi.w #0, d0
+                beq.w TSTRTNE_OBJ_TypeSel
+                cmpi.w #1, d0
+                beq.w TSTRTNE_OBJ_HFlip
+                cmpi.w #2, d0
+                beq.w TSTRTNE_OBJ_VFlip
+                cmpi.w #3, d0
+                beq.w TSTRTNE_OBJ_ObjEdit
+                bra.w TSTRTNE_OBJ_KeyInDelay
+
+
+            TSTRTNE_OBJ_TypeSel:
+                cmpi.w #0, $2(a6)                                   ;edit mode
+                bne.w TSTRTNE_OBJ_TypeSel_mod
+
+                ;TSTRTNE_OBJ_TypeSel_menu
+                    bsr.w funcCheckInput                            ;check P1 button input
+                    move.w (sp)+, d0                                ;get latest input
+
+                    btst.l #$3, d0                                  ;check for DOWN
+                    beq.s TSTRTNE_OBJ_TypeSel_menu_inc
+                    btst.l #$1, d0                                  ;check for RIGHT
+                    beq.s TSTRTNE_OBJ_TypeSel_menu_enter
+                    btst.l #$0, d0                                  ;check for LEFT
+                    beq.s TSTRTNE_OBJ_TypeSel_menu_enter
+                    bra.w TSTRTNE_OBJ_Draw
+                    
+                    TSTRTNE_OBJ_TypeSel_menu_inc:
+                        addi.w #1, (a6)
+                        bra.w TSTRTNE_OBJ_Draw
+
+                    TSTRTNE_OBJ_TypeSel_menu_enter:
+                        move.w #1, $2(a6)
+                        bra.w TSTRTNE_OBJ_Draw
+
+                TSTRTNE_OBJ_TypeSel_mod:
+                    bsr.w funcCheckInput                            ;check P1 button input
+                    move.w (sp)+, d0                                ;get latest input
+
+                    btst.l #$4, d0                                  ;check for A
+                    beq.s TSTRTNE_OBJ_TypeSel_mod_unknown
+                    btst.l #$3, d0                                  ;check for DOWN
+                    beq.s TSTRTNE_OBJ_TypeSel_mod_dec
+                    btst.l #$2, d0                                  ;check for UP
+                    beq.s TSTRTNE_OBJ_TypeSel_mod_inc
+                    btst.l #$1, d0                                  ;check for RIGHT
+                    beq.s TSTRTNE_OBJ_TypeSel_mod_exit
+                    btst.l #$0, d0                                  ;check for LEFT
+                    beq.s TSTRTNE_OBJ_TypeSel_mod_exit
+                    bra.w TSTRTNE_OBJ_Draw
+
+                    TSTRTNE_OBJ_TypeSel_mod_unknown:
+                        cmpi.w #8, $A(a6)                           ;if <8
+                        blt.w TSTRTNE_OBJ_TypeSel_mod_unknown_en    ;unknow bit enable
+                        subq.w #8, $A(a6)
+                        bra.w TSTRTNE_OBJ_Draw
+                        TSTRTNE_OBJ_TypeSel_mod_unknown_en:
+                            addq.w #8, $A(a6)
+                            bra.w TSTRTNE_OBJ_Draw
+
+                    TSTRTNE_OBJ_TypeSel_mod_inc:
+                        cmpi.w #$7, $A(a6)                          ;if 7
+                        beq.w TSTRTNE_OBJ_Draw                      ;do not increase
+                        cmpi.w #$F, $A(a6)                          ;if F
+                        beq.w TSTRTNE_OBJ_Draw                      ;do not increase
+                        addi.w #1, $A(a6)
+                        bra.w TSTRTNE_OBJ_Draw
+
+                    TSTRTNE_OBJ_TypeSel_mod_dec:
+                        cmpi.w #$0, $A(a6)                          ;if 0
+                        beq.w TSTRTNE_OBJ_Draw                      ;do not decrease
+                        cmpi.w #$8, $A(a6)                          ;if 8
+                        beq.w TSTRTNE_OBJ_Draw                      ;do not decrease
+                        subi.w #1, $A(a6)
+                        bra.w TSTRTNE_OBJ_Draw
+
+                   TSTRTNE_OBJ_TypeSel_mod_exit:
+                        move.w #0, $2(a6)
+                        bra.w TSTRTNE_OBJ_Draw
+
+
+            TSTRTNE_OBJ_HFlip:
+                bsr.w funcCheckInput                            ;check P1 button input
+                move.w (sp)+, d0                                ;get latest input
+
+                btst.l #$4, d0                                  ;check for A
+                beq.s TSTRTNE_OBJ_HFlip_flip
+                btst.l #$3, d0                                  ;check for DOWN
+                beq.s TSTRTNE_OBJ_HFlip_inc
+                btst.l #$2, d0                                  ;check for UP
+                beq.s TSTRTNE_OBJ_HFlip_dec
+                bra.w TSTRTNE_OBJ_Draw
+                
+                TSTRTNE_OBJ_HFlip_flip:
+                    eori.w #$0001, $C(a6)
+                    bra.w TSTRTNE_OBJ_Draw
+
+                TSTRTNE_OBJ_HFlip_inc:
+                    addi.w #1, (a6)
+                    bra.w TSTRTNE_OBJ_Draw
+
+                TSTRTNE_OBJ_HFlip_dec:
+                    subi.w #1, (a6)
+                    bra.w TSTRTNE_OBJ_Draw
+
+
+            TSTRTNE_OBJ_VFlip:
+                bsr.w funcCheckInput                            ;check P1 button input
+                move.w (sp)+, d0                                ;get latest input
+
+                btst.l #$4, d0                                  ;check for A
+                beq.s TSTRTNE_OBJ_VFlip_flip
+                btst.l #$3, d0                                  ;check for DOWN
+                beq.s TSTRTNE_OBJ_VFlip_inc
+                btst.l #$2, d0                                  ;check for UP
+                beq.s TSTRTNE_OBJ_VFlip_dec
+                bra.w TSTRTNE_OBJ_Draw
+                
+                TSTRTNE_OBJ_VFlip_flip:
+                    eori.w #$0002, $C(a6)
+                    bra.w TSTRTNE_OBJ_Draw
+
+                TSTRTNE_OBJ_VFlip_inc:
+                    addi.w #1, (a6)
+                    bra.w TSTRTNE_OBJ_Draw
+
+                TSTRTNE_OBJ_VFlip_dec:
+                    subi.w #1, (a6)
+                    bra.w TSTRTNE_OBJ_Draw
+
+
+            TSTRTNE_OBJ_ObjEdit:
+                cmpi.w #0, $2(a6)                                   ;edit mode
+                bne.w TSTRTNE_OBJ_ObjEdit_mod
+                
+                ;TSTRTNE_OBJ_ObjEdit_menu
+                    bsr.w funcCheckInput                            ;check P1 button input
+                    move.w (sp)+, d0                                ;get latest input
+
+                    btst.l #$4, d0                                  ;check for A
+                    beq.s TSTRTNE_OBJ_ObjEdit_menu_enter
+                    btst.l #$2, d0                                  ;check for UP
+                    beq.s TSTRTNE_OBJ_ObjEdit_menu_dec
+                    bra.w TSTRTNE_OBJ_Draw
+
+                    TSTRTNE_OBJ_ObjEdit_menu_enter:
+                        move.w #1, $2(a6)
+                        bra.w TSTRTNE_OBJ_Draw
+                    
+                    TSTRTNE_OBJ_ObjEdit_menu_dec:
+                        subi.w #1, (a6)
+                        bra.w TSTRTNE_OBJ_Draw
+
+
+                TSTRTNE_OBJ_ObjEdit_mod:
+                    bsr.w funcCheckInput                            ;check P1 button input
+                    move.w (sp)+, d0                                ;get latest input
+                    btst.l #$4, d0                                  ;check for A
+                    beq.w TSTRTNE_OBJ_ObjEdit_mod_exit
+                    btst.l #$5, d0                                  ;check for B
+                    beq.w TSTRTNE_OBJ_ObjEdit_mod_rst
+                    
+                    move.w $5CC02, d1
+                    btst.l #$6, d1                                  ;check for C
+                    beq.s TSTRTNE_OBJ_ObjEdit_mod_zoom
+
+                    bsr.w funcCheckLongInput
+                    move.w (sp)+, d1                                ;get latest input
+                    and.w d1, d0                                    ;AND long andd short inputs
+                    bra.w  TSTRTNE_OBJ_ObjEdit_mod_mov
+
+
+                    TSTRTNE_OBJ_ObjEdit_mod_zoom:
+                        bsr.w funcCheckLongInput
+                        move.w (sp)+, d1                            ;get latest input
+                        cmpi.b #$BB, d1                             ;ZOOM+ (C+up)
+                        beq.w TSTRTNE_OBJ_ObjEdit_mod_zoominc
+                        cmpi.b #$B7, d1                             ;ZOOM- (C+down)
+                        beq.w TSTRTNE_OBJ_ObjEdit_mod_zoomdec
+                        btst.l #$3, d0                              ;check for DOWN
+                        beq.w TSTRTNE_OBJ_ObjEdit_mod_zoomdec
+                        btst.l #$2, d0                              ;check for UP
+                        beq.s TSTRTNE_OBJ_ObjEdit_mod_zoominc
+                        bra.w TSTRTNE_OBJ_Draw
+
+
+                    TSTRTNE_OBJ_ObjEdit_mod_exit:
+                        move.w #0, $2(a6)
+                        move.w #$0080, $4(a6)                       ;initialize ZOOM binary
+                        move.w #0, $C(a6)                           ;initialize FLIP binary
+                        move.w #0, $E(a6)                           ;initialize Xpos binary
+                        move.w #0, $10(a6)                          ;initialize Ypos binary
+                        bra.w TSTRTNE_OBJ_Draw
+
+                    TSTRTNE_OBJ_ObjEdit_mod_rst:
+                        move.w #$0080, $4(a6)                       ;initialize ZOOM binary
+                        move.w #0, $C(a6)                           ;initialize FLIP binary
+                        move.w #0, $E(a6)                           ;initialize Xpos binary
+                        move.w #0, $10(a6)                          ;initialize Ypos binary
+                        bra.w TSTRTNE_OBJ_BCD
+
+                    TSTRTNE_OBJ_ObjEdit_mod_zoominc:
+                        cmpi.w #$03FF, $4(a6)                       ;if =3FF
+                        beq.w TSTRTNE_OBJ_Draw
+                        addq.w #1, $4(a6)
+                        bra.w TSTRTNE_OBJ_BCD
+
+                    TSTRTNE_OBJ_ObjEdit_mod_zoomdec:
+                        cmpi.w #$0000, $4(a6)                       ;if =000(DIV/0!)
+                        beq.w TSTRTNE_OBJ_Draw
+                        subq.w #1, $4(a6)
+                        bra.w TSTRTNE_OBJ_BCD
+
+                    TSTRTNE_OBJ_ObjEdit_mod_mov:
+                        ;TSTRTNE_OBJ_ObjEdit_mod_mov_dn
+                            btst.l #$3, d0                                  ;check for DOWN
+                            bne.w TSTRTNE_OBJ_ObjEdit_mod_mov_up
+                            subq.w #1, $E(a6)
+                        TSTRTNE_OBJ_ObjEdit_mod_mov_up:
+                            btst.l #$2, d0                                  ;check for UP
+                            bne.w TSTRTNE_OBJ_ObjEdit_mod_mov_r
+                            addq.w #1, $E(a6)
+                        TSTRTNE_OBJ_ObjEdit_mod_mov_r:
+                            btst.l #$1, d0                                  ;check for RIGHT
+                            bne.w TSTRTNE_OBJ_ObjEdit_mod_mov_l
+                            addq.w #1, $10(a6)
+                        TSTRTNE_OBJ_ObjEdit_mod_mov_l:
+                            btst.l #$0, d0                                  ;check for LEFT
+                            bne.w TSTRTNE_OBJ_BCD
+                            subq.w #1, $10(a6)
+
+            TSTRTNE_OBJ_BCD:
+                move.w $4(a6), d0                                   ;get zoom binary value
+                move.l #0, $6(a6)                                   ;initialize zoom bcd 
+                lea FRACCONST+4, a0                                 ;set constant address+4
+
+                ;ZOOM BCD FORMAT
+                ; XXXX.XXXX_XXXX_XXXX_XXXX_XXXX_XXXX_XXXX
+                ;    7.   0    0    7    8    1    2    5
+
+                move.w #6, d1                                       ;set loop counter
+                TSTRTNE_OBJ_BCD_frac_add:
+                    btst.l d1, d0                                   ;test bit from 6 to 0
+                    beq.s TSTRTNE_OBJ_BCD_frac_add_skip
+
+                    lea $88A, a1                                    ;set zoom bcd reg addr
+                    andi.b #$EF, CCR                                ;clear X bit
+                    move.w #3, d2                                   ;set loop counter
+                    TSTRTNE_OBJ_BCD_frac_add_addconst:
+                        abcd -(a0), -(a1)                           ;Add BCD, byte instruction
+                                                                    ;-(a0)+-(a1)+Xbit=-(a1)
+                        dbf d2, TSTRTNE_OBJ_BCD_frac_add_addconst
+                    add.l #4, a0                                    ;next constant
+
+                    TSTRTNE_OBJ_BCD_frac_add_skip:
+                        add.l #4, a0                                ;next constant
+
+                    dbf d1, TSTRTNE_OBJ_BCD_frac_add
+
+                    swap d0                                         ;move zoom word value to high byte
+                    lsl.l #5, d0                                    ;shift left 5 bits
+                    andi.l #$70000000, d0                           ;mask fractional part
+                    or.l d0, $6(a6)                                 ;write
+                        
+
+
+            TSTRTNE_OBJ_Draw:
+
+            TSTRTNE_OBJ_KeyInDelay:
+                move.w $5CC02, d0
+                cmpi.b #$EE, d0
+                beq.w TESTMENU
+                jsr funcFixedDelayFast
+                bra.w TSTRTNE_OBJ_ModeEval
+
+OBJTSTTYPE  dc.w $0350, $1358, $235C, $3360, $4380, $5381, $6382, $7383, $8388, $9398, $A350, $B3C0, $C380, $D381, $E382, $F383 
+OBJTSTOBJ   dc.w $0004, $0080, $000C, $00E4, $0350, $0004, $0000, $0000
+OBJTSTMSG0  dc.w 'X Position:     ', $0000
+OBJTSTMSG1  dc.w 'Y Position:     ', $0000
+OBJTSTMSG2  dc.w '   Size         ', $0000
+OBJTSTMSG3  dc.w '    H FLIP      ', $0000
+OBJTSTMSG4  dc.w '    V FLIP      ', $0000
+OBJTSTMSG5  dc.w 'Zoom Denominator', $0000
+OBJTSTMSG6  dc.w '      TEST      ', $0000
+OBJTSTSIZE0 dc.w '32*32 ', $0000
+OBJTSTSIZE1 dc.w '16*32 ', $0000
+OBJTSTSIZE2 dc.w '32*16 ', $0000
+OBJTSTSIZE3 dc.w '64*64 ', $0000
+OBJTSTSIZE4 dc.w '8*8   ', $0000
+OBJTSTSIZE5 dc.w '16*8  ', $0000
+OBJTSTSIZE6 dc.w '8*16  ', $0000
+OBJTSTSIZE7 dc.w '16*16 ', $0000
+OBJTSTSIZE8 dc.w '32*64 ', $0000
+OBJTSTSIZE9 dc.w '16*64 ', $0000
+OBJTSTSIZEA dc.w '64*128', $0000
 
 
        *--------------------------------------------------------
@@ -4044,8 +4402,9 @@ LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
                 cmpi.b #$00, d0                             ;if the ASCII code is $00
                 beq TYPEQUIT                                ;goto TYPEQUIT
 
-                subi #32, d0                                ;subtract 8'd32 to make the ASCII code to CHARRAM address
-                move.w #$E000, d1                           ;initialize d1
+                subi #32, d0                                ;subtract 8'd32 to convert an ASCII code to the corresponding CHARRAM address
+                move.w (a0), d1
+                andi.w #$F000, d1                           ;get VRAM PR code
                 or.b d0, d1                                 ;write CHARRAM code
 
                 move.w d1, (a0)+
@@ -4056,8 +4415,9 @@ LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
                 cmpi.b #$00, d0
                 beq TYPEQUIT
 
-                subi #32, d0                                ;subtract 8'd32 to make the ASCII code to CHARRAM address
-                move.w #$E000, d1                           ;initialize d1
+                subi #32, d0                                ;subtract 8'd32 to convert an ASCII code to the corresponding CHARRAM address
+                move.w (a0), d1
+                andi.w #$F000, d1                           ;get VRAM PR code
                 or.b d0, d1                                 ;write CHARRAM code
 
                 move.w d1, (a0)+
@@ -4077,7 +4437,8 @@ LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
         *
         *--------------------------------------------------------
 
-        ;ARGS: OBJ SIZE[2:0] 0=32*32 1=16*32 2=32*16 3=64*64 4=8*8 5=16*8 6=8*16 7*16*16 
+        ;ARGS: OBJ SIZE[3:0] 0=32*32 1=16*32 2=32*16 3=64*64 4=8*8 5=16*8 6=8*16 7*16*16
+        ;                    8=32*64 9=16*64 A=32*32 B=64*128 C=8*8 D=16*8 E=8*16 F=16*16
         ;      OBJ ZOOM[9:0] DENOMINATOR
         ;      OBJ XPOS[8:0]
         ;      OBJ YPOS[7:0]
@@ -4147,8 +4508,12 @@ LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
             andi.w #$00C0, d1
             move.w d1, d0
             move.w (sp)+, d1                                    ;pop SIZE
+            move.w d1, d2
             lsl.w #3, d1
             or.w d1, d0
+            lsr.w #2, d2
+            andi.w #0002, d2                                    ;double height mode
+            or.w d2, d0
             andi.w #0001, d7
             or.w d7, d0
             andi.w #$00F9, d0
@@ -4348,8 +4713,9 @@ LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
 
 EXITMESSAGE   dc.w 'Press A+LEFT(1P) to exit back to menu screen', $0000
 
-        
 
+FRACCONST       dc.l $05000000, $02500000, $01250000, $00625000, $00312500, $00156250, $00078125
+INTCONST        dc.w $0256, $0128, $0064, $0032, $0016, $0008, $0004, $0002, $0001
 
 
     SIMHALT             ; halt simulator
