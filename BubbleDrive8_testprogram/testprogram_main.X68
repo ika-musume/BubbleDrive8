@@ -254,7 +254,7 @@ VECTORS dc.l $00000600                                      ;reset initial SP
         move.b #0, (a6)
 
         move.l #$10000, -(sp)
-        move.w #96, -(sp)                                   ;96 pages
+        move.w #128, -(sp)                                  ;96 pages
         move.w #9, -(sp)                                    ;from 0x480
         bsr.w funcLoadBubble
 
@@ -1611,52 +1611,17 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
                 
 
             TSTRTNE_Scroll_BCD:
-                move.w $2(a6), d0                                   ;get xscroll binary value
-                move.w #0, $6(a6)                                   ;initialize xscroll bcd 
-                lea INTCONST+2, a0                                  ;set constant address+2
+                move.l #$882, -(sp)
+                move.l #$886, -(sp)
+                move.w #9, -(sp)
+                move.w #0, -(sp)
+                bsr.w funcBcdConv
 
-                move.w #8, d1                                       ;set loop counter
-                TSTRTNE_Scroll_BCD_X:
-                    btst.l d1, d0                                   ;test bit from 8 to 0
-                    beq.s TSTRTNE_Scroll_BCD_X_skip
-
-                    lea $888, a1                                    ;set xscroll bcd reg addr
-                    andi.b #$EF, CCR                                ;clear X bit
-                    move.w #1, d2                                   ;set loop counter
-                    TSTRTNE_Scroll_BCD_X_addconst:
-                        abcd -(a0), -(a1)                           ;Add BCD, byte instruction
-                                                                    ;-(a0)+-(a1)+Xbit=-(a1)
-                        dbf d2, TSTRTNE_Scroll_BCD_X_addconst
-                    add.l #2, a0                                    ;next constant
-
-                    TSTRTNE_Scroll_BCD_X_skip:
-                        add.l #2, a0                                ;next constant
-
-                    dbf d1, TSTRTNE_Scroll_BCD_X
-
-                    
-                move.w $4(a6), d0                                   ;get yscroll binary value
-                move.w #0, $8(a6)                                   ;initialize yscroll bcd 
-                lea INTCONST+4, a0                                  ;set constant address+4
-
-                move.w #7, d1                                       ;set loop counter
-                TSTRTNE_Scroll_BCD_Y:
-                    btst.l d1, d0                                   ;test bit from 8 to 0
-                    beq.s TSTRTNE_Scroll_BCD_Y_skip
-
-                    lea $88A, a1                                    ;set yscroll bcd reg addr
-                    andi.b #$EF, CCR                                ;clear X bit
-                    move.w #1, d2                                   ;set loop counter
-                    TSTRTNE_Scroll_BCD_Y_addconst:
-                        abcd -(a0), -(a1)                           ;Add BCD, byte instruction
-                                                                    ;-(a0)+-(a1)+Xbit=-(a1)
-                        dbf d2, TSTRTNE_Scroll_BCD_Y_addconst
-                    add.l #2, a0                                    ;next constant
-
-                    TSTRTNE_Scroll_BCD_Y_skip:
-                        add.l #2, a0                                ;next constant
-
-                    dbf d1, TSTRTNE_Scroll_BCD_Y
+                move.l #$884, -(sp)
+                move.l #$888, -(sp)
+                move.w #8, -(sp)
+                move.w #0, -(sp)
+                bsr.w funcBcdConv
 
             TSTRTNE_Scroll_UpdateVal:
                 cmpi.b #$00, $1(a6)                                 ;if TM-B
@@ -1858,17 +1823,21 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
             jsr funcLoadBubble
 
             lea $880, a6                                ;load register address
+            lea $700, a5                                ;load sprite register addr
             move.w #0, (a6)                             ;initialize sprite edit menu code
             move.w #0, $2(a6)                           ;initialize UNDER MODIFICATION flag
             move.w #$0080, $4(a6)                       ;initialize ZOOM binary value: 00_1.000_0000
-            move.l #$0, $6(a6)                          ;initialize ZOOM BCD: 1.0000000
-            move.w #0, $A(a6)                           ;initialize SIZE binary
+            move.l #$10000000, $6(a6)                   ;initialize ZOOM BCD: 1.0000000
+            move.w #4, $A(a6)                           ;initialize SIZE binary
             move.w #0, $C(a6)                           ;initialize FLIP binary
             move.w #0, $E(a6)                           ;initialize Xpos binary
             move.w #0, $10(a6)                          ;initialize Ypos binary
             move.w #$0000, $12(a6)                      ;initialize Xpos BCD
             move.w #$0000, $14(a6)                      ;initialize Ypos BCD
-            
+            move.w #8, $16(a6)                          ;initialize Xwidth binary
+            move.w #8, $18(a6)                          ;initialize Ywidth binary
+            move.w #8, $1A(a6)                          ;initialize Xwidth BCD
+            move.w #8, $1C(a6)                          ;initialize Ywidth BCD
 
             ;[USER INTERFACE]
             ;XPOS:(read only) YPOS:(read only)
@@ -1908,7 +1877,7 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
             move.w #1, -(sp)
             bsr.w funcFillTilemap
 
-            move.w #5, d0                                   ;repeat 6 times
+            move.w #6, d0                                   ;repeat 7 times
             move.w #5, d1                                   ;ypos
             lea OBJTSTMSG0, a0
             TSTRTNE_OBJ_PrntMenu_loop:
@@ -1990,10 +1959,10 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
                         cmpi.w #8, $A(a6)                           ;if <8
                         blt.w TSTRTNE_OBJ_TypeSel_mod_unknown_en    ;unknow bit enable
                         subq.w #8, $A(a6)
-                        bra.w TSTRTNE_OBJ_Draw
+                        bra.w TSTRTNE_OBJ_UpdateVal
                         TSTRTNE_OBJ_TypeSel_mod_unknown_en:
                             addq.w #8, $A(a6)
-                            bra.w TSTRTNE_OBJ_Draw
+                            bra.w TSTRTNE_OBJ_UpdateVal
 
                     TSTRTNE_OBJ_TypeSel_mod_inc:
                         cmpi.w #$7, $A(a6)                          ;if 7
@@ -2001,7 +1970,7 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
                         cmpi.w #$F, $A(a6)                          ;if F
                         beq.w TSTRTNE_OBJ_Draw                      ;do not increase
                         addi.w #1, $A(a6)
-                        bra.w TSTRTNE_OBJ_Draw
+                        bra.w TSTRTNE_OBJ_UpdateVal
 
                     TSTRTNE_OBJ_TypeSel_mod_dec:
                         cmpi.w #$0, $A(a6)                          ;if 0
@@ -2009,7 +1978,7 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
                         cmpi.w #$8, $A(a6)                          ;if 8
                         beq.w TSTRTNE_OBJ_Draw                      ;do not decrease
                         subi.w #1, $A(a6)
-                        bra.w TSTRTNE_OBJ_Draw
+                        bra.w TSTRTNE_OBJ_UpdateVal
 
                    TSTRTNE_OBJ_TypeSel_mod_exit:
                         move.w #0, $2(a6)
@@ -2030,7 +1999,7 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
                 
                 TSTRTNE_OBJ_HFlip_flip:
                     eori.w #$0001, $C(a6)
-                    bra.w TSTRTNE_OBJ_Draw
+                    bra.w TSTRTNE_OBJ_UpdateVal
 
                 TSTRTNE_OBJ_HFlip_inc:
                     addi.w #1, (a6)
@@ -2055,7 +2024,7 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
                 
                 TSTRTNE_OBJ_VFlip_flip:
                     eori.w #$0002, $C(a6)
-                    bra.w TSTRTNE_OBJ_Draw
+                    bra.w TSTRTNE_OBJ_UpdateVal
 
                 TSTRTNE_OBJ_VFlip_inc:
                     addi.w #1, (a6)
@@ -2122,31 +2091,34 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
 
 
                     TSTRTNE_OBJ_ObjEdit_mod_exit:
-                        move.w #0, $2(a6)
-                        move.w #$0080, $4(a6)                       ;initialize ZOOM binary
-                        move.w #0, $C(a6)                           ;initialize FLIP binary
-                        move.w #0, $E(a6)                           ;initialize Xpos binary
-                        move.w #0, $10(a6)                          ;initialize Ypos binary
-                        bra.w TSTRTNE_OBJ_Draw
+                        movea.l a6, a0                              ;get reg start addr
+                        add.l #2, a0                                ;start from $882
+                        move.w #13, d0                              ;ends at $89D
+                        TSTRTNE_OBJ_ObjEdit_mod_exit_loop:
+                            move.w #0, (a0)+
+                            dbf d0, TSTRTNE_OBJ_ObjEdit_mod_exit_loop
+                        move.w #$0080, $4(a6)                       ;initialize ZOOM binary value: 00_1.000_0000
+                        move.w #4, $A(a6)                           ;initialize SIZE binary
+                        bra.w TSTRTNE_OBJ_UpdateVal
 
                     TSTRTNE_OBJ_ObjEdit_mod_rst:
                         move.w #$0080, $4(a6)                       ;initialize ZOOM binary
                         move.w #0, $C(a6)                           ;initialize FLIP binary
                         move.w #0, $E(a6)                           ;initialize Xpos binary
                         move.w #0, $10(a6)                          ;initialize Ypos binary
-                        bra.w TSTRTNE_OBJ_BCD
+                        bra.w TSTRTNE_OBJ_UpdateVal
 
                     TSTRTNE_OBJ_ObjEdit_mod_zoominc:
                         cmpi.w #$03FF, $4(a6)                       ;if =3FF
                         beq.w TSTRTNE_OBJ_Draw
                         addq.w #1, $4(a6)
-                        bra.w TSTRTNE_OBJ_BCD
+                        bra.w TSTRTNE_OBJ_UpdateVal
 
                     TSTRTNE_OBJ_ObjEdit_mod_zoomdec:
                         cmpi.w #$0000, $4(a6)                       ;if =000(DIV/0!)
                         beq.w TSTRTNE_OBJ_Draw
                         subq.w #1, $4(a6)
-                        bra.w TSTRTNE_OBJ_BCD
+                        bra.w TSTRTNE_OBJ_UpdateVal
 
                     TSTRTNE_OBJ_ObjEdit_mod_mov:
                         ;TSTRTNE_OBJ_ObjEdit_mod_mov_dn
@@ -2163,44 +2135,98 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
                             addq.w #1, $10(a6)
                         TSTRTNE_OBJ_ObjEdit_mod_mov_l:
                             btst.l #$0, d0                                  ;check for LEFT
-                            bne.w TSTRTNE_OBJ_BCD
+                            bne.w TSTRTNE_OBJ_UpdateVal
                             subq.w #1, $10(a6)
 
+            TSTRTNE_OBJ_UpdateVal:
+                move.w $4(a6), $2(a5)                               ;update zoom value
+
+                lea OBJTSTTYPE, a0                                  ;get object type start address
+                move.l #0, d0                                       ;initialize d0 
+                move.l #0, d1                                       ;initialize d1   
+
+                move.w $A(a6), d0                                   ;get size value
+                move.w d0, (a5)                                     ;update size value
+                lsl.w #1, d0                                        ;size value * 2
+                add.l d0, a0                                        ;type list addr + d0
+                move.w (a0), $8(a5)                                 ;update sprite code
+                add.l #$20, a0                                      ;current type list addr + $20
+                move.w (a0), d0                                     ;copy width
+                move.w d0, d1                                       ;copy width
+                lsr.w #8, d0                                        ;Xwidth
+                andi.w #$00FF, d1                                   ;Ywidth
+                move.w $C(a6), $C(a5)                               ;update flip
+                move.w $E(a6), $4(a5)                               ;update Xpos
+                move.w $10(a6), $6(a5)                              ;update Ypos
+
+                move.b #1, $5E008                                   ;kick the watchdog
+                move.b #0, $5E008
+
+                tst.w $4(a6)                                        ;if ZOOM = 0
+                beq.s TSTRTNE_OBJ_BCD                               ;DIV/0!!
+
+                ;TSTRTNE_OBJ_UpdateVal_expected_x
+                    lsl.w #7, d0                                        ;shift 7 bits left(3+7 FP)
+                    divu.w $4(a6), d0                                   ;Xwidth/zoom
+                    move.w d0, $16(a6)                                  ;write expected Xwidth
+                    swap d0
+                    tst.w d0                                            ;if remainder is 0        
+                    beq.s TSTRTNE_OBJ_UpdateVal_expected_y              ;calculate y
+                    addq.w #1, $16(a6)                                  ;if not, add 1
+
+                TSTRTNE_OBJ_UpdateVal_expected_y:
+                    lsl.w #7, d1                                        ;shift 7 bits left(3+7 FP)
+                    divu.w $4(a6), d1                                   ;Ywidth/zoom
+                    move.w d1, $18(a6)                                  ;write expected Ywidth
+                    swap d1
+                    tst.w d1                                            ;if remainder is 0        
+                    beq.s TSTRTNE_OBJ_BCD                               ;BCD conversion
+                    addq.w #1, $18(a6)                                  ;if not, add 1
+
             TSTRTNE_OBJ_BCD:
-                move.w $4(a6), d0                                   ;get zoom binary value
-                move.l #0, $6(a6)                                   ;initialize zoom bcd 
-                lea FRACCONST+4, a0                                 ;set constant address+4
-
                 ;ZOOM BCD FORMAT
-                ; XXXX.XXXX_XXXX_XXXX_XXXX_XXXX_XXXX_XXXX
+                ; 0XXX.XXXX_XXXX_XXXX_XXXX_XXXX_XXXX_XXXX
                 ;    7.   0    0    7    8    1    2    5
+                move.l #$884, -(sp)
+                move.l #$886, -(sp)
+                move.w #7, -(sp)
+                move.w #1, -(sp)
+                bsr.w funcBcdConv
 
-                move.w #6, d1                                       ;set loop counter
-                TSTRTNE_OBJ_BCD_frac_add:
-                    btst.l d1, d0                                   ;test bit from 6 to 0
-                    beq.s TSTRTNE_OBJ_BCD_frac_add_skip
+                move.w $4(a6), d0                                   ;get zoom binary value
+                swap d0                                             ;move zoom word value to high byte
+                lsl.l #5, d0                                        ;shift left 5 bits
+                andi.l #$70000000, d0                               ;mask fractional part
+                or.l d0, $6(a6)                                     ;write
 
-                    lea $88A, a1                                    ;set zoom bcd reg addr
-                    andi.b #$EF, CCR                                ;clear X bit
-                    move.w #3, d2                                   ;set loop counter
-                    TSTRTNE_OBJ_BCD_frac_add_addconst:
-                        abcd -(a0), -(a1)                           ;Add BCD, byte instruction
-                                                                    ;-(a0)+-(a1)+Xbit=-(a1)
-                        dbf d2, TSTRTNE_OBJ_BCD_frac_add_addconst
-                    add.l #4, a0                                    ;next constant
+                ;Xpos
+                move.l #$88E, -(sp)
+                move.l #$892, -(sp)
+                move.w #9, -(sp)
+                move.w #0, -(sp)
+                bsr.w funcBcdConv
 
-                    TSTRTNE_OBJ_BCD_frac_add_skip:
-                        add.l #4, a0                                ;next constant
+                ;Ypos
+                move.l #$890, -(sp)
+                move.l #$894, -(sp)
+                move.w #8, -(sp)
+                move.w #0, -(sp)
+                bsr.w funcBcdConv
 
-                    dbf d1, TSTRTNE_OBJ_BCD_frac_add
+                ;Expected Xwidth
+                move.l #$896, -(sp)
+                move.l #$89A, -(sp)
+                move.w #12, -(sp)
+                move.w #0, -(sp)
+                bsr.w funcBcdConv
 
-                    swap d0                                         ;move zoom word value to high byte
-                    lsl.l #5, d0                                    ;shift left 5 bits
-                    andi.l #$70000000, d0                           ;mask fractional part
-                    or.l d0, $6(a6)                                 ;write
-                        
-
-
+                ;Expected Ywidth
+                move.l #$898, -(sp)
+                move.l #$89C, -(sp)
+                move.w #12, -(sp)
+                move.w #0, -(sp)
+                bsr.w funcBcdConv
+            
             TSTRTNE_OBJ_Draw:
 
             TSTRTNE_OBJ_KeyInDelay:
@@ -2210,7 +2236,8 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
                 jsr funcFixedDelayFast
                 bra.w TSTRTNE_OBJ_ModeEval
 
-OBJTSTTYPE  dc.w $0350, $1358, $235C, $3360, $4380, $5381, $6382, $7383, $8388, $9398, $A350, $B3C0, $C380, $D381, $E382, $F383 
+OBJTSTTYPE  dc.w $0350, $0358, $035C, $0360, $0380, $0381, $0382, $0383, $0388, $0398, $0350, $03C0, $0380, $0381, $0382, $0383 
+OBJTSTSIZE  dc.w $2020, $1020, $2010, $4040, $0808, $1008, $0810, $1010, $2040, $1040, $2020, $4080, $0808, $1008, $0810, $1010
 OBJTSTOBJ   dc.w $0004, $0080, $000C, $00E4, $0350, $0004, $0000, $0000
 OBJTSTMSG0  dc.w 'X Position:     ', $0000
 OBJTSTMSG1  dc.w 'Y Position:     ', $0000
@@ -2218,7 +2245,8 @@ OBJTSTMSG2  dc.w '   Size         ', $0000
 OBJTSTMSG3  dc.w '    H FLIP      ', $0000
 OBJTSTMSG4  dc.w '    V FLIP      ', $0000
 OBJTSTMSG5  dc.w 'Zoom Denominator', $0000
-OBJTSTMSG6  dc.w '      TEST      ', $0000
+OBJTSTMSG6  dc.w ' Expected Size  ', $0000
+OBJTSTMSG7  dc.w '      TEST      ', $0000
 OBJTSTSIZE0 dc.w '32*32 ', $0000
 OBJTSTSIZE1 dc.w '16*32 ', $0000
 OBJTSTSIZE2 dc.w '32*16 ', $0000
@@ -4666,6 +4694,8 @@ LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
         *--------------------------------------------------------
 
         funcScrExitMessage:
+            jsr sysSaveReg
+
             move.w #0, d0                           ;initialize registers
             move.w #0, d1
             lea $501A1, a0                          ;scroll value LSBs
@@ -4689,6 +4719,8 @@ LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
                 move.b d0, (a0)
                 add.l #2, a0
                 dbf d1, funcScrExitMessage_MsgShift_inc_loop
+
+                jsr sysLoadReg
                 rts
 
             funcScrExitMessage_MsgShift_rst:
@@ -4699,6 +4731,8 @@ LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
                     add.l #2, a1
                     add.l #2, a0
                     dbf d1, funcScrExitMessage_MsgShift_rst_loop
+
+                    jsr sysLoadReg
                     rts
 
             funcScrExitMessage_MsgShift_msb:
@@ -4709,13 +4743,100 @@ LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
                     add.l #2, a1
                     add.l #2, a0
                     dbf d1, funcScrExitMessage_MsgShift_msb_loop
+
+                    jsr sysLoadReg
                     rts
 
 EXITMESSAGE   dc.w 'Press A+LEFT(1P) to exit back to menu screen', $0000
 
+        *--------------------------------------------------------
+        *
+        *       function: BcdConv
+        *
+        *--------------------------------------------------------
+
+        ;ARGS: 
+        ;      BINARY SOURCE
+        ;      BCD TARGET
+        ;      DIGITS
+        ;      FRACTIONAL PART = 1/INTEGER PART = 0
+        ;JSR:  RETURN ADDRESS 
+        funcBcdConv:
+            jsr sysSaveReg
+            
+            movea.l (sp)+, a6                                       ;pop return address
+            move.l #0, d3                                           ;initialize d3
+            move.w (sp)+, d3                                        ;pop switch
+            lsl.w #1, d3                                            ;shift left (2/0)
+            addq.w #2, d3                                           ;add 2 (4/2)
+
+            cmpi.w #2, d3
+            bne.w funcBcdConv_frac
+
+            ;funcBcdConv_int
+                move.w (sp)+, d0                                    ;pop binary digit number
+                move.l #14, d1
+                sub.w d0, d1                                        ;14 - d0
+                lsl.w #1, d1                                        ;(14 - d0) * 2
+
+                lea INTCONST, a0                                    ;set integer constant start addr
+                add.l d1, a0                                        ;start addr + d1
+
+                move.l (sp)+, a2                                    ;pop target address
+                move.w #0, (a2)
+                add.l #2, a2                                        ;target address + 2
+
+                move.l (sp)+, a1                                    ;pop binary source address
+                move.w (a1), d1
+
+                bra.s funcBcdConv_conv
+
+            funcBcdConv_frac:
+                move.w (sp)+, d0                                    ;pop binary digit number
+                move.l #8, d1
+                sub.w d0, d1                                        ;8 - d0
+                lsl.w #2, d1                                        ;(10 - d0) * 4
+
+                lea FRACCONST, a0
+                add.l d1, a0
+
+                move.l (sp)+, a2                                    ;pop target address
+                move.l #0, (a2)
+                add.l #4, a2
+
+                move.l (sp)+, a1                                    ;pop binary source address
+                move.w (a1), d1
+
+            funcBcdConv_conv:
+                subq.w #1, d0                                       ;digit number - 1
+                funcBcdConv_conv_loop:
+                    btst.l d0, d1                                   ;test bit from 8 to 0
+                    beq.s funcBcdConv_conv_loop_skip
+
+                    movea.l a2, a1                                  ;re-set target bcd reg
+
+                    andi.b #$EF, CCR                                ;clear X bit
+
+                    move.w d3, d2                                   ;copy d3(4/2)
+                    subq.w #1, d2                                   ;set loop counter
+                    funcBcdConv_conv_loop_addconst:
+                        abcd -(a0), -(a1)                           ;Add BCD, byte instruction
+                                                                    ;-(a0)+-(a1)+Xbit=-(a1)
+                        dbf d2, funcBcdConv_conv_loop_addconst
+                    add.l d3, a0                                    ;restore address
+
+                    funcBcdConv_conv_loop_skip:
+                        add.l d3, a0                                ;next constant
+                    
+                    dbf d0, funcBcdConv_conv_loop
+
+            move.l a6, -(sp)                                        ;restore return address
+
+            jsr sysLoadReg
+            rts
 
 FRACCONST       dc.l $05000000, $02500000, $01250000, $00625000, $00312500, $00156250, $00078125
-INTCONST        dc.w $0256, $0128, $0064, $0032, $0016, $0008, $0004, $0002, $0001
+INTCONST        dc.w $4096, $2048, $1024, $0512, $0256, $0128, $0064, $0032, $0016, $0008, $0004, $0002, $0001
 
 
     SIMHALT             ; halt simulator
