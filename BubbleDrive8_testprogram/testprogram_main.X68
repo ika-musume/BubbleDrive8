@@ -881,7 +881,7 @@ TESTMENUITEM12  dc.w '12.Return to title screen', $0000
 
             lea RAMTESTMESSAGE1, a0
             move.l a0, -(sp)
-            move.w #1, -(sp)
+            move.w #0, -(sp)
             move.w #11, -(sp)
             move.w #4, -(sp)
             move.w #0, -(sp)
@@ -889,7 +889,7 @@ TESTMENUITEM12  dc.w '12.Return to title screen', $0000
 
             lea RAMTESTMESSAGE2, a0
             move.l a0, -(sp)
-            move.w #1, -(sp)
+            move.w #0, -(sp)
             move.w #42, -(sp)
             move.w #4, -(sp)
             move.w #0, -(sp)
@@ -933,7 +933,7 @@ TESTMENUITEM12  dc.w '12.Return to title screen', $0000
                 move.w #4, d7
                 TSTRTNE_RAM_PrintCPUChipList_left:
                     move.l a4, -(sp)
-                    move.w #1, -(sp)
+                    move.w #0, -(sp)
                     move.w d4, -(sp)
                     move.w d5, -(sp)
                     move.w #0, -(sp)
@@ -1822,8 +1822,20 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
             move.w #1448, -(sp)
             jsr funcLoadBubble
 
+            lea $700, a6                                ;load sprite register addr
+            move.w #63, d0
+            TSTRTNE_OBJ_OBJListClr:
+                move.l #0, (a6)+
+                dbf d0, TSTRTNE_OBJ_OBJListClr
+
+            lea OBJTSTOBJ, a5
+            lea $700, a6
+            move.w #7, d0
+            TSTRTNE_OBJ_OBJListCopy:
+                move.w (a5)+, (a6)+
+                dbf d0, TSTRTNE_OBJ_OBJListCopy
+
             lea $880, a6                                ;load register address
-            lea $700, a5                                ;load sprite register addr
             move.w #0, (a6)                             ;initialize sprite edit menu code
             move.w #0, $2(a6)                           ;initialize UNDER MODIFICATION flag
             move.w #$0080, $4(a6)                       ;initialize ZOOM binary value: 00_1.000_0000
@@ -1836,8 +1848,9 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
             move.w #$0000, $14(a6)                      ;initialize Ypos BCD
             move.w #8, $16(a6)                          ;initialize Xwidth binary
             move.w #8, $18(a6)                          ;initialize Ywidth binary
-            move.w #8, $1A(a6)                          ;initialize Xwidth BCD
-            move.w #8, $1C(a6)                          ;initialize Ywidth BCD
+            move.w #$8, $1A(a6)                         ;initialize Xwidth BCD
+            move.w #$8, $1C(a6)                         ;initialize Ywidth BCD
+            move.w #0, $1E(a6)                          ;initialize error flag
 
             ;[USER INTERFACE]
             ;XPOS:(read only) YPOS:(read only)
@@ -1877,12 +1890,12 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
             move.w #1, -(sp)
             bsr.w funcFillTilemap
 
-            move.w #6, d0                                   ;repeat 7 times
+            move.w #5, d0                                   ;repeat 5 times
             move.w #5, d1                                   ;ypos
             lea OBJTSTMSG0, a0
-            TSTRTNE_OBJ_PrntMenu_loop:
+            TSTRTNE_OBJ_PrntMenu_loop1:
                 move.l a0, -(sp)
-                move.w #1, -(sp)
+                move.w #0, -(sp)
                 move.w #8, -(sp)                            ;xpos fixed
                 move.w d1, -(sp)
                 move.w #0, -(sp)
@@ -1891,15 +1904,24 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
                 addq.w #2, d1
                 add.l #18, a0
 
-                dbf d0, TSTRTNE_OBJ_PrntMenu_loop
+                dbf d0, TSTRTNE_OBJ_PrntMenu_loop1
             
-            addq.w #2, d1
-            move.l a0, -(sp)
-            move.w #1, -(sp)
-            move.w #8, -(sp)                                ;xpos fixed
-            move.w d1, -(sp)
-            move.w #0, -(sp)
-            bsr.w funcPrintText
+            addq.w #1, d1
+            move.w #1, d0                                   ;repeat 2 times
+            TSTRTNE_OBJ_PrntMenu_loop2:
+                move.l a0, -(sp)
+                move.w #0, -(sp)
+                move.w #8, -(sp)                            ;xpos fixed
+                move.w d1, -(sp)
+                move.w #0, -(sp)
+                bsr.w funcPrintText
+
+                addq.w #3, d1
+                add.l #18, a0
+
+                dbf d0, TSTRTNE_OBJ_PrntMenu_loop2
+
+            bra.w TSTRTNE_OBJ_Draw
             
             TSTRTNE_OBJ_ModeEval:
                 move.w (a6), d0                                 ;get menu number
@@ -2139,6 +2161,7 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
                             subq.w #1, $10(a6)
 
             TSTRTNE_OBJ_UpdateVal:
+                lea $700, a5
                 move.w $4(a6), $2(a5)                               ;update zoom value
 
                 lea OBJTSTTYPE, a0                                  ;get object type start address
@@ -2228,6 +2251,233 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
                 bsr.w funcBcdConv
             
             TSTRTNE_OBJ_Draw:
+                lea $700, a5
+
+                TSTRTNE_OBJ_Draw_attr:
+                    move.w #2, d0                                   ;repeat 3 times
+                    move.w #9, d1                                   ;ypos
+                    move.w #2, d2                                   ;
+                    move.w (a6), d3                                 ;2 - selected menu(2)
+                    sub.w d3, d2
+                    lea OBJTSTMSG2, a0
+                    TSTRTNE_OBJ_Draw_attr_loop:
+                        move.w #0, d3                               ;navy
+                        cmp.w d0, d2
+                        bne.s TSTRTNE_OBJ_Draw_attr_loop_prnt
+                        move.w #4, d3                               ;red
+
+                        TSTRTNE_OBJ_Draw_attr_loop_prnt:
+                            move.l a0, -(sp)
+                            move.w d3, -(sp)
+                            move.w #8, -(sp)                        ;xpos fixed
+                            move.w d1, -(sp)
+                            move.w #0, -(sp)
+                            bsr.w funcPrintText
+
+                        addq.w #2, d1
+                        add.l #18, a0
+
+                        dbf d0, TSTRTNE_OBJ_Draw_attr_loop
+
+                    lea OBJTSTMSG7, a0
+                    move.w #0, d0                                   ;navy
+                    cmpi.w #3, (a6)
+                    bne.s TSTRTNE_OBJ_Draw_attr_test
+                    move.w #4, d0
+                    TSTRTNE_OBJ_Draw_attr_test:
+                        move.l a0, -(sp)
+                        move.w d0, -(sp)
+                        move.w #8, -(sp)                            ;xpos fixed
+                        move.w #21, -(sp)
+                        move.w #0, -(sp)
+                        bsr.w funcPrintText
+
+                move.l #0, d0                                       ;initialize
+                move.w $12(a6), d0                                  
+                bsr.w TSTRTNE_OBJ_Draw_bcd2ascii
+                move.l d0, $20(a5)
+
+                move.l #0, d0                                       ;initialize
+                move.w $14(a6), d0                                  
+                bsr.w TSTRTNE_OBJ_Draw_bcd2ascii
+                move.l d0, $30(a5)
+
+                move.w #0, $1E(a6)
+                tst.w $4(a6)                                        ;if 0
+                beq.s TSTRTNE_OBJ_Draw_div0
+                cmpi.w #512, $16(a6)                                ;Xmax 512 pixels
+                bgt.s TSTRTNE_OBJ_Draw_ovfl
+                cmpi.w #256, $18(a6)                                ;Ymax 256 pixels
+                bgt.s TSTRTNE_OBJ_Draw_ovfl
+
+                move.l #0, d0                                       ;initialize
+                move.w $1A(a6), d0                                  
+                bsr.s TSTRTNE_OBJ_Draw_bcd2ascii
+                ori.l #$0000002A, d0                                ;add *
+                move.l d0, $40(a5)
+
+                move.l #0, d0                                       ;initialize
+                move.w $1C(a6), d0                                  
+                bsr.s TSTRTNE_OBJ_Draw_bcd2ascii
+                move.l d0, $44(a5)
+                bra.s TSTRTNE_OBJ_Draw_zoom2ascii
+
+                TSTRTNE_OBJ_Draw_bcd2ascii:
+                                                                    ;0000_0BCD
+                    ror.l #4, d0                                    ;D000_00BC
+                    lsl.w #4, d0                                    ;D000_0BC0
+                    lsr.b #4, d0                                    ;D000_0B0C
+                    swap d0                                         ;0B0C_D000
+                    lsr.w #4, d0                                    ;0B0C_0D00
+                    ori.l #$30303000, d0
+                    rts
+
+                TSTRTNE_OBJ_Draw_ovfl:
+                    move.w #1, $1E(a6)                              ;set error flag
+                    move.l #$4255464F, $40(a5)                      ;text BUFO
+                    move.l #$56464C00, $44(a5)                      ;text VFL 
+                    bra.s TSTRTNE_OBJ_Draw_zoom2ascii
+
+                TSTRTNE_OBJ_Draw_div0:
+                    move.w #1, $1E(a6)                              ;set error flag
+                    move.l #$4449562F, $40(a5)                      ;text DIV/
+                    move.l #$30212100, $44(a5)                      ;text 0!!
+
+                TSTRTNE_OBJ_Draw_zoom2ascii:
+                    move.l #0, d0                                   ;initialize
+                    move.w $6(a6), d0                               ;0000_ABCD
+                    lsl.l #4, d0                                    ;000A_BCD0
+                    lsr.w #4, d0                                    ;000A_0BCD
+                    lsr.b #4, d0                                    ;000A_0B0C
+                    swap d0                                         ;0B0C_000A
+                    lsl.w #8, d0                                    ;0B0C_0A00
+                    swap d0                                         ;0A00_0B0C
+                    ori.l #$302E3030, d0                            ;3A2E_3B3C
+                    move.l d0, $10(a5)
+
+                    move.l $6(a6), d0                               ;ABCD_EFGH
+                    lsl.l #4, d0                                    ;BCDE_FGH0
+                    swap d0                                         ;FGH0_BCDE
+                    lsl.w #4, d0                                    ;FGH0_CDE0
+                    lsr.b #4, d0                                    ;FGH0_CD0E
+                    andi.w #$0F0F, d0                               ;FGH0_0D0E
+                    swap d0                                         ;0D0E_FGH0
+                    lsr.w #4, d0                                    ;0D0E_0FGH
+                    lsr.b #4, d0                                    ;0D0E_0F0G
+                    ori.l #$30303030, d0                            ;3D3E_3F3G
+                    move.l d0, $14(a5)
+
+                    move.w $8(a6), d0                               ;XXXX_EFGH
+                    lsl.w #8, d0                                    ;XXXX_GH00
+                    swap d0                                         ;GH00_XXXX
+                    andi.l #$0F000000, d0                           ;0H00_0000
+                    ori.l #$30000000, d0                            ;3H00_0000
+                    move.l d0, $18(a5)
+
+                ;ZOOM
+                lea $710, a0
+                move.w #5, d0
+                move.l a0, -(sp)
+                move.w #1, -(sp)
+                move.w #11, -(sp)                            ;xpos fixed
+                move.w #16, -(sp)
+                move.w #0, -(sp)
+                bsr.w funcPrintText
+
+                ;XY
+                add.l #$10, a0
+                move.w #5, d0
+                move.w #1, d1
+                TSTRTNE_OBJ_Draw_xypos:
+                    move.l a0, -(sp)
+                    move.w #1, -(sp)
+                    move.w #20, -(sp)                            ;xpos fixed
+                    move.w d0, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w funcPrintText
+
+                    addq.w #2, d0
+                    add.l #$10, a0
+                    dbf d1, TSTRTNE_OBJ_Draw_xypos
+                
+                ;EXPECTED SIZE
+                move.w #1, d0
+                tst.w $1E(a6)
+                bne.w TSTRTNE_OBJ_Draw_expsize_err
+                bra.s TSTRTNE_OBJ_Draw_expsize
+
+                TSTRTNE_OBJ_Draw_expsize_err:
+                    move.w #4, d0
+                
+                TSTRTNE_OBJ_Draw_expsize:
+                    move.l a0, -(sp)
+                    move.w d0, -(sp)
+                    move.w #12, -(sp)                               ;xpos fixed
+                    move.w #19, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w funcPrintText
+
+                ;ORIGINAL SIZE
+                lea OBJTSTSIZE0, a0
+                move.w #0, d0                                       ;initialize
+                move.w $A(a6), d0                                   ;get size code
+                lsl.w #3, d0
+                add.l d0, a0                                        ;get text address
+
+                move.w #1, d0
+                cmpi.w #0, (a6)
+                bne.s TSTRTNE_OBJ_Draw_orgsize
+                tst.w $2(a6)                                        ;check UNDER MODIFICATION flag
+                beq.s TSTRTNE_OBJ_Draw_orgsize
+                move.w #3, d0
+                TSTRTNE_OBJ_Draw_orgsize:
+                    move.l a0, -(sp)
+                    move.w d0, -(sp)
+                    move.w #16, -(sp)                                   ;xpos
+                    move.w #9, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w funcPrintText
+
+                ;FLIP
+                lea OBJTSTHFLIP, a0
+                move.w $C(a6), d0
+                btst.l #0, d0
+                bne.s TSTRTNE_OBJ_Draw_hflip                        ;flipped
+                add.l #16, a0                                       ;normal
+                TSTRTNE_OBJ_Draw_hflip:
+                    move.l a0, -(sp)
+                    move.w #4, -(sp)
+                    move.w #18, -(sp)                               ;xpos
+                    move.w #28, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w funcPrintText
+
+                lea OBJTSTVFLIP, a0
+                move.w $C(a6), d0
+                btst.l #1, d0
+                bne.s TSTRTNE_OBJ_Draw_vflip                        ;flipped
+                add.l #8, a0                                        ;normal
+                TSTRTNE_OBJ_Draw_vflip:
+                    move.l a0, -(sp)
+                    move.w #4, -(sp)
+                    move.w #25, -(sp)                               ;xpos
+                    move.w #28, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w funcPrintText
+                
+                lea OBJTSTNORM, a0
+                move.w (a6), d0                                     ;cursor pos
+                add.w $2(a6), d0                                    ;+ flag
+                cmpi.w #4, d0
+                bne.s TSTRTNE_OBJ_Draw_editmode
+                add.l #8, a0                                       ;select OBJTSTEDIT
+                TSTRTNE_OBJ_Draw_editmode:
+                    move.l a0, -(sp)
+                    move.w #3, -(sp)
+                    move.w #2, -(sp)                                ;xpos
+                    move.w #28, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w funcPrintText
 
             TSTRTNE_OBJ_KeyInDelay:
                 move.w $5CC02, d0
@@ -2241,9 +2491,9 @@ OBJTSTSIZE  dc.w $2020, $1020, $2010, $4040, $0808, $1008, $0810, $1010, $2040, 
 OBJTSTOBJ   dc.w $0004, $0080, $000C, $00E4, $0350, $0004, $0000, $0000
 OBJTSTMSG0  dc.w 'X Position:     ', $0000
 OBJTSTMSG1  dc.w 'Y Position:     ', $0000
-OBJTSTMSG2  dc.w '   Size         ', $0000
-OBJTSTMSG3  dc.w '    H FLIP      ', $0000
-OBJTSTMSG4  dc.w '    V FLIP      ', $0000
+OBJTSTMSG2  dc.w '   Size ', $0000, $0000, $0000, $0000, $0000
+OBJTSTMSG3  dc.w '     H FLIP     ', $0000
+OBJTSTMSG4  dc.w '     V FLIP     ', $0000
 OBJTSTMSG5  dc.w 'Zoom Denominator', $0000
 OBJTSTMSG6  dc.w ' Expected Size  ', $0000
 OBJTSTMSG7  dc.w '      TEST      ', $0000
@@ -2251,13 +2501,23 @@ OBJTSTSIZE0 dc.w '32*32 ', $0000
 OBJTSTSIZE1 dc.w '16*32 ', $0000
 OBJTSTSIZE2 dc.w '32*16 ', $0000
 OBJTSTSIZE3 dc.w '64*64 ', $0000
-OBJTSTSIZE4 dc.w '8*8   ', $0000
+OBJTSTSIZE4 dc.w ' 8*8  ', $0000
 OBJTSTSIZE5 dc.w '16*8  ', $0000
-OBJTSTSIZE6 dc.w '8*16  ', $0000
+OBJTSTSIZE6 dc.w ' 8*16 ', $0000
 OBJTSTSIZE7 dc.w '16*16 ', $0000
 OBJTSTSIZE8 dc.w '32*64 ', $0000
 OBJTSTSIZE9 dc.w '16*64 ', $0000
-OBJTSTSIZEA dc.w '64*128', $0000
+OBJTSTSIZEA dc.w '32*32 ', $0000
+OBJTSTSIZEB dc.w '64*128', $0000
+OBJTSTSIZEC dc.w ' 8*8  ', $0000
+OBJTSTSIZED dc.w '16*8  ', $0000
+OBJTSTSIZEE dc.w ' 8*16 ', $0000
+OBJTSTSIZEF dc.w '16*16 ', $0000
+OBJTSTHFLIP dc.w 'HFLIP', $0000
+OBJTSTVFLIP dc.w 'VFLIP', $0000
+OBJTSTNORM  dc.w '     ', $0000
+OBJTSTMODE  dc.w 'EDIT', $0000
+
 
 
        *--------------------------------------------------------
@@ -2275,7 +2535,7 @@ OBJTSTSIZEA dc.w '64*128', $0000
             lea DIPSW0, a4
             TSTRTNE_Input_PrintSWList_loop:
                 move.l a4, -(sp)
-                move.w #1, -(sp)
+                move.w #0, -(sp)
                 move.w d4, -(sp)
                 move.w d5, -(sp)
                 move.w #0, -(sp)
@@ -2292,7 +2552,7 @@ OBJTSTSIZEA dc.w '64*128', $0000
             lea BTNLEFT, a4
             TSTRTNE_Input_PrintBtnList_loop:
                 move.l a4, -(sp)
-                move.w #1, -(sp)
+                move.w #0, -(sp)
                 move.w d4, -(sp)
                 move.w d5, -(sp)
                 move.w #0, -(sp)
@@ -2305,7 +2565,7 @@ OBJTSTSIZEA dc.w '64*128', $0000
 
             lea PLAYERLIST, a0
             move.l a0, -(sp)
-            move.w #1, -(sp)
+            move.w #0, -(sp)
             move.w #11, -(sp)
             move.w #5, -(sp)
             move.w #0, -(sp)
