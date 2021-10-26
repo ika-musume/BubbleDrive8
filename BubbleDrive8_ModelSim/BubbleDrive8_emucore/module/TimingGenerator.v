@@ -66,23 +66,7 @@ module TimingGenerator
     output  wire    [11:0]  ABSPAGE
 );
 
-/*
-        +Y 568
--X 208           +X 448
-        -Y 328
-*/
-
 localparam      INITIAL_ABS_PAGE = 12'd1951; //0-2052
-wire    [9:0]   OUTBUFFER_CLKEN_TIMING =    (nEN == 1'b1) ? 
-                                                10'd0 :
-                                                (TIMINGSEL == 1'b0) ?   //0 = 오리지널, 1 = 6.275us 빨리 보내기
-                                                    10'd328 - 10'd2 :   //propagation delay보상을 위해 오리지널보다 신호를 15ns정도 일찍 보내기; 오래된 기판의 경우 LS244가 느려짐
-                                                    10'd508;            //오리지널보다 신호를 6.275us 빨리 보내기
-wire    [9:0]   CYCLECOUNTER_TIMING =       (nEN == 1'b1) ? 
-                                                10'd568 :
-                                                (TIMINGSEL == 1'b0) ?   //0 = 오리지널, 1 = 6.275us 빨리 보내기
-                                                    10'd568 :           //오리지널 타이밍
-                                                    10'd568 - 10'd120;  //오리지널보다 카운터를 2.5us 빨리 증가시킴
 reg             __REF_nBOUTCLKEN_ORIG = 1'b0;
 reg             __REF_CLK12M = 1'b0;
 
@@ -566,9 +550,12 @@ end
     Swap gate is on absolute position 1536
 */
 
-//absolute position counter
+/*
+    ABSOLUTE POSITION COUNTER
+*/
+
 reg     [11:0]  absolute_page_number = INITIAL_ABS_PAGE;
-assign ABSPAGE = absolute_page_number;
+assign  ABSPAGE = absolute_page_number;
 
 always @(posedge MCLK)
 begin
@@ -591,7 +578,63 @@ begin
     end
 end
 
-//cycle counter
+
+
+
+/*
+    TIMING CONSTANTS
+*/
+
+/*
+        +Y 568
+-X 208           +X 448
+        -Y 328
+*/
+
+reg     [9:0]   OUTBUFFER_CLKEN_TIMING = 10'd0;
+reg     [9:0]   CYCLECOUNTER_TIMING = 10'd568;
+
+always @(posedge MCLK)
+begin
+    if(nEN == 1'b1)
+    begin
+        OUTBUFFER_CLKEN_TIMING <= 10'd0;
+        CYCLECOUNTER_TIMING <= 10'd568;
+    end
+    else
+    begin
+        if(TIMINGSEL == 1'b0)
+        begin
+            OUTBUFFER_CLKEN_TIMING <= 10'd328 - 10'd2; //오리지널 타이밍 - 20ns
+            CYCLECOUNTER_TIMING <= 10'd568; //오리지널 타이밍
+        end
+        else
+        begin
+            if(access_type == BOOT)
+            begin
+                OUTBUFFER_CLKEN_TIMING <= 10'd328 - 10'd96; //오리지널 타이밍 -2us
+                CYCLECOUNTER_TIMING <= 10'd568; //오리지널 타이밍
+            end
+            else if(access_type == USER)
+            begin
+                OUTBUFFER_CLKEN_TIMING <= 10'd568; //오리지널 타이밍 - 5us
+                CYCLECOUNTER_TIMING <= 10'd568 - 10'd120;  //오리지널보다 카운터를 2.5us 빨리 증가시킴
+            end
+            else
+            begin
+                OUTBUFFER_CLKEN_TIMING <= 10'd328 - 10'd2; //오리지널 타이밍 - 20ns
+                CYCLECOUNTER_TIMING <= 10'd568; //오리지널 타이밍
+            end
+        end
+    end
+end
+
+
+
+/*
+    CYCLE COUNTER
+*/
+
 reg     [6:0]   bout_propagation_delay_counter = 7'd127; //98
 reg     [9:0]   bout_page_cycle_counter = 10'd1023; //584
 reg     [12:0]  bout_bootloop_cycle_counter = {1'b0, INITIAL_ABS_PAGE}; //4106

@@ -85,7 +85,7 @@ add wave -noupdate -radix hexadecimal /BubbleDrive8_top_tb/Main/BubbleDrive8_usb
 add wave -noupdate -radix ascii /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/ADBUS
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/ACBUS
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {18516076 ns} 0} {{Cursor 3} {79513600 ns} 1}
+WaveRestoreCursors {{Cursor 1} {95607029 ns} 0} {{Cursor 3} {79513600 ns} 1}
 quietly wave cursor active 1
 configure wave -namecolwidth 251
 configure wave -valuecolwidth 100
@@ -101,4 +101,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {0 ns} {293390336 ns}
+WaveRestoreZoom {92913385 ns} {92960779 ns}

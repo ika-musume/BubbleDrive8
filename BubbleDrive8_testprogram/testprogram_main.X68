@@ -1336,7 +1336,7 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
 
             lea NOWLOADING, a0                  ;print nowloading
             move.l a0, -(sp)
-            move.w #5, -(sp)
+            move.w #0, -(sp)
             move.w #9, -(sp)
             move.w #15, -(sp)
             move.w #0, -(sp)
@@ -1922,7 +1922,7 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
 
             lea NOWLOADING, a0                          ;print nowloading
             move.l a0, -(sp)
-            move.w #5, -(sp)
+            move.w #0, -(sp)
             move.w #9, -(sp)
             move.w #15, -(sp)
             move.w #0, -(sp)
@@ -3531,6 +3531,16 @@ PRAUTOINC       dc.w 'Auto increment', $0000
         *--------------------------------------------------------
 
         TSTRTNE_BMC:
+            jsr funcClearTilemap
+
+            lea NOWLOADING, a0                  ;print nowloading
+            move.l a0, -(sp)
+            move.w #0, -(sp)
+            move.w #9, -(sp)
+            move.w #15, -(sp)
+            move.w #0, -(sp)
+            bsr.w funcPrintText
+
             move.l #$3C000, -(sp)                                   ;copy tiles(2C000 on ROM)
             move.w #4, -(sp)
             move.w #1408, -(sp)
@@ -3542,8 +3552,6 @@ PRAUTOINC       dc.w 'Auto increment', $0000
             move.w #1416, -(sp)
             move.w #1, -(sp)
             jsr funcLoadBubble
-
-            jsr funcClearTilemap
 
             move.w #32, -(sp)
             move.w #1, -(sp)
@@ -4534,6 +4542,7 @@ DATACOPYTARGET  dc.w '  Target', $0000
             move.l #$3CC00, -(sp)                                       ;copy tiles(2CC00 on ROM)
             move.w #16, -(sp)
             move.w #1432, -(sp)
+            move.w #0, -(sp)
             jsr funcLoadBubble
 
 
