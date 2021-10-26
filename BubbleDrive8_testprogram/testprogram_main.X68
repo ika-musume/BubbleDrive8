@@ -15,6 +15,7 @@
 ;0x00810: single input detector reg
 ;0x00818: long input detector reg
 ;0x00820: data loaded flags
+;0x00830: 
 ;0x00880: user RAM
 ;0x00900: initializer program
 ;0x00D00; MBM error map
@@ -128,10 +129,8 @@ VECTORS dc.l $00000600                                      ;reset initial SP
     INITIALIZATION:                                         ;initial RAM test routines        
         move.b #1, (a6)                                     ;kick the Z80 watchdog
         move.b #0, (a6)
-        nop
 
         move.b #1, $5C001                                   ;morning music code latch
-        nop
 
         move.w #$8000, d0
         INITIALIZATION_DelayLoop:
@@ -141,11 +140,6 @@ VECTORS dc.l $00000600                                      ;reset initial SP
         move.b #1, (a6)                                     ;kick the Z80 watchdog
         move.b #0, (a6)
 
-        move.l #$0, d0                                      ;initialize d0
-        move.l #$0, d1                                      ;initialize d1
-        move.l #$0, d2                                      ;initialize d2
-        move.l #$0, d3                                      ;initialize d3
-        move.l #$0, d4                                      ;initialize d4
         move.l #$0, d7                                      ;initialize d7
         
         ;bit 0: shared RAM
@@ -158,7 +152,6 @@ VECTORS dc.l $00000600                                      ;reset initial SP
         ;bit 7: TM Color RAM
         ;bit 8: OBJ List RAM
         ;bit 9: Character RAMd
-
 
         move.w #1, -(sp)                                    ;Palette RAM test
         move.l #$5A000, -(sp)
@@ -253,9 +246,17 @@ VECTORS dc.l $00000600                                      ;reset initial SP
         move.b #1, (a6)                                     ;kick the Z80 watchdog
         move.b #0, (a6)
 
+        lea $30BE0, a0
+        move.l #15, d0
+        INITIALIZATION_drawblock:
+            move.w #$1111, (a0)+
+            dbf d0, INITIALIZATION_drawblock
+        move.w #$7F76, $5A022                               ;light blue
+
         move.l #$10000, -(sp)
         move.w #128, -(sp)                                  ;96 pages
         move.w #9, -(sp)                                    ;from 0x480
+        move.w #1, -(sp)                                    ;display progress bar
         bsr.w funcLoadBubble
 
         move.b #1, (a6)                                     ;kick the Z80 watchdog
@@ -303,13 +304,13 @@ VECTORS dc.l $00000600                                      ;reset initial SP
             move.l #0, d6
             move.l #0, d7
 
-            movea.l #0, a0
-            movea.l #0, a1
-            movea.l #0, a2
-            movea.l #0, a3
-            movea.l #0, a4
-            movea.l #0, a5
-            movea.l #0, a6
+            movea.l d0, a0
+            movea.l d0, a1
+            movea.l d0, a2
+            movea.l d0, a3
+            movea.l d0, a4
+            movea.l d0, a5
+            movea.l d0, a6
 
             move.l $6FC, a7                                     ;restore SP
 
@@ -336,13 +337,13 @@ VECTORS dc.l $00000600                                      ;reset initial SP
             move.l #0, d6
             move.l #0, d7
 
-            movea.l #0, a0
-            movea.l #0, a1
-            movea.l #0, a2
-            movea.l #0, a3
-            movea.l #0, a4
-            movea.l #0, a5
-            movea.l #0, a6
+            movea.l d0, a0
+            movea.l d0, a1
+            movea.l d0, a2
+            movea.l d0, a3
+            movea.l d0, a4
+            movea.l d0, a5
+            movea.l d0, a6
 
             move.l (sp)+, d0
             move.l (sp)+, d1
@@ -475,23 +476,86 @@ VECTORS dc.l $00000600                                      ;reset initial SP
         *
         *--------------------------------------------------------
 
-        ;ARGS: START PAGE ADDRESS
+        ;ARGS: DESTINATION MEMORY ADDRESS 
         ;      CONSECUTIVE PAGE LENGTH
-        ;      DESTINATION MEMORY ADDRESS   
+        ;      START PAGE ADDRESS
+        ;      LOADING BAR SWITCH
         ;JSR:  RETURN ADDRESS 
-        funcLoadBubble:                                     ;start page -> consecutive page length - > destination address -> return address
+        funcLoadBubble:                                         ;start page -> consecutive page length - > destination address -> return address
             jsr sysSaveReg
-
-            movea.l (sp)+, a3                               ;pop return address
-            move.w (sp)+, d0                                ;pop start page
-            move.w (sp)+, d1                                ;pop consecutive page length
-            movea.l (sp)+, a2                               ;pop destination address
-
+            
             lea $5E008, a6
+            lea $40000, a1     
 
-            lea $40000, a1                                  ;bubble memory controller register
-            subi.l #1, d1                                   ;consecutive page length - 1 
+            movea.l (sp)+, a5                                   ;pop return address
+            move.w (sp)+, d7                                    ;pop loading bar switch
+            tst.w d7
+            beq.w funcLoadBubble_Init
+            lea $850, a4
 
+            move.w (sp)+, d5                                    ;pop start page
+            move.w (sp)+, d6                                    ;pop consecutive page length
+            ;funcLoadBubble_GenTbl
+                cmpi.w #15, d6
+                bgt.s funcLoadBubble_GenTbl_over15
+                ;funcLoadBubble_GenTbl_15:
+                    move.w #0, d0                               ;clear accumulator
+                    move.w #15, d1                              ;set loop counter
+                    funcLoadBubble_GenTbl_15_gen:
+                        move.w d0, -(a4)                        ;write acc value
+                        addq.w #1, d0
+                        dbf d1, funcLoadBubble_GenTbl_15_gen
+                    bra.w funcLoadBubble_GenTbl_loadinit
+
+                funcLoadBubble_GenTbl_over15:
+                    move.w d6, d0
+                    btst.l #3, d0                               ;test bit[3]
+                    bne.s funcLoadBubble_GenTbl_over15_ru
+                    ;funcLoadBubble_GenTbl_over15_rd:           ;rounding down
+                        andi.w #$FFF0, d0
+                        bra.s funcLoadBubble_GenTbl_over15_div
+
+                    funcLoadBubble_GenTbl_over15_ru:            ;rounding up
+                        andi.w #$FFF0, d0
+                        addi.w #$0010, d0
+
+                    funcLoadBubble_GenTbl_over15_div:
+                        lsr.w #4, d0                            ;/16
+
+                    move.w #0, d1                               ;clear d1
+
+                    move.w #15, d2
+                    funcLoadBubble_GenTbl_over15_gen:
+                        cmp.w d6, d1                            ;compare d1 with original pange length
+                        ble.s funcLoadBubble_GenTbl_over15_wr   ;less or equal, write ahead
+                        move.w d6, d1                           ;overflow
+
+                        funcLoadBubble_GenTbl_over15_wr:
+                            move.w d1, -(a4)
+
+                        add.w d0, d1                            ;accumulate quotient
+
+                        dbf d2, funcLoadBubble_GenTbl_over15_gen
+
+                funcLoadBubble_GenTbl_loadinit:
+                    move.w d5, d0                               ;move start page
+                    move.w d6, d1                               ;move page length
+                    subi.w #1, d1                               ;consecutive page length - 1
+                    movea.l (sp)+, a2                           ;pop destination address
+
+                    ;lea $830, a4                               ;progress bar table
+                    lea $52890, a3                              ;progress bar address
+
+                    bra.s funcLoadBubble_Read
+
+
+            funcLoadBubble_Init:
+                move.w (sp)+, d0                                ;pop start page
+                move.w (sp)+, d1                                ;pop consecutive page length
+                subi.w #1, d1                                   ;consecutive page length - 1 
+                movea.l (sp)+, a2                               ;pop destination address
+
+            
             funcLoadBubble_Read:
                 move.w #0, $4(a1)                           ;initialize controller
                 move.w d0, (a1)                             ;set page
@@ -525,14 +589,35 @@ VECTORS dc.l $00000600                                      ;reset initial SP
                     dbf d3, funcLoadBubble_Read_copy        ;loop 32 times
 
                 addq.w #1, d0                               ;start page +1
+
+                tst.w d7
+                bne.s funcLoadBubble_Read_updtldbar
                 dbf d1, funcLoadBubble_Read
+                bra.w funcLoadBubble_Exit
 
-            move.l a3, -(sp)                                ;push return address
+                funcLoadBubble_Read_updtldbar:
+                    move.w (a4), d6                         ;get table value
+                    cmp.w d6, d1                            ;compare loop counter with table
+                    ble.w funcLoadBubble_Read_updtldbar_inc
+                    dbf d1, funcLoadBubble_Read
+                    
+                    funcLoadBubble_Read_updtldbar_inc:
+                        move.w #$0001, $2000(a3) 
+                        move.w #$F05F, (a3)+
+                        adda.l #$2, a4
+                    
+                    dbf d1, funcLoadBubble_Read
 
-            jsr sysLoadReg
-            rts 
+                    move.l #15, d0
+                    funcLoadBubble_Read_updtldbar_del:
+                        move.w #$E000, -(a3)
+                        dbf d0, funcLoadBubble_Read_updtldbar_del
 
+            funcLoadBubble_Exit:
+                move.l a5, -(sp)                                ;push return address
 
+                jsr sysLoadReg
+                rts 
 
 
     ORG    $10000
@@ -540,11 +625,13 @@ VECTORS dc.l $00000600                                      ;reset initial SP
         move.l #$5A000, -(sp) ;copy palette
         move.w #4, -(sp)
         move.w #1020, -(sp)
+        move.w #0, -(sp)
         jsr funcLoadBubble
 
         move.l #$30000, -(sp) ;copy tiles
         move.w #128, -(sp)
         move.w #1024, -(sp)
+        move.w #1, -(sp)
         jsr funcLoadBubble
 
         move.w #1, $804                                 ;initialize menu item indicator register
@@ -1250,7 +1337,7 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
             lea NOWLOADING, a0                  ;print nowloading
             move.l a0, -(sp)
             move.w #5, -(sp)
-            move.w #10, -(sp)
+            move.w #9, -(sp)
             move.w #15, -(sp)
             move.w #0, -(sp)
             bsr.w funcPrintText
@@ -1258,6 +1345,7 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
             move.l #$34000, -(sp)               ;copy tiles
             move.w #256, -(sp)
             move.w #1152, -(sp)
+            move.w #1, -(sp)
             jsr funcLoadBubble
 
             move.w #$573, $820                  ;set DATA LOADED flag on $820
@@ -1367,7 +1455,7 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
                 jsr funcFixedDelaySlow
                 bra.s TSTRTNE_Screen_KeyInDelay_b
 
-NOWLOADING      dc.w 'NOW LOADING', $0000
+
 
 
 
@@ -1381,6 +1469,7 @@ NOWLOADING      dc.w 'NOW LOADING', $0000
             move.l #$3FC00, -(sp)                       ;copy tiles(2D400 ~400 on ROM)
             move.w #8, -(sp)
             move.w #1448, -(sp)
+            move.w #0, -(sp)
             jsr funcLoadBubble
 
             lea $880, a6                                ;load register address
@@ -1817,40 +1906,66 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
         *--------------------------------------------------------
 
         TSTRTNE_OBJ:
-            move.l #$3FC00, -(sp)                       ;copy tiles(2D400 ~400 on ROM)
-            move.w #8, -(sp)
-            move.w #1448, -(sp)
+            move.w #$F000, -(sp)                            ;clear tilemap A
+            move.w #$0000, -(sp)
+            move.w #0, -(sp)
+            bsr.w funcFillTilemap
+
+            move.w #$205F, -(sp)                            ;clear tilemap B
+            move.w #$0002, -(sp)
+            move.w #1, -(sp)
+            bsr.w funcFillTilemap
+
+            move.w $822, d0
+            cmpi.w #$573, d0                            ;konami 573
+            beq.s TSTRTNE_OBJ_Init                      ;check DATA LOADED flag
+
+            lea NOWLOADING, a0                          ;print nowloading
+            move.l a0, -(sp)
+            move.w #5, -(sp)
+            move.w #9, -(sp)
+            move.w #15, -(sp)
+            move.w #0, -(sp)
+            bsr.w funcPrintText
+
+            move.l #$3D400, -(sp)                       ;copy tiles(2D800 +2C00 on ROM)
+            move.w #88, -(sp)
+            move.w #1456, -(sp)
+            move.w #1, -(sp)
             jsr funcLoadBubble
 
-            lea $700, a6                                ;load sprite register addr
-            move.w #63, d0
-            TSTRTNE_OBJ_OBJListClr:
-                move.l #0, (a6)+
-                dbf d0, TSTRTNE_OBJ_OBJListClr
+            TSTRTNE_OBJ_Init:
+                lea $700, a6                                ;load sprite register addr
+                move.w #63, d0
+                TSTRTNE_OBJ_OBJListClr:
+                    move.l #0, (a6)+
+                    dbf d0, TSTRTNE_OBJ_OBJListClr
 
-            lea OBJTSTOBJ, a5
-            lea $700, a6
-            move.w #7, d0
-            TSTRTNE_OBJ_OBJListCopy:
-                move.w (a5)+, (a6)+
-                dbf d0, TSTRTNE_OBJ_OBJListCopy
+                lea OBJTSTOBJ, a5
+                lea $700, a6
+                move.w #7, d0
+                TSTRTNE_OBJ_OBJListCopy:
+                    move.w (a5), (a6)+
+                    move.w (a5)+, -(sp)
+                    dbf d0, TSTRTNE_OBJ_OBJListCopy
+                bsr.w funcDrawSprite
 
-            lea $880, a6                                ;load register address
-            move.w #0, (a6)                             ;initialize sprite edit menu code
-            move.w #0, $2(a6)                           ;initialize UNDER MODIFICATION flag
-            move.w #$0080, $4(a6)                       ;initialize ZOOM binary value: 00_1.000_0000
-            move.l #$10000000, $6(a6)                   ;initialize ZOOM BCD: 1.0000000
-            move.w #4, $A(a6)                           ;initialize SIZE binary
-            move.w #0, $C(a6)                           ;initialize FLIP binary
-            move.w #0, $E(a6)                           ;initialize Xpos binary
-            move.w #0, $10(a6)                          ;initialize Ypos binary
-            move.w #$0000, $12(a6)                      ;initialize Xpos BCD
-            move.w #$0000, $14(a6)                      ;initialize Ypos BCD
-            move.w #8, $16(a6)                          ;initialize Xwidth binary
-            move.w #8, $18(a6)                          ;initialize Ywidth binary
-            move.w #$8, $1A(a6)                         ;initialize Xwidth BCD
-            move.w #$8, $1C(a6)                         ;initialize Ywidth BCD
-            move.w #0, $1E(a6)                          ;initialize error flag
+                lea $880, a6                                ;load register address
+                move.w #0, (a6)                             ;initialize sprite edit menu code
+                move.w #0, $2(a6)                           ;initialize UNDER MODIFICATION flag
+                move.w #$0080, $4(a6)                       ;initialize ZOOM binary value: 00_1.000_0000
+                move.l #$10000000, $6(a6)                   ;initialize ZOOM BCD: 1.0000000
+                move.w #4, $A(a6)                           ;initialize SIZE binary
+                move.w #0, $C(a6)                           ;initialize FLIP binary
+                move.w #0, $E(a6)                           ;initialize Xpos binary
+                move.w #16, $10(a6)                         ;initialize Ypos binary
+                move.w #$0000, $12(a6)                      ;initialize Xpos BCD
+                move.w #$0000, $14(a6)                      ;initialize Ypos BCD
+                move.w #8, $16(a6)                          ;initialize Xwidth binary
+                move.w #8, $18(a6)                          ;initialize Ywidth binary
+                move.w #$8, $1A(a6)                         ;initialize Xwidth BCD
+                move.w #$8, $1C(a6)                         ;initialize Ywidth BCD
+                move.w #0, $1E(a6)                          ;initialize error flag
 
             ;[USER INTERFACE]
             ;XPOS:(read only) YPOS:(read only)
@@ -1875,20 +1990,10 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
             ;TYPE4/C = 700 = 380
             ;TYPE5/D = 702 = 381
             ;TYPE6/E = 704 = 382
-            ;TYPE7/F = 706 = 383
+            ;TYPE7/F = 708 = 384
             ;TYPE8   = 710 = 388
             ;TYPE9   = 730 = 398
             ;TYPEB   = 780 = 3C0
-
-            move.w #$F000, -(sp)                            ;clear tilemap A
-            move.w #$0000, -(sp)
-            move.w #0, -(sp)
-            bsr.w funcFillTilemap
-
-            move.w #$205F, -(sp)                            ;clear tilemap B
-            move.w #$0002, -(sp)
-            move.w #1, -(sp)
-            bsr.w funcFillTilemap
 
             move.w #5, d0                                   ;repeat 5 times
             move.w #5, d1                                   ;ypos
@@ -2114,20 +2219,24 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
 
                     TSTRTNE_OBJ_ObjEdit_mod_exit:
                         movea.l a6, a0                              ;get reg start addr
+                        move.w $C(a6), d1                           ;backup flip
+                        move.w $A(a6), d2                           ;backup size
                         add.l #2, a0                                ;start from $882
                         move.w #13, d0                              ;ends at $89D
                         TSTRTNE_OBJ_ObjEdit_mod_exit_loop:
                             move.w #0, (a0)+
                             dbf d0, TSTRTNE_OBJ_ObjEdit_mod_exit_loop
                         move.w #$0080, $4(a6)                       ;initialize ZOOM binary value: 00_1.000_0000
-                        move.w #4, $A(a6)                           ;initialize SIZE binary
+                        move.w d1, $C(a6)                           ;restore FLIP binary
+                        move.w d2, $A(a6)                           ;restore size
+                        move.w #16, $10(a6)                         ;ypos = 16
                         bra.w TSTRTNE_OBJ_UpdateVal
 
                     TSTRTNE_OBJ_ObjEdit_mod_rst:
                         move.w #$0080, $4(a6)                       ;initialize ZOOM binary
                         move.w #0, $C(a6)                           ;initialize FLIP binary
                         move.w #0, $E(a6)                           ;initialize Xpos binary
-                        move.w #0, $10(a6)                          ;initialize Ypos binary
+                        move.w #16, $10(a6)                         ;initialize Ypos binary
                         bra.w TSTRTNE_OBJ_UpdateVal
 
                     TSTRTNE_OBJ_ObjEdit_mod_zoominc:
@@ -2146,19 +2255,19 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
                         ;TSTRTNE_OBJ_ObjEdit_mod_mov_dn
                             btst.l #$3, d0                                  ;check for DOWN
                             bne.w TSTRTNE_OBJ_ObjEdit_mod_mov_up
-                            subq.w #1, $E(a6)
+                            addq.w #1, $10(a6)
                         TSTRTNE_OBJ_ObjEdit_mod_mov_up:
                             btst.l #$2, d0                                  ;check for UP
                             bne.w TSTRTNE_OBJ_ObjEdit_mod_mov_r
-                            addq.w #1, $E(a6)
+                            subq.w #1, $10(a6)
                         TSTRTNE_OBJ_ObjEdit_mod_mov_r:
                             btst.l #$1, d0                                  ;check for RIGHT
                             bne.w TSTRTNE_OBJ_ObjEdit_mod_mov_l
-                            addq.w #1, $10(a6)
+                            addq.w #1, $E(a6)
                         TSTRTNE_OBJ_ObjEdit_mod_mov_l:
                             btst.l #$0, d0                                  ;check for LEFT
                             bne.w TSTRTNE_OBJ_UpdateVal
-                            subq.w #1, $10(a6)
+                            subq.w #1, $E(a6)
 
             TSTRTNE_OBJ_UpdateVal:
                 lea $700, a5
@@ -2470,7 +2579,7 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
                 add.w $2(a6), d0                                    ;+ flag
                 cmpi.w #4, d0
                 bne.s TSTRTNE_OBJ_Draw_editmode
-                add.l #8, a0                                       ;select OBJTSTEDIT
+                add.l #8, a0                                        ;select OBJTSTEDIT
                 TSTRTNE_OBJ_Draw_editmode:
                     move.l a0, -(sp)
                     move.w #3, -(sp)
@@ -2479,6 +2588,12 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
                     move.w #0, -(sp)
                     bsr.w funcPrintText
 
+                move.w #7, d0                                       ;8 properties
+                TSTRTNE_OBJ_Draw_obj_push:
+                    move.w (a5)+, -(sp)
+                    dbf d0, TSTRTNE_OBJ_Draw_obj_push
+                bsr.w funcDrawSprite
+
             TSTRTNE_OBJ_KeyInDelay:
                 move.w $5CC02, d0
                 cmpi.b #$EE, d0
@@ -2486,9 +2601,9 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
                 jsr funcFixedDelayFast
                 bra.w TSTRTNE_OBJ_ModeEval
 
-OBJTSTTYPE  dc.w $0350, $0358, $035C, $0360, $0380, $0381, $0382, $0383, $0388, $0398, $0350, $03C0, $0380, $0381, $0382, $0383 
+OBJTSTTYPE  dc.w $0350, $0358, $035C, $0360, $0380, $0381, $0382, $0384, $0388, $0398, $0350, $03C0, $0380, $0381, $0382, $0383 
 OBJTSTSIZE  dc.w $2020, $1020, $2010, $4040, $0808, $1008, $0810, $1010, $2040, $1040, $2020, $4080, $0808, $1008, $0810, $1010
-OBJTSTOBJ   dc.w $0004, $0080, $000C, $00E4, $0350, $0004, $0000, $0000
+OBJTSTOBJ   dc.w $0004, $0080, $0000, $0010, $0380, $000B, $0000, $0000
 OBJTSTMSG0  dc.w 'X Position:     ', $0000
 OBJTSTMSG1  dc.w 'Y Position:     ', $0000
 OBJTSTMSG2  dc.w '   Size ', $0000, $0000, $0000, $0000, $0000
@@ -3419,11 +3534,13 @@ PRAUTOINC       dc.w 'Auto increment', $0000
             move.l #$3C000, -(sp)                                   ;copy tiles(2C000 on ROM)
             move.w #4, -(sp)
             move.w #1408, -(sp)
+            move.w #0, -(sp)
             jsr funcLoadBubble
 
             move.l #$3C400, -(sp)                                   ;copy tiles(2C400 on ROM)
             move.w #16, -(sp)
             move.w #1416, -(sp)
+            move.w #1, -(sp)
             jsr funcLoadBubble
 
             jsr funcClearTilemap
@@ -5097,7 +5214,7 @@ EXITMESSAGE   dc.w 'Press A+LEFT(1P) to exit back to menu screen', $0000
 
 FRACCONST       dc.l $05000000, $02500000, $01250000, $00625000, $00312500, $00156250, $00078125
 INTCONST        dc.w $4096, $2048, $1024, $0512, $0256, $0128, $0064, $0032, $0016, $0008, $0004, $0002, $0001
-
+NOWLOADING      dc.w 'NOW LOADING...', $0000
 
     SIMHALT             ; halt simulator
 
