@@ -1,9 +1,9 @@
 *-----------------------------------------------------------
 * Title      : BubbleDrive8_testprogram
 * Written by : Raki
-* Date       : 2021-10-11
+* Date       : 2021-10-26
 * Description: BubbleDrive8 Test Program
-*              B85:K:A:C:2021101102
+*              B85:K:A:C:2021102602
 *-----------------------------------------------------------
 
 ;MEMORY STRUCTURE
@@ -771,7 +771,7 @@ VECTORS dc.l $00000600                                      ;reset initial SP
 TITLEMESSAGE1   dc.w 'BubbleDrive8', $0000
 TITLEMESSAGE2   dc.w 'System Test Program', $0000
 TITLEMESSAGE3   dc.w '(C) 2020-2021 Raki', $0000
-VERSION         dc.w 'B85:K:A:C:2021101102', $0000
+VERSION         dc.w 'B85:K:A:D:2021102602', $0000
 
 
         *--------------------------------------------------------
@@ -840,7 +840,11 @@ VERSION         dc.w 'B85:K:A:C:2021101102', $0000
 
             TESTMENUKEYINWAIT:
                 bsr.w funcCheckInput                        ;check P1 button input
-                move.w (sp)+, d0                            ;get latest input 
+                move.w (sp)+, d0                            ;get latest input
+                bsr.w funcCheckLongInput
+                move.w (sp)+, d1                            ;get long input trigger
+                and.w d1, d0
+                
                 btst.l #$4, d0                              ;check for power-up(gradius) or fire(twinbee)
                 beq TESTMENUSWITCHER
                 btst.l #$3, d0                              ;check for DOWN
@@ -852,13 +856,21 @@ VERSION         dc.w 'B85:K:A:C:2021101102', $0000
 
                 TESTMENUINCREASE:
                     cmpi #12, d6                            ;if 12
-                    beq TESTMENUKEYINDELAY
+                    beq TESTMENUINCREASE_LOOP
                     addq.w #1, d6
                     bra.s TESTMENUMOVECURSOR
+                    TESTMENUINCREASE_LOOP:
+                        move.w #1, d6
+                        bra.s TESTMENUMOVECURSOR
+
                 TESTMENUDECREASE:
                     cmpi #1, d6                             ;if 1
-                    beq TESTMENUKEYINDELAY
+                    beq TESTMENUDECREASE_LOOP
                     subq.w #1, d6
+                    bra.s TESTMENUMOVECURSOR
+                    TESTMENUDECREASE_LOOP:
+                        move.w #11, d6
+                        ;bra.s TESTMENUMOVECURSOR
 
                 TESTMENUMOVECURSOR:
                     move.w #1, -(sp)                        ;clear previous cursor
@@ -884,7 +896,7 @@ VERSION         dc.w 'B85:K:A:C:2021101102', $0000
                     bsr.w funcDrawTilemap
 
                 TESTMENUKEYINDELAY:
-                    jsr funcFixedDelaySlow
+                    jsr funcFixedDelayFast
                     bra.w TESTMENUKEYINWAIT  
 
 TESTMENUITEM1   dc.w '1.Show RAM test result   ', $0000
@@ -893,12 +905,12 @@ TESTMENUITEM3   dc.w '3.Scroll test            ', $0000
 TESTMENUITEM4   dc.w '4.Sprite test            ', $0000
 TESTMENUITEM5   dc.w '5.Button/DIPSW input test', $0000
 TESTMENUITEM6   dc.w '6.RF2 IO board test      ', $0000
-TESTMENUITEM7   dc.w '7.Jump to 0x78002        ', $0000
-TESTMENUITEM8   dc.w '8.Show CHARRAM data      ', $0000
-TESTMENUITEM9   dc.w '9.Priority test          ', $0000
-TESTMENUITEM10  dc.w '10.BMC debug program     ', $0000
-TESTMENUITEM11  dc.w '11.Contributors          ', $0000
-TESTMENUITEM12  dc.w '12.Return to title screen', $0000
+TESTMENUITEM7   dc.w '7.Show CHARRAM data      ', $0000
+TESTMENUITEM8   dc.w '8.Priority test          ', $0000
+TESTMENUITEM9   dc.w '9.BMC debug program      ', $0000
+TESTMENUITEM10  dc.w '10.Contributors          ', $0000
+TESTMENUITEM11  dc.w '11.Return to title screen', $0000
+TESTMENUITEM12  dc.w '12.Jump to 0x78002       ', $0000
 
 
 
@@ -923,17 +935,17 @@ TESTMENUITEM12  dc.w '12.Return to title screen', $0000
                     cmpi #6, d6
                     beq TSTRTNE_RF2IO
                     cmpi #7, d6
-                    beq TSTRTNE_JMP
-                    cmpi #8, d6
                     beq TSTRTNE_CHARRAM
-                    cmpi #9, d6
+                    cmpi #8, d6
                     beq TSTRTNE_Pr
-                    cmpi #10, d6
+                    cmpi #9, d6
                     beq TSTRTNE_BMC
-                    cmpi #11, d6
+                    cmpi #10, d6
                     beq TSTRTNE_Contributors
-                    cmpi #12, d6
+                    cmpi #11, d6
                     beq TSTRTNE_Return
+                    cmpi #12, d6
+                    beq TSTRTNE_JMP
                     bra.w TESTMENUKEYINWAIT
 
 
@@ -1933,6 +1945,8 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
             move.w #1456, -(sp)
             move.w #1, -(sp)
             jsr funcLoadBubble
+
+            move.w #$573, $822
 
             TSTRTNE_OBJ_Init:
                 lea $700, a6                                ;load sprite register addr
@@ -3140,6 +3154,9 @@ JMPGOODBYE      dc.w 'Good bye!', $0000
             TSTRTNE_CHARRAM_InEval:                             ;evaluate key input
                 bsr.w funcCheckInput                            ;check P1 button input
                 move.w (sp)+, d0                                ;get latest input 
+                bsr.w funcCheckLongInput
+                move.w (sp)+, d1                                ;get latest input
+                and.w d1, d0                                    ;AND long andd short inputs
                 btst.l #$3, d0                                  ;check for DOWN
                 beq.s TSTRTNE_CHARRAM_tileinc
                 btst.l #$2, d0                                  ;check for UP
