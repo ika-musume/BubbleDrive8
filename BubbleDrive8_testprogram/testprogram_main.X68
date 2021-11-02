@@ -622,11 +622,37 @@ VECTORS dc.l $00000600                                      ;reset initial SP
 
     ORG    $10000
     MAINTEST:
+        move.w #71, d0
+        lea IVT, a0
+        lea $00000000, a1
+        MAINTEST_ivtcopy:
+            move.l (a0)+, (a1)+
+            dbf d0, MAINTEST_ivtcopy
+
         move.l #$5A000, -(sp) ;copy palette
         move.w #4, -(sp)
         move.w #1020, -(sp)
         move.w #0, -(sp)
         jsr funcLoadBubble
+
+        move.l #$30400, -(sp) ;copy tiles
+        move.w #8, -(sp)
+        move.w #1032, -(sp)
+        move.w #1, -(sp)
+        jsr funcLoadBubble
+
+        move.w #$E000, -(sp)                            ;clear tilemap A with black(transparent) tiles
+        move.w #$0002, -(sp)
+        move.w #0, -(sp)
+        bsr.w funcFillTilemap
+
+        lea NOWLOADING, a0                              ;print nowloading
+        move.l a0, -(sp)
+        move.w #2, -(sp)
+        move.w #9, -(sp)
+        move.w #15, -(sp)
+        move.w #0, -(sp)
+        bsr.w funcPrintText
 
         move.l #$30000, -(sp) ;copy tiles
         move.w #128, -(sp)
@@ -781,7 +807,7 @@ VERSION         dc.w 'B85:K:A:D:2021102602', $0000
         *--------------------------------------------------------
 
         TESTMENU:
-            move.b #$FF, $27FF9                             ;initialize Z80 status(halt escape??) register
+            move.b #$FF, $27FF9                                 ;initialize Z80 status(halt escape??) register
 
             jsr funcClearTilemap
 
@@ -801,7 +827,7 @@ VERSION         dc.w 'B85:K:A:D:2021102602', $0000
                 move.w #4, d1                                   ;inner loop
                 TESTMENU_ObjRAMInit_hloop:
                     move.w #$FF, (a0)+
-                    dbf d1, TESTMENU_ObjRAMInit_hloop          ;repeat 6 times
+                    dbf d1, TESTMENU_ObjRAMInit_hloop           ;repeat 6 times
 
                 move.w #$00, (a0)+
 
@@ -809,8 +835,8 @@ VERSION         dc.w 'B85:K:A:D:2021102602', $0000
 
                 dbf d2, TESTMENU_ObjRAMInit_vloop
 
-            move.w #11, d6                                  ;print test menu items: 12 lines
-            move.w #8, d7                                   ;YPOS of first line
+            move.w #14, d6                                      ;print test menu items: 15 lines
+            move.w #8, d7                                       ;YPOS of first line
             lea TESTMENUITEM1, a4
             TESTMENU_PrintList:
                 move.l a4, -(sp)
@@ -843,6 +869,7 @@ VERSION         dc.w 'B85:K:A:D:2021102602', $0000
                 move.w (sp)+, d0                            ;get latest input
                 bsr.w funcCheckLongInput
                 move.w (sp)+, d1                            ;get long input trigger
+                ori.w #$FFF0, d1                            ;mask button A B C inputs
                 and.w d1, d0
                 
                 btst.l #$4, d0                              ;check for power-up(gradius) or fire(twinbee)
@@ -855,8 +882,11 @@ VERSION         dc.w 'B85:K:A:D:2021102602', $0000
                 
 
                 TESTMENUINCREASE:
-                    cmpi #12, d6                            ;if 12
-                    beq TESTMENUINCREASE_LOOP
+                    addq.w #1, d6                           ;add 1 anyway
+                    cmpi.w #16, d6                          ;if not 16
+                    beq.s TESTMENUINCREASE_LOOP
+                    cmpi.w #14, d6
+                    bne.s TESTMENUMOVECURSOR
                     addq.w #1, d6
                     bra.s TESTMENUMOVECURSOR
                     TESTMENUINCREASE_LOOP:
@@ -864,12 +894,15 @@ VERSION         dc.w 'B85:K:A:D:2021102602', $0000
                         bra.s TESTMENUMOVECURSOR
 
                 TESTMENUDECREASE:
-                    cmpi #1, d6                             ;if 1
-                    beq TESTMENUDECREASE_LOOP
+                    subq.w #1, d6                           ;subtract 1 anyway
+                    cmpi.w #0, d6                           ;if 0
+                    beq.s TESTMENUDECREASE_LOOP
+                    cmpi.w #14, d6                          ;if not 14
+                    bne.s TESTMENUMOVECURSOR
                     subq.w #1, d6
                     bra.s TESTMENUMOVECURSOR
                     TESTMENUDECREASE_LOOP:
-                        move.w #11, d6
+                        move.w #12, d6
                         ;bra.s TESTMENUMOVECURSOR
 
                 TESTMENUMOVECURSOR:
@@ -884,7 +917,7 @@ VERSION         dc.w 'B85:K:A:D:2021102602', $0000
 
                     move.w d6, $804                         ;save item indicator value
                     move.w d6, d5                           ;update cursor position
-                    addi.w #7, d5
+                    addq.w #7, d5
 
                     move.w #1, -(sp)                        ;redraw cursor on new position
                     move.w #1, -(sp)
@@ -899,18 +932,21 @@ VERSION         dc.w 'B85:K:A:D:2021102602', $0000
                     jsr funcFixedDelayFast
                     bra.w TESTMENUKEYINWAIT  
 
-TESTMENUITEM1   dc.w '1.Show RAM test result   ', $0000
+TESTMENUITEM1   dc.w '1.RAM test result        ', $0000
 TESTMENUITEM2   dc.w '2.Screen test            ', $0000
 TESTMENUITEM3   dc.w '3.Scroll test            ', $0000
 TESTMENUITEM4   dc.w '4.Sprite test            ', $0000
-TESTMENUITEM5   dc.w '5.Button/DIPSW input test', $0000
+TESTMENUITEM5   dc.w '5.User input test        ', $0000
 TESTMENUITEM6   dc.w '6.RF2 IO board test      ', $0000
 TESTMENUITEM7   dc.w '7.Show CHARRAM data      ', $0000
 TESTMENUITEM8   dc.w '8.Priority test          ', $0000
-TESTMENUITEM9   dc.w '9.BMC debug program      ', $0000
-TESTMENUITEM10  dc.w '10.Contributors          ', $0000
-TESTMENUITEM11  dc.w '11.Return to title screen', $0000
-TESTMENUITEM12  dc.w '12.Jump to 0x78002       ', $0000
+TESTMENUITEM9   dc.w '9.System IO test         ', $0000
+TESTMENUITEM10  dc.w '10.BMC debug program     ', $0000
+TESTMENUITEM11  dc.w '11.Contributors          ', $0000
+TESTMENUITEM12  dc.w '12.Return to title screen', $0000
+TESTMENUITEM13  dc.w '13.Jump to 0x78002       ', $0000
+TESTMENUITEM14  dc.w '                         ', $0000
+TESTMENUITEM15  dc.w ' About this BubbleDrive8 ', $0000
 
 
 
@@ -939,13 +975,17 @@ TESTMENUITEM12  dc.w '12.Jump to 0x78002       ', $0000
                     cmpi #8, d6
                     beq TSTRTNE_Pr
                     cmpi #9, d6
-                    beq TSTRTNE_BMC
+                    beq TSTRTNE_SysIO
                     cmpi #10, d6
-                    beq TSTRTNE_Contributors
+                    beq TSTRTNE_BMC
                     cmpi #11, d6
-                    beq TSTRTNE_Return
+                    beq TSTRTNE_Contributors
                     cmpi #12, d6
+                    beq TSTRTNE_Return
+                    cmpi #13, d6
                     beq TSTRTNE_JMP
+                    ;cmpi #14, d6
+                    ;beq TSTRTNE_About
                     bra.w TESTMENUKEYINWAIT
 
 
@@ -1422,7 +1462,7 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
 
                         move.w #2, -(sp)
                         move.w #2, -(sp)
-                        move.w #$F1E0, -(sp)            ;hatched pattern
+                        move.w #$F1DC, -(sp)            ;hatched pattern
                         move.w #$0008, -(sp)            ;red
                         move.w d1, -(sp)
                         move.w d0, -(sp)
@@ -1448,7 +1488,7 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
 
                         move.w #2, -(sp)
                         move.w #2, -(sp)
-                        move.w #$F1E0, -(sp)            ;hatched pattern
+                        move.w #$F1DC, -(sp)            ;hatched pattern
                         move.w #$0002, -(sp)            ;white
                         move.w d1, -(sp)
                         move.w d0, -(sp)
@@ -1478,12 +1518,6 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
         *--------------------------------------------------------
 
         TSTRTNE_Scroll:
-            move.l #$3FC00, -(sp)                       ;copy tiles(2D400 ~400 on ROM)
-            move.w #8, -(sp)
-            move.w #1448, -(sp)
-            move.w #0, -(sp)
-            jsr funcLoadBubble
-
             lea $880, a6                                ;load register address
             move.w #2, (a6)                             ;tilemap mode/code
             move.w #0, $2(a6)                           ;Xscroll binary
@@ -1780,22 +1814,22 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
                 blt.s TSTRTNE_Scroll_PrintVal_xval100
 
                 ;TSTRTNE_Scroll_PrintVal_xval1000:
-                    move.w #$03FB, $8(a0)
+                    move.w #$00FB, $8(a0)
                     move.w #2, d0
                     add.l #$10, a0                                  ;draws decimal value only
                     bra.s TSTRTNE_Scroll_PrintVal_xval_updt
 
                 TSTRTNE_Scroll_PrintVal_xval100:
-                    move.w #$00EF, $8(a0)
-                    move.w #$03FB, $18(a0)
+                    move.w #$00FD, $8(a0)
+                    move.w #$00FB, $18(a0)
                     move.w #1, d0
                     add.l #$20, a0
                     bra.s TSTRTNE_Scroll_PrintVal_xval_updt
 
                 TSTRTNE_Scroll_PrintVal_xval10:
-                    move.w #$00EF, $8(a0)
-                    move.w #$00EF, $18(a0)
-                    move.w #$03FB, $28(a0)
+                    move.w #$00FD, $8(a0)
+                    move.w #$00FD, $18(a0)
+                    move.w #$00FB, $28(a0)
                     move.w #0, d0
                     add.l #$30, a0
                     
@@ -1807,7 +1841,7 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
                     lsr.w d2, d1
 
                     andi.w #$000F, d1
-                    addi.w #$03F0, d1
+                    addi.w #$00F0, d1
 
                     move.w d1, $8(a0)
                     add.l #$10, a0
@@ -1826,22 +1860,22 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
                 blt.s TSTRTNE_Scroll_PrintVal_yval100
 
                 ;TSTRTNE_Scroll_PrintVal_yval1000:
-                    move.w #$03FB, $8(a0)
+                    move.w #$00FB, $8(a0)
                     move.w #2, d0
                     add.l #$10, a0
                     bra.s TSTRTNE_Scroll_PrintVal_yval_updt
 
                 TSTRTNE_Scroll_PrintVal_yval100:
-                    move.w #$00EF, $8(a0)
-                    move.w #$03FB, $18(a0)
+                    move.w #$00FD, $8(a0)
+                    move.w #$00FB, $18(a0)
                     move.w #1, d0
                     add.l #$20, a0
                     bra.s TSTRTNE_Scroll_PrintVal_yval_updt
 
                 TSTRTNE_Scroll_PrintVal_yval10:
-                    move.w #$00EF, $8(a0)
-                    move.w #$00EF, $18(a0)
-                    move.w #$03FB, $28(a0)
+                    move.w #$00FD, $8(a0)
+                    move.w #$00FD, $18(a0)
+                    move.w #$00FB, $28(a0)
                     move.w #0, d0
                     add.l #$30, a0
 
@@ -1853,7 +1887,7 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
                     lsr.w d2, d1
 
                     andi.w #$000F, d1
-                    addi.w #$03F0, d1
+                    addi.w #$00F0, d1
 
                     move.w d1, $8(a0)
                     add.l #$10, a0
@@ -1894,19 +1928,19 @@ RAMTESTFAILED   dc.w 'FAILED', $0000
 
 TOPLEFT         dc.w '+(0,0)', $0000
 BOTTOMRIGHT     dc.w '(63,31)+' $0000
-SCROBJ0         dc.w $0004, $0080, $000C, $00E4, $00EF, $0004, $0000, $0011 ;+
-SCROBJ1         dc.w $0004, $0080, $0014, $00E4, $00EF, $0004, $0000, $0012 ;digit2
-SCROBJ2         dc.w $0004, $0080, $001C, $00E4, $03FB, $0004, $0000, $0013 ;digit1
-SCROBJ3         dc.w $0004, $0080, $0024, $00E4, $03F0, $0004, $0000, $0014 ;digit0
-SCROBJ4         dc.w $0004, $0080, $0034, $00E4, $00EF, $0004, $0000, $0016 ;+
-SCROBJ5         dc.w $0004, $0080, $003C, $00E4, $00EF, $0004, $0000, $0017 ;digit2
-SCROBJ6         dc.w $0004, $0080, $0044, $00E4, $03FB, $0004, $0000, $0018 ;digit1
-SCROBJ7         dc.w $0004, $0080, $004C, $00E4, $03F0, $0004, $0000, $0019 ;digit0
-SCROBJ8         dc.w $0004, $0080, $0004, $00E4, $03FA, $0004, $0000, $0010 ;(
-SCROBJ9         dc.w $0004, $0080, $002C, $00E4, $03FC, $0004, $0000, $0015 ;,
-SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
-        ;+ = 3FB
-        ;mask = EF
+SCROBJ0         dc.w $0004, $0080, $000C, $00E4, $00FD, $0004, $0000, $0011 ;+
+SCROBJ1         dc.w $0004, $0080, $0014, $00E4, $00FD, $0004, $0000, $0012 ;digit2
+SCROBJ2         dc.w $0004, $0080, $001C, $00E4, $00FB, $0004, $0000, $0013 ;digit1
+SCROBJ3         dc.w $0004, $0080, $0024, $00E4, $00F0, $0004, $0000, $0014 ;digit0
+SCROBJ4         dc.w $0004, $0080, $0034, $00E4, $00FD, $0004, $0000, $0016 ;+
+SCROBJ5         dc.w $0004, $0080, $003C, $00E4, $00FD, $0004, $0000, $0017 ;digit2
+SCROBJ6         dc.w $0004, $0080, $0044, $00E4, $00FB, $0004, $0000, $0018 ;digit1
+SCROBJ7         dc.w $0004, $0080, $004C, $00E4, $00F0, $0004, $0000, $0019 ;digit0
+SCROBJ8         dc.w $0004, $0080, $0004, $00E4, $00FA, $0004, $0000, $0010 ;(
+SCROBJ9         dc.w $0004, $0080, $002C, $00E4, $00FC, $0004, $0000, $0015 ;,
+SCROBJA         dc.w $0004, $0080, $0054, $00E4, $00FA, $0004, $0001, $001A ;)
+        ;23C80~
+        ;mask = FD
 
 
 
@@ -1942,7 +1976,7 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $03FA, $0004, $0001, $001A ;)
 
             move.l #$3D400, -(sp)                       ;copy tiles(2D800 +2C00 on ROM)
             move.w #88, -(sp)
-            move.w #1456, -(sp)
+            move.w #1448, -(sp)
             move.w #1, -(sp)
             jsr funcLoadBubble
 
@@ -3536,6 +3570,553 @@ PRAUTOINC       dc.w 'Auto increment', $0000
 
 
 
+        *--------------------------------------------------------
+        *
+        *       TSTRTNE_SysIO
+        *
+        *--------------------------------------------------------
+
+        TSTRTNE_SysIO:
+            lea $880, a6
+            lea $5E000, a5
+            move.w #0, (a6)                                         ;initialize menu num reg
+            move.w #$FF00, $2(a6)                                   ;initialize FF/IRQ response reg
+            move.w #0, $4(a6)                                       ;initialize misc outlatch reg
+
+            jsr funcClearTilemap
+
+            lea SYSIOMESSAGE0, a0
+            move.l a0, -(sp)
+            move.w #0, -(sp)
+            move.w #8, -(sp)
+            move.w #26, -(sp)
+            move.w #0, -(sp)
+            bsr.w funcPrintText
+
+            lea INTERRUPTS0, a0
+            move.w #1, d0                                           ;repeat 2 times
+            move.w #4, d1                                           ;ypos 4
+            TSTRTNE_SysIO_initirq:
+                move.w d0, d2                                       ;get loop counter
+                bchg.l #0, d2                                       ;l.c.1 -> palette 0, l.c.0 -> palette 1
+
+                move.l a0, -(sp)
+                move.w d2, -(sp)
+                move.w #5, -(sp)
+                move.w d1, -(sp)
+                move.w #0, -(sp)
+                bsr.w funcPrintText
+
+                addq.w #1, d1                                       ;ypos+1
+                add.l #24, a0
+
+                dbf d0, TSTRTNE_SysIO_initirq
+
+            lea INTERRUPTS3, a1
+            move.w #6, d0                               ;first ?? start xpos
+            move.w #3, d1
+            TSTRTNE_SysIO_initmollu:
+                move.l a1, -(sp)
+                move.w #5, -(sp)
+                move.w d0, -(sp)
+                move.w #6, -(sp)
+                move.w #0, -(sp)
+                bsr.w funcPrintText
+
+                addq.w #6, d0                           ;OK xpos + 6
+                dbf d1, TSTRTNE_SysIO_initmollu
+
+            lea COINCOUNTER0, a0
+            move.w #1, d0                                           ;repeat 2 times
+            move.w #9, d1                                           ;ypos 9
+            TSTRTNE_SysIO_initcoin:
+                move.w d0, d2                                       ;get loop counter
+                bchg.l #0, d2                                       ;l.c.1 -> palette 0, l.c.0 -> palette 1
+
+                move.l a0, -(sp)
+                move.w d2, -(sp)
+                move.w #5, -(sp)
+                move.w d1, -(sp)
+                move.w #0, -(sp)
+                bsr.w funcPrintText
+
+                addq.w #1, d1                                       ;ypos+1
+                add.l #24, a0
+
+                dbf d0, TSTRTNE_SysIO_initcoin
+
+            lea SYSTEMIO0, a0
+            move.w #1, d0                                           ;repeat 2 times
+            move.w #7, d2                                           ;xpos 7
+            TSTRTNE_SysIO_initmisc_loop_out:
+                move.w #1, d1                                       ;repeat 2 times
+                move.w #14, d3                                      ;ypos 14
+                TSTRTNE_SysIO_initmisc_loop_in:
+                    move.l a0, -(sp)
+                    move.w #0, -(sp)
+                    move.w d2, -(sp)
+                    move.w d3, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w funcPrintText
+
+                    addq.w #3, d3                                   ;ypos+3
+                    add.l #8, a0
+
+                    dbf d1, TSTRTNE_SysIO_initmisc_loop_in
+                
+                addi.w #12, d2                                      ;xpos+12
+
+                dbf d0, TSTRTNE_SysIO_initmisc_loop_out
+
+            lea $52000, a0
+            move.w #$E010, $592(a0)                                 ;ASCII 0
+            move.w #$0005, $2592(a0)                                ;green
+            move.w #$E010, $5AA(a0)                                 ;ASCII 0
+            move.w #$0005, $25AA(a0)                                ;green
+
+            TSTRTNE_SysIO_ModeEval:
+                move.w (a6), d0                                     ;get menu number
+                
+                cmpi.w #0, d0
+                beq.w TSTRTNE_SysIO_IRQ
+                cmpi.w #1, d0
+                beq.w TSTRTNE_SysIO_Coin
+                cmpi.w #2, d0
+                beq.w TSTRTNE_SysIO_HFlip
+                cmpi.w #3, d0
+                beq.w TSTRTNE_SysIO_VFlip
+                cmpi.w #4, d0
+                beq.w TSTRTNE_SysIO_288
+                cmpi.w #5, d0
+                beq.w TSTRTNE_SysIO_480i
+                bra.w TSTRTNE_SysIO_Draw
+
+            TSTRTNE_SysIO_IRQ:
+                bsr.w funcCheckInput                            ;check P1 button input
+                move.w (sp)+, d0                                ;get latest input
+
+                btst.l #$5, d0                                  ;button B
+                beq.w TSTRTNE_SysIO_Exit
+                btst.l #$4, d0                                  ;check for A
+                beq.s TSTRTNE_SysIO_IRQ_test
+                btst.l #$3, d0                                  ;check for DOWN
+                beq.w TSTRTNE_SysIO_IRQ_inc
+                bra.w TSTRTNE_SysIO_Draw
+
+                TSTRTNE_SysIO_IRQ_test:
+                    lea $40000, a0
+                    move.w #$FF00, $2(a6)
+
+                    lea INTERRUPTS3, a1
+                    move.w #6, d0                               ;first ?? xpos
+                    move.w #3, d1
+                    TSTRTNE_SysIO_IRQ_test_prntmollu:
+                        move.l a1, -(sp)
+                        move.w #5, -(sp)
+                        move.w d0, -(sp)
+                        move.w #6, -(sp)
+                        move.w #0, -(sp)
+                        bsr.w funcPrintText
+
+                        addq.w #6, d0                           ;OK xpos + 6
+                        dbf d1, TSTRTNE_SysIO_IRQ_test_prntmollu
+
+                    lea INTERRUPTS2, a1
+                    move.w #6, d1                               ;first OK start xpos
+
+                    bsr.w funcFixedDelaySlow
+
+                    move.w #0, d0                               ;reset timeout register
+                    andi.w #$FCFF, SR                           ;IRQ MASK 100, accepts IRQ LEVEL >4, BMC = LV5
+                    move.w #$1, $0(a0)                          ;load page 0x001
+                    move.w #$1, $2(a0)                          ;READ
+                    TSTRTNE_SysIO_IRQ_test_eval5:
+                        addq.w #1, d0
+                        bsr.w funcFixedDelaySlow
+                        cmpi.w #8, d0                           ;timeout check
+                        bgt.s TSTRTNE_SysIO_IRQ_test_eval5_tmout
+                        btst.b #5, $3(a6)                       ;loop
+                        beq.s TSTRTNE_SysIO_IRQ_test_eval5
+                    TSTRTNE_SysIO_IRQ_test_eval5_tmout:
+                        ori.w #$0700, SR                            ;IRQ MASK 111
+                        bsr.w TSTRTNE_SysIO_IRQ_test_prntok
+
+                    move.w #0, d0                               ;reset timeout register
+                    andi.w #$FBFF, SR                           ;IRQ MASK 011, accepts LEVEL >3, counter = LV4
+                    move.b #1, $E(a5)                           ;enable 72 scanline counter IRQ
+                    TSTRTNE_SysIO_IRQ_test_eval4:
+                        addq.w #1, d0
+                        bsr.w funcFixedDelaySlow
+                        cmpi.w #8, d0                           ;timeout check
+                        bgt.s TSTRTNE_SysIO_IRQ_test_eval4_tmout
+                        btst.b #4, $3(a6)
+                        beq.s TSTRTNE_SysIO_IRQ_test_eval4
+                    TSTRTNE_SysIO_IRQ_test_eval4_tmout:
+                        ori.w #$0700, SR                            ;IRQ MASK 111
+                        bsr.w TSTRTNE_SysIO_IRQ_test_prntok
+
+                    move.w #0, d0                               ;reset timeout register
+                    andi.w #$F9FF, SR                           ;IRQ MASK 001, accepts LEVEL >1, VBLANK = LV2
+                    move.b #1, $1(a5)                           ;enable VBLANK IRQ
+                    TSTRTNE_SysIO_IRQ_test_eval2:
+                        addq.w #1, d0
+                        bsr.w funcFixedDelaySlow
+                        cmpi.w #8, d0                           ;timeout check
+                        bgt.s TSTRTNE_SysIO_IRQ_test_eval2_tmout
+                        btst.b #2, $3(a6)
+                        beq.s TSTRTNE_SysIO_IRQ_test_eval2
+                    TSTRTNE_SysIO_IRQ_test_eval2_tmout:
+                        move.b #0, $1(a5)                           ;disable IRQ
+                        move.b #0, $E(a5)                           ;disable IRQ
+                        ori.w #$0700, SR                            ;IRQ MASK 111
+                        bsr.w TSTRTNE_SysIO_IRQ_test_prntok
+
+                    move.w #0, d0                               ;reset timeout register
+                    andi.w #$F8FF, SR                           ;IRQ MASK 000, accepts LEVEL >0, 256V = LV1
+                    move.b #1, $3(a5)                           ;enable 256V IRQ
+                    TSTRTNE_SysIO_IRQ_test_eval1:
+                        addq.w #1, d0
+                        bsr.w funcFixedDelaySlow
+                        cmpi.w #8, d0                           ;timeout check
+                        bgt.s TSTRTNE_SysIO_IRQ_test_eval1_tmout
+                        btst.b #1, $3(a6)
+                        beq.s TSTRTNE_SysIO_IRQ_test_eval1
+                    TSTRTNE_SysIO_IRQ_test_eval1_tmout:
+                        move.b #0, $3(a5)                           ;disable IRQ
+                        ori.w #$0700, SR                            ;IRQ MASK 111
+                        bsr.w TSTRTNE_SysIO_IRQ_test_prntok
+
+                    lea $600, a7
+
+                    bra.w TSTRTNE_SysIO_Draw
+
+                    TSTRTNE_SysIO_IRQ_test_prntok:
+                        move.l a1, -(sp)
+                        move.w #3, -(sp)
+                        move.w d1, -(sp)
+                        move.w #6, -(sp)
+                        move.w #0, -(sp)
+                        bsr.w funcPrintText
+
+                        addq.w #6, d1                           ;OK xpos + 6
+                        rts
+
+
+                TSTRTNE_SysIO_IRQ_inc:
+                    addq.w #1, (a6)
+                    bra.w TSTRTNE_SysIO_Draw
+
+            TSTRTNE_SysIO_COIN:
+                bsr.w funcCheckInput                            ;check P1 button input
+                move.w (sp)+, d0                                ;get latest input
+
+                btst.l #$5, d0                                  ;button B
+                beq.w TSTRTNE_SysIO_Exit
+                btst.l #$4, d0                                  ;check for A
+                beq.s TSTRTNE_SysIO_COIN_test
+                btst.l #$3, d0                                  ;check for DOWN
+                beq.w TSTRTNE_SysIO_COIN_inc
+                btst.l #$2, d0                                  ;check for UP
+                beq.w TSTRTNE_SysIO_COIN_dec
+                bra.w TSTRTNE_SysIO_Draw
+
+                TSTRTNE_SysIO_Coin_test:
+                    lea $52000, a0
+
+                    ;0x52592
+                    move.w #$E010, $592(a0)
+                    move.w #$0003, $2592(a0)                    ;green
+                    move.w #4, d0
+                    TSTRTNE_SysIO_Coin_test_coin1:
+                        move.w #3, d1
+                        TSTRTNE_SysIO_Coin_test_coin1_delay:
+                            bsr.w funcFixedDelaySlow
+                            dbf d1, TSTRTNE_SysIO_Coin_test_coin1_delay
+
+                        move.b #1, (a5)
+                        bsr.w funcFixedDelaySlow
+                        bsr.w funcFixedDelaySlow
+                        move.b #0, (a5)
+                        addq.w #1, $592(a0)                     ;increase pulse number
+
+                        dbf d0, TSTRTNE_SysIO_Coin_test_coin1
+                    move.w #$0005, $2592(a0)                    ;yellow
+
+                    ;0x525AA
+                    move.w #$E010, $5AA(a0)
+                    move.w #$0003, $25AA(a0)                    ;green
+                    move.w #4, d0
+                    TSTRTNE_SysIO_Coin_test_coin2:
+                        move.w #3, d1
+                        TSTRTNE_SysIO_Coin_test_coin2_delay:
+                            bsr.w funcFixedDelaySlow
+                            dbf d1, TSTRTNE_SysIO_Coin_test_coin2_delay
+
+                        move.b #1, $2(a5)
+                        bsr.w funcFixedDelaySlow
+                        bsr.w funcFixedDelaySlow
+                        move.b #0, $2(a5)
+                        addq.w #1, $5AA(a0)
+
+                        dbf d0, TSTRTNE_SysIO_Coin_test_coin2
+                    move.w #$0005, $25AA(a0)                    ;yellow
+
+                    bra.w TSTRTNE_SysIO_Draw
+
+                TSTRTNE_SysIO_Coin_inc:
+                    addq.w #1, (a6)
+                    bra.w TSTRTNE_SysIO_Draw
+
+                TSTRTNE_SysIO_Coin_dec:
+                    subq.w #1, (a6)
+                    bra.w TSTRTNE_SysIO_Draw
+
+
+            TSTRTNE_SysIO_HFlip:
+                bsr.w funcCheckInput                            ;check P1 button input
+                move.w (sp)+, d0                                ;get latest input
+
+                btst.l #$5, d0                                  ;button B
+                beq.w TSTRTNE_SysIO_Exit
+                btst.l #$4, d0                                  ;check for A
+                beq.s TSTRTNE_SysIO_HFlip_test
+                btst.l #$3, d0                                  ;check for DOWN
+                beq.s TSTRTNE_SysIO_HFlip_inc
+                btst.l #$2, d0                                  ;check for UP
+                beq.s TSTRTNE_SysIO_HFlip_dec
+                bra.w TSTRTNE_SysIO_Draw
+
+                TSTRTNE_SysIO_HFlip_test:
+                    eori.w #0008, $4(a6)                        ;flip bit3
+                    move.w $4(a6), d0
+                    lsr.w #3, d0
+                    andi.w #$0001, d0
+                    move.b d0, $5(a5)                           ;write flip bit
+
+                    lea $50200, a0
+                    move.w #$00, d1
+                    move.w #$1FF, d2
+                    tst.w d0
+                    beq.s TSTRTNE_SysIO_HFlip_test_chgscrl
+                    move.w #$01, d1
+                    TSTRTNE_SysIO_HFlip_test_chgscrl:
+                        move.w d1, (a0)+                                ;set scroll value
+                        dbf d2, TSTRTNE_SysIO_HFlip_test_chgscrl
+
+                    bra.w TSTRTNE_SysIO_Draw
+
+                TSTRTNE_SysIO_HFlip_inc:
+                    addq.w #1, (a6)
+                    bra.w TSTRTNE_SysIO_Draw
+
+                TSTRTNE_SysIO_HFlip_dec:
+                    subq.w #1, (a6)
+                    bra.w TSTRTNE_SysIO_Draw
+
+
+            TSTRTNE_SysIO_VFlip:
+                bsr.w funcCheckInput                            ;check P1 button input
+                move.w (sp)+, d0                                ;get latest input
+
+                btst.l #$5, d0                                  ;button B
+                beq.w TSTRTNE_SysIO_Exit
+                btst.l #$4, d0                                  ;check for A
+                beq.s TSTRTNE_SysIO_VFlip_test
+                btst.l #$3, d0                                  ;check for DOWN
+                beq.s TSTRTNE_SysIO_VFlip_inc
+                btst.l #$2, d0                                  ;check for UP
+                beq.s TSTRTNE_SysIO_VFlip_dec
+                bra.w TSTRTNE_SysIO_Draw
+
+                TSTRTNE_SysIO_VFlip_test:
+                    eori.w #0004, $4(a6)                        ;flip bit2
+                    move.w $4(a6), d0
+                    lsr.w #2, d0
+                    andi.w #$0001, d0
+                    move.b d0, $7(a5)                           ;write flip bit
+
+                    bra.w TSTRTNE_SysIO_Draw
+
+                TSTRTNE_SysIO_VFlip_inc:
+                    addq.w #1, (a6)
+                    bra.w TSTRTNE_SysIO_Draw
+
+                TSTRTNE_SysIO_VFlip_dec:
+                    subq.w #1, (a6)
+                    bra.w TSTRTNE_SysIO_Draw
+
+            TSTRTNE_SysIO_288:
+                bsr.w funcCheckInput                            ;check P1 button input
+                move.w (sp)+, d0                                ;get latest input
+
+                btst.l #$5, d0                                  ;button B
+                beq.w TSTRTNE_SysIO_Exit
+                btst.l #$4, d0                                  ;check for A
+                beq.s TSTRTNE_SysIO_288_test
+                btst.l #$3, d0                                  ;check for DOWN
+                beq.s TSTRTNE_SysIO_288_inc
+                btst.l #$2, d0                                  ;check for UP
+                beq.s TSTRTNE_SysIO_288_dec
+                bra.w TSTRTNE_SysIO_Draw
+
+                TSTRTNE_SysIO_288_test:
+                    eori.w #0002, $4(a6)                        ;flip bit1
+                    move.w $4(a6), d0
+                    lsr.w #1, d0
+                    andi.w #$0001, d0
+                    move.b d0, $9(a5)                           ;write scanline bit
+
+                    bra.w TSTRTNE_SysIO_Draw
+
+                TSTRTNE_SysIO_288_inc:
+                    addq.w #1, (a6)
+                    bra.w TSTRTNE_SysIO_Draw
+
+                TSTRTNE_SysIO_288_dec:
+                    subq.w #1, (a6)
+                    bra.w TSTRTNE_SysIO_Draw
+
+            TSTRTNE_SysIO_480i:
+                bsr.w funcCheckInput                            ;check P1 button input
+                move.w (sp)+, d0                                ;get latest input
+
+                btst.l #$5, d0                                  ;button B
+                beq.w TSTRTNE_SysIO_Exit
+                btst.l #$4, d0                                  ;check for A
+                beq.s TSTRTNE_SysIO_480i_test
+                btst.l #$2, d0                                  ;check for UP
+                beq.s TSTRTNE_SysIO_480i_dec
+                bra.w TSTRTNE_SysIO_Draw
+
+                TSTRTNE_SysIO_480i_test:
+                    eori.w #0001, $4(a6)                        ;flip bit0
+                    move.w $4(a6), d0
+                    andi.w #$0001, d0
+                    move.b d0, $B(a5)                           ;write 480i mode bit
+
+                    bra.w TSTRTNE_SysIO_Draw
+
+                TSTRTNE_SysIO_480i_dec:
+                    subq.w #1, (a6)
+                    ;bra.w TSTRTNE_SysIO_Draw
+
+            TSTRTNE_SysIO_Draw:
+                move.w #4, d0                                   ;red
+                cmpi.w #0, (a6)
+                beq.s TSTRTNE_SysIO_Draw_irq
+                move.w #0, d0                                   ;navy
+                TSTRTNE_SysIO_Draw_irq:
+                    lea INTERRUPTS0, a0
+                    move.l a0, -(sp)
+                    move.w d0, -(sp)
+                    move.w #5, -(sp)
+                    move.w #4, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w funcPrintText
+
+                move.w #4, d0                                   ;red
+                cmpi.w #1, (a6)
+                beq.s TSTRTNE_SysIO_Draw_coin
+                move.w #0, d0                                   ;navy
+                TSTRTNE_SysIO_Draw_coin:
+                    lea COINCOUNTER0, a0
+                    move.l a0, -(sp)
+                    move.w d0, -(sp)
+                    move.w #5, -(sp)
+                    move.w #9, -(sp)
+                    move.w #0, -(sp)
+                    bsr.w funcPrintText
+
+                TSTRTNE_SysIO_Draw_misc:
+                    lea SYSTEMIO0, a0
+                    move.w #1, d7                                           ;repeat 2 times
+                    move.w #7, d6                                           ;xpos 7
+                    TSTRTNE_SysIO_Draw_misc_loop_out:
+                        move.w #1, d5                                       ;repeat 2 times
+                        move.w #14, d4                                      ;ypos 14
+                        TSTRTNE_SysIO_Draw_misc_loop_in:
+                            move.w #0, d2                                   ;palette 0(dark blue)
+
+                            move.w d7, d1                                   ;get outer loop counter
+                            lsl.w #1, d1                                    ;outer loop counter*2
+                            add.w d5, d1                                    ;outer loop counter*2 + inner loop counter
+
+                            ;TSTRTNE_SysIO_Draw_misc_loop_in_green:
+                            move.w $4(a6), d0                               ;get misc bits
+                            btst.l d1, d0                                   ;evaluate bit 0
+                            beq.s TSTRTNE_SysIO_Draw_misc_loop_in_red
+                            move.w #3, d2                                   ;palette 3(green)
+
+                            TSTRTNE_SysIO_Draw_misc_loop_in_red:
+                                move.w #5, d0
+                                sub.w d1, d0                                ;5 - (outer loop counter*2 + inner loop counter)
+
+                                move.w $0(a6), d1                           ;get menu number
+                                cmp.w d0, d1                                ;if value == 1-loop counter
+                                bne.s TSTRTNE_SysIO_Draw_misc_prnt
+                                move.w #4, d2                               ;palette 4(red)
+
+                            TSTRTNE_SysIO_Draw_misc_prnt: 
+                                move.l a0, -(sp)
+                                move.w d2, -(sp)
+                                move.w d6, -(sp)
+                                move.w d4, -(sp)
+                                move.w #0, -(sp)
+                                bsr.w funcPrintText
+
+                            addq.w #3, d4                                   ;ypos+3
+                            add.l #8, a0
+
+                            dbf d5, TSTRTNE_SysIO_Draw_misc_loop_in
+                        
+                        addi.w #12, d6                                      ;xpos+12
+
+                        dbf d7, TSTRTNE_SysIO_Draw_misc_loop_out
+
+
+            TSTRTNE_SysIO_KeyInDelay:
+                jsr funcFixedDelaySlow
+                bra.w TSTRTNE_SysIO_ModeEval
+
+            TSTRTNE_SysIO_Exit:
+                move.b #0, $5(a5)                       ;HFLIP
+                move.b #0, $7(a5)                       ;VFLIP
+                move.b #0, $9(a5)                       ;288LN
+                move.b #0, $B(a5)                       ;480i
+
+                bra.w TESTMENU
+
+            TSTRTNE_SysIO_EXCEPTION_BMCDONE:
+                bset.b #5, $883
+                rte
+
+            TSTRTNE_SysIO_EXCEPTION_COUNTER:
+                bset.b #4, $883
+                rte
+
+            TSTRTNE_SysIO_EXCEPTION_VBLANK:
+                bset.b #2, $883
+                rte
+                
+            TSTRTNE_SysIO_EXCEPTION_PARITY:
+                bset.b #1, $883
+                rte
+
+INTERRUPTS0     dc.w '      INTERRUPTS      ', $0000
+INTERRUPTS1     dc.w 'LV.5  LV.4  LV.2  LV.1', $0000
+INTERRUPTS2     dc.w 'OK', $0000
+INTERRUPTS3     dc.w '??', $0000
+
+COINCOUNTER0    dc.w '    COIN COUNTERS     ', $0000
+COINCOUNTER1    dc.w '  COIN1       COIN2   ', $0000
+
+SYSTEMIO0       dc.w 'HFLIP', $0000
+SYSTEMIO1       dc.w 'VFLIP', $0000
+SYSTEMIO2       dc.w '288LN', $0000
+SYSTEMIO3       dc.w '480i', $0000
+
+SYSIOMESSAGE0   dc.w 'Press B to exit', $0000
+
 
 
 
@@ -3557,12 +4138,6 @@ PRAUTOINC       dc.w 'Auto increment', $0000
             move.w #15, -(sp)
             move.w #0, -(sp)
             bsr.w funcPrintText
-
-            move.l #$3C000, -(sp)                                   ;copy tiles(2C000 on ROM)
-            move.w #4, -(sp)
-            move.w #1408, -(sp)
-            move.w #0, -(sp)
-            jsr funcLoadBubble
 
             move.l #$3C400, -(sp)                                   ;copy tiles(2C400 on ROM)
             move.w #16, -(sp)
@@ -3701,7 +4276,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                 btst.l #$6, d0                                      ;button C
                 beq.w TSTRTNE_BMC_Write
 
-                bra.w TSTRTNE_BMC_PrntMenu                          ;nothing changes
+                bra.w TSTRTNE_BMC_Draw                          ;nothing changes
 
 
             ;
@@ -3716,12 +4291,12 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                 cmpi.w #0, d0                                       ;if 1-6
                 bne.w TSTRTNE_BMC_up_menudec                        ;decrease number
 
-                bra.w TSTRTNE_BMC_PrntMenu                          ;if not, do not decrease
+                bra.w TSTRTNE_BMC_Draw                          ;if not, do not decrease
 
                 TSTRTNE_BMC_up_menudec:
                     subq.w #1, d0
                     move.w d0, $0(a6)
-                    bra.w TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_Draw
 
 
                 TSTRTNE_BMC_up_edit:
@@ -3736,7 +4311,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     cmpi.w #6, d0                                   ;if 6
                     beq.w TSTRTNE_BMC_up_edit_ramviewinc            ;edit ram viewer address
 
-                    bra.w TSTRTNE_BMC_PrntMenu                      ;does not happens
+                    bra.w TSTRTNE_BMC_Draw                      ;does not happens
 
                     TSTRTNE_BMC_up_edit_addrinc:
                         move.w $6(a6), d0                           ;get address digit
@@ -3757,7 +4332,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
 
                         move.l d1, $2(a6)                           ;write modified address
                         
-                        bra.w TSTRTNE_BMC_PrntMenu
+                        bra.w TSTRTNE_BMC_Draw
 
                     TSTRTNE_BMC_up_edit_datainc:
                         move.w $A(a6), d0                           ;get data digit
@@ -3778,7 +4353,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
 
                         move.w d1, $8(a6)                           ;write modified data
                         
-                        bra.w TSTRTNE_BMC_PrntMenu
+                        bra.w TSTRTNE_BMC_Draw
 
                     TSTRTNE_BMC_up_edit_ramviewinc:
                         move.w $14(a6), d0                          ;get ram viewer address digit
@@ -3799,7 +4374,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
 
                         move.l d1, $10(a6)                          ;write modified ram viewer address
                         
-                        bra.w TSTRTNE_BMC_PrntMenu
+                        bra.w TSTRTNE_BMC_Draw
                     
 
             ;
@@ -3814,12 +4389,12 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                 cmpi.w #6, d0                                       ;if 0-5
                 bne.w TSTRTNE_BMC_down_menuinc                      ;increase number
 
-                bra.w TSTRTNE_BMC_PrntMenu                          ;if not, do not increase
+                bra.w TSTRTNE_BMC_Draw                          ;if not, do not increase
 
                 TSTRTNE_BMC_down_menuinc:
                     addq.w #1, d0
                     move.w d0, $0(a6)
-                    bra.w TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_Draw
 
 
                 TSTRTNE_BMC_down_edit:
@@ -3834,7 +4409,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     cmpi.w #6, d0                                   ;if 6
                     beq.w TSTRTNE_BMC_down_edit_ramviewdec          ;edit ram viewer address
 
-                    bra.w TSTRTNE_BMC_PrntMenu                      ;does not happens
+                    bra.w TSTRTNE_BMC_Draw                      ;does not happens
 
 
                     TSTRTNE_BMC_down_edit_addrdec:
@@ -3856,7 +4431,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
 
                         move.l d1, $2(a6)                           ;write modified address
                         
-                        bra.w TSTRTNE_BMC_PrntMenu
+                        bra.w TSTRTNE_BMC_Draw
 
                     TSTRTNE_BMC_down_edit_datadec:
                         move.w $A(a6), d0                           ;get data digit
@@ -3877,7 +4452,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
 
                         move.w d1, $8(a6)                           ;write modified data
                         
-                        bra.w TSTRTNE_BMC_PrntMenu
+                        bra.w TSTRTNE_BMC_Draw
 
                     TSTRTNE_BMC_down_edit_ramviewdec:
                         move.w $14(a6), d0                          ;get aram viewer ddress digit
@@ -3898,7 +4473,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
 
                         move.l d1, $10(a6)                           ;write modified ram viewer address
                         
-                        bra.w TSTRTNE_BMC_PrntMenu
+                        bra.w TSTRTNE_BMC_Draw
 
 
             ;
@@ -3916,7 +4491,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                 cmpi.w #6, d0                                       ;if 6
                 beq.w TSTRTNE_BMC_right_enterramviewedit            ;enter ram viewer mode or modify digit number
 
-                bra.w TSTRTNE_BMC_PrntMenu                          ;if not, do nothing
+                bra.w TSTRTNE_BMC_Draw                          ;if not, do nothing
 
                 TSTRTNE_BMC_right_enteraddredit:
                     btst.b #$0, $D(a6)                              ;check the flag
@@ -3925,7 +4500,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     move.w #7, $6(a6)                               ;set address digit as 7
                     move.b #1, $D(a6)                               ;set edit mode flag
 
-                    bra.w TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_Draw
 
                 TSTRTNE_BMC_right_addredit:
                     move.w $6(a6), d0                               ;get address digit
@@ -3934,12 +4509,12 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     bgt.w TSTRTNE_BMC_right_addredit_decdig         ;decrease digit
                     move.w #8, $6(a6)                               ;if not, write 8(loop)
                     move.b #0, $D(a6)                               ;clear edit mode flag
-                    bra.w TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_Draw
 
                     TSTRTNE_BMC_right_addredit_decdig:
                     subq.w #1, d0                                   ;address digit - 1
                     move.w d0, $6(a6)                               ;write modified address digit
-                    bra.w TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_Draw
 
 
 
@@ -3950,7 +4525,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     move.w #3, $A(a6)                               ;set data digit as 3
                     move.b #1, $D(a6)                               ;set edit mode flag
 
-                    bra.w TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_Draw
 
                 TSTRTNE_BMC_right_dataedit:
                     move.w $A(a6), d0                               ;get data digit
@@ -3959,12 +4534,12 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     bgt.w TSTRTNE_BMC_right_dataedit_decdig         ;decrease digit
                     move.w #4, $A(a6)                               ;if not, write 4(loop)
                     move.b #0, $D(a6)                               ;clear edit mode flag
-                    bra.w TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_Draw
 
                     TSTRTNE_BMC_right_dataedit_decdig:
                     subq.w #1, d0                                   ;data digit - 1
                     move.w d0, $A(a6)                               ;write modified data digit
-                    bra.w TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_Draw
 
 
 
@@ -3975,7 +4550,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     move.w #7, $14(a6)                              ;set ram viewer address digit as 7
                     move.b #1, $D(a6)                               ;set edit mode flag
 
-                    bra.w TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_Draw
 
                 TSTRTNE_BMC_right_ramviewedit:
                     move.w $14(a6), d0                              ;get ram viewer address digit
@@ -3984,12 +4559,12 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     bgt.w TSTRTNE_BMC_right_ramviewedit_decdig      ;decrease digit
                     move.w #8, $14(a6)                              ;if not, write 8(loop)
                     move.b #0, $D(a6)                               ;clear edit mode flag
-                    bra.w TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_Draw
 
                     TSTRTNE_BMC_right_ramviewedit_decdig:
                     subq.w #1, d0                                   ;ram viewer address digit - 1
                     move.w d0, $14(a6)                              ;write modified ram viewer address digit
-                    bra.w TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_Draw
 
 
             ;
@@ -4007,7 +4582,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                 cmpi.w #6, d0                                       ;if 6
                 beq.w TSTRTNE_BMC_left_exitramviewedit              ;exit ram viewer mode or modify digit number
 
-                bra.w TSTRTNE_BMC_PrntMenu                          ;if not, do nothing
+                bra.w TSTRTNE_BMC_Draw                          ;if not, do nothing
 
                 TSTRTNE_BMC_left_exitaddredit:
                     btst.b #$0, $D(a6)                              ;check the flag
@@ -4015,7 +4590,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
 
                     move.w #0, $6(a6)                               ;if 0, write address digit 0
                     move.b #1, $D(a6)                               ;set edit mode flag
-                    bra.w TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_Draw
 
                 TSTRTNE_BMC_left_addredit:
                     move.w $6(a6), d0                               ;get address digit
@@ -4025,12 +4600,12 @@ PRAUTOINC       dc.w 'Auto increment', $0000
 
                     move.w #8, $6(a6)                               ;if not, set address digit as 8
                     move.b #0, $D(a6)                               ;clear edit mode flag
-                    bra.w TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_Draw
 
                     TSTRTNE_BMC_left_addredit_incdig:
                     addq.w #1, d0                                   ;address digit + 1
                     move.w d0, $6(a6)                               ;write modified address digit
-                    bra.w TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_Draw
 
 
 
@@ -4040,7 +4615,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
 
                     move.w #0, $A(a6)                               ;if 0, write address digit 0
                     move.b #1, $D(a6)                               ;set edit mode flag
-                    bra.w TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_Draw
 
                 TSTRTNE_BMC_left_dataedit:
                     move.w $A(a6), d0                               ;get data digit
@@ -4050,12 +4625,12 @@ PRAUTOINC       dc.w 'Auto increment', $0000
 
                     move.w #4, $A(a6)                               ;if not, set data digit as 4
                     move.b #0, $D(a6)                               ;clear edit mode flag
-                    bra.w TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_Draw
 
                     TSTRTNE_BMC_left_dataedit_incdig:
                     addq.w #1, d0                                   ;data digit + 1
                     move.w d0, $A(a6)                               ;write modified data digit
-                    bra.w TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_Draw
 
 
 
@@ -4065,7 +4640,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
 
                     move.w #1, $14(a6)                              ;if 0, write address digit 2
                     move.b #1, $D(a6)                               ;set edit mode flag
-                    bra.w TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_Draw
 
                 TSTRTNE_BMC_left_ramviewedit:
                     move.w $14(a6), d0                              ;get ram viewer address digit
@@ -4075,12 +4650,12 @@ PRAUTOINC       dc.w 'Auto increment', $0000
 
                     move.w #8, $14(a6)                              ;if not, set ram viewer address digit as 8
                     move.b #0, $D(a6)                               ;clear edit mode flag
-                    bra.w TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_Draw
 
                     TSTRTNE_BMC_left_ramviewedit_incdig:
                     addq.w #1, d0                                   ;data digit + 1
                     move.w d0, $14(a6)                              ;write modified ram viewer address digit
-                    bra.w TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_Draw
 
 
             ;
@@ -4097,7 +4672,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                 cmpi #$5, d0                                        ;SHIFT
                 beq.w TSTRTNE_BMC_Execute_shift
 
-                bra.w TSTRTNE_BMC_PrntMenu                          ;else
+                bra.w TSTRTNE_BMC_Draw                          ;else
 
 
                 TSTRTNE_BMC_Execute_copy:
@@ -4136,7 +4711,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     move.l #0, d0                                   ;initialize d0, d1
                     move.l #0, d1
 
-                    bra.w TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_Draw
 
                     TSTRTNE_BMC_Execute_copy_illegaladdr:
                         lea COPYILLEGAL, a0
@@ -4147,7 +4722,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                         move.w #0, -(sp)
                         bsr.w funcPrintText
 
-                        bra.w TSTRTNE_BMC_PrntMenu
+                        bra.w TSTRTNE_BMC_Draw
 
                     TSTRTNE_BMC_Execute_copy_zerolength:
                         lea COPYZEROLENGTH, a0
@@ -4158,7 +4733,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                         move.w #0, -(sp)
                         bsr.w funcPrintText
 
-                        bra.w TSTRTNE_BMC_PrntMenu
+                        bra.w TSTRTNE_BMC_Draw
 
                     TSTRTNE_BMC_Execute_copy_overlength:
                         lea COPYTOOLONG, a0
@@ -4169,7 +4744,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                         move.w #0, -(sp)
                         bsr.w funcPrintText
 
-                        bra.w TSTRTNE_BMC_PrntMenu
+                        bra.w TSTRTNE_BMC_Draw
 
 
 
@@ -4196,7 +4771,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     move.w #0, -(sp)
                     bsr.w funcPrintText
 
-                    bra.w TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_Draw
 
 
 
@@ -4206,7 +4781,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
             TSTRTNE_BMC_Read:
                 move.w $0(a6), d0                                   ;get menu number
                 cmpi.w #2, d0                                       ;if >2
-                bgt.w TSTRTNE_BMC_PrntMenu                          ;do nothing
+                bgt.w TSTRTNE_BMC_Draw                          ;do nothing
                                                                     ;menu num 0, 1, and 2
 
                 move.l $2(a6), d0                                   ;get address
@@ -4225,7 +4800,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     move.w #0, -(sp)
                     bsr.w funcPrintText
 
-                    bra.w TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_Draw
 
                 TSTRTNE_BMC_Read_byte:
                     movea.l $2(a6), a0                              ;get address
@@ -4240,7 +4815,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     move.w #0, -(sp)
                     bsr.w funcPrintText
 
-                    bra.w TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_Draw
 
             ;
             ;   BUTTON C INPUT
@@ -4248,9 +4823,9 @@ PRAUTOINC       dc.w 'Auto increment', $0000
             TSTRTNE_BMC_Write:
                 move.w $0(a6), d0                                   ;get menu number
                 cmpi.w #3, d0                                       ;if >3
-                bgt.w TSTRTNE_BMC_PrntMenu                          ;do nothing
+                bgt.w TSTRTNE_BMC_Draw                          ;do nothing
                 cmpi.w #2, d0                                       ;if 2
-                beq.w TSTRTNE_BMC_PrntMenu                          ;do nothing
+                beq.w TSTRTNE_BMC_Draw                          ;do nothing
                                                                     ;menu num 0, 1, and 3
 
                 move.l $2(a6), d0                                   ;get address
@@ -4269,7 +4844,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     move.w #0, -(sp)
                     bsr.w funcPrintText
 
-                    bra.w TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_Draw
 
                 TSTRTNE_BMC_Write_byte:
                     movea.l $2(a6), a0                              ;get address
@@ -4284,7 +4859,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     move.w #0, -(sp)
                     bsr.w funcPrintText
 
-                    bra.w TSTRTNE_BMC_PrntMenu
+                    bra.w TSTRTNE_BMC_Draw
 
 
 
@@ -4293,26 +4868,26 @@ PRAUTOINC       dc.w 'Auto increment', $0000
 
 
 
-            TSTRTNE_BMC_PrntMenu:
+            TSTRTNE_BMC_Draw:
                 move.w $0(a6), d0                                       ;get menu number
                 cmpi.w #4, d0                                           ;if COPY
-                beq.s TSTRTNE_BMC_PrntMenu_CopyMode
+                beq.s TSTRTNE_BMC_Draw_CopyMode
 
                 ;   ADDRESS/DATA
                 lea BMCMESSAGE0, a4
                 move.w #1, d6                                           ;repeat 2 times
                 move.w #3, d5                                           ;ypos 3
-                TSTRTNE_BMC_PrntMenu_AddrData_loop:
+                TSTRTNE_BMC_Draw_AddrData_loop:
                     move.w #0, d2                                       ;palette 0(dark blue)
                     move.w #1, d0                                       ;load 1
                     sub.w d6, d0                                        ;1 - loop counter
 
                     move.w $0(a6), d1                                   ;get menu number
                     cmp.w d0, d1                                        ;if value == 1-loop counter
-                    bne TSTRTNE_BMC_PrntMenu_AddrData_prnt
+                    bne TSTRTNE_BMC_Draw_AddrData_prnt
                     move.w #4, d2                                       ;palette 4(red)
 
-                    TSTRTNE_BMC_PrntMenu_AddrData_prnt:
+                    TSTRTNE_BMC_Draw_AddrData_prnt:
                         move.l a4, -(sp)
                         move.w d2, -(sp)
                         move.w #4, -(sp)                                ;xpos fixed
@@ -4323,16 +4898,16 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     addq.w #1, d5                                       ;ypos+1
                     add.l #16, a4
 
-                    dbf d6, TSTRTNE_BMC_PrntMenu_AddrData_loop
+                    dbf d6, TSTRTNE_BMC_Draw_AddrData_loop
 
                 ;   RAM AREA
                 move.w $0(a6), d0                                       ;get menu number
                 move.w #0, d1                                           ;palette 0(dark blue)
                 cmpi.w #6, d0
-                bne.s TSTRTNE_BMC_PrntMenu_Ramarea
+                bne.s TSTRTNE_BMC_Draw_Ramarea
                 move.w #4, d1                                           ;palette 4(red)
 
-                TSTRTNE_BMC_PrntMenu_Ramarea:
+                TSTRTNE_BMC_Draw_Ramarea:
                     lea RAMAREA, a0
                     move.l a0, -(sp)
                     move.w d1, -(sp)
@@ -4341,9 +4916,9 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     move.w #0, -(sp)
                     bsr.w funcPrintText
 
-                bra.s TSTRTNE_BMC_PrntMenu_Options
+                bra.s TSTRTNE_BMC_Draw_Options
 
-                TSTRTNE_BMC_PrntMenu_CopyMode:
+                TSTRTNE_BMC_Draw_CopyMode:
                     lea DATACOPYSOURCE, a0
                     move.l a0, -(sp)
                     move.w #5, -(sp)                                        ;palette 3 (saffron)
@@ -4368,14 +4943,14 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     move.w #0, -(sp)
                     bsr.w funcPrintText
 
-                TSTRTNE_BMC_PrntMenu_Options:
+                TSTRTNE_BMC_Draw_Options:
                     lea BMCMESSAGE2, a4
                     move.w #1, d7                                           ;repeat 2 times
                     move.w #8, d6                                           ;xpos 8
-                    TSTRTNE_BMC_PrntMenu_Optn_loop_out:
+                    TSTRTNE_BMC_Draw_Optn_loop_out:
                         move.w #1, d5                                       ;repeat 2 times
                         move.w #6, d4                                       ;ypos 6
-                        TSTRTNE_BMC_PrntMenu_Optn_loop_in:
+                        TSTRTNE_BMC_Draw_Optn_loop_in:
                             move.w #0, d2                                   ;palette 0(dark blue)
                             move.w #5, d0                                   ;load 5
 
@@ -4386,10 +4961,10 @@ PRAUTOINC       dc.w 'Auto increment', $0000
 
                             move.w $0(a6), d1                               ;get menu number
                             cmp.w d0, d1                                    ;if value == 1-loop counter
-                            bne.s TSTRTNE_BMC_PrntMenu_Optn_prnt
+                            bne.s TSTRTNE_BMC_Draw_Optn_prnt
                             move.w #4, d2                                   ;palette 4(red)
 
-                            TSTRTNE_BMC_PrntMenu_Optn_prnt: 
+                            TSTRTNE_BMC_Draw_Optn_prnt: 
                                 move.l a4, -(sp)
                                 move.w d2, -(sp)
                                 move.w d6, -(sp)
@@ -4400,11 +4975,11 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                             addq.w #1, d4                                   ;ypos+1
                             add.l #8, a4
 
-                            dbf d5, TSTRTNE_BMC_PrntMenu_Optn_loop_in
+                            dbf d5, TSTRTNE_BMC_Draw_Optn_loop_in
                         
                         addi.w #10, d6                                      ;xpos+16
 
-                        dbf d7, TSTRTNE_BMC_PrntMenu_Optn_loop_out
+                        dbf d7, TSTRTNE_BMC_Draw_Optn_loop_out
 
                 
 
@@ -4413,107 +4988,115 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                 ;DATA HEX VALUE starts from 0x52230...            0 2 4 6
                 ;RAM VIEWER ADDRESS HEX VALUE starts from 0x52622...    2 4 6 8 A C E 0
                 ;RAM CONTENTS starts from 0x52680
-                ;HEX digit 0 to F is on CHARRAM 600 to 60F
+                ;HEX digit 0 to F is on every odd code of CHARRAM 1E0-1FF 
                 ;PR bits are 0xF
 
                 move.w #7, d7                                           ;repeat 8 times
                 lea $521B6, a4                                          ;last digit of address on VRAM1
                 move.l $2(a6), d6                                       ;get addr data
                 move.w $6(a6), d5                                       ;get addr digit
-                TSTRTNE_BMC_PrntMenu_Addr:
+                TSTRTNE_BMC_Draw_Addr:
                     move.w #$0001, d1                                   ;palette 1 (light blue)
                     move.w d7, d0                                       ;get loop counter
                     eori.w #$0007, d0                                   ;invert loop counter
 
                     cmp.w d0, d5                                        ;if current digit != loop digit
-                    bne.s TSTRTNE_BMC_PrntMenu_Addr_prnt                ;print hex value
+                    bne.s TSTRTNE_BMC_Draw_Addr_prnt                ;print hex value
                     move.w #$0004, d1                                   ;if not, set palette as 4 (red)
 
-                    TSTRTNE_BMC_PrntMenu_Addr_prnt:
+                    TSTRTNE_BMC_Draw_Addr_prnt:
                         move.l d6, d0                                   ;copy addr data
                         andi.l #$0000000F, d0                           ;get D0[3:0]
-                        ori.w #$F600, d0                                ;insert 0xF6XX
+                        lsl.w #1, d0                                    ;* 2
+                        addq.w #1, d0                                   ;+ 1
+                        ori.w #$F1E0, d0                                ;insert 0xF1EX
                         move.b d1, $2001(a4)                            ;write to VRAM2
                         move.w d0, (a4)                                 ;write to VRAM1
                         sub.l #2, a4                                    ;decrease A4
                         lsr.l #4, d6                                    ;shift right addr data
 
-                    dbf d7, TSTRTNE_BMC_PrntMenu_Addr
+                    dbf d7, TSTRTNE_BMC_Draw_Addr
 
                 move.w #3, d7                                           ;repeat 4 times
                 lea $52236, a4                                          ;last digit of address on VRAM1
                 move.w $8(a6), d6                                       ;get data
                 move.w $A(a6), d5                                       ;get digit
-                TSTRTNE_BMC_PrntMenu_Data:
+                TSTRTNE_BMC_Draw_Data:
                     move.w #$0001, d1                                   ;palette 1 (light blue)
                     move.w d7, d0                                       ;get loop counter
                     eori.w #$0003, d0                                   ;invert loop counter
 
                     cmp.w d0, d5                                        ;if current digit != loop digit
-                    bne.s TSTRTNE_BMC_PrntMenu_Data_prnt                ;print hex value
+                    bne.s TSTRTNE_BMC_Draw_Data_prnt                ;print hex value
                     move.w #$0004, d1                                   ;if not, set palette as 4 (red)
 
-                    TSTRTNE_BMC_PrntMenu_Data_prnt:
+                    TSTRTNE_BMC_Draw_Data_prnt:
                         move.w d6, d0                                   ;copy data
                         andi.w #$000F, d0                               ;get D0[3:0]
-                        ori.w #$F600, d0                                ;insert 0xF6XX
+                        lsl.w #1, d0                                    ;* 2
+                        addq.w #1, d0                                   ;+ 1
+                        ori.w #$F1E0, d0                                ;insert 0xF1EX
                         move.b d1, $2001(a4)                            ;write to VRAM2
                         move.w d0, (a4)                                 ;write to VRAM1
                         sub.l #2, a4                                    ;decrease A4
                         lsr.l #4, d6                                    ;shift right data
 
-                    dbf d7, TSTRTNE_BMC_PrntMenu_Data
+                    dbf d7, TSTRTNE_BMC_Draw_Data
 
                 move.w #7, d7                                           ;repeat 8 times
                 lea $52630, a4                                          ;last digit of address on VRAM1
                 move.l $10(a6), d6                                      ;get ram viewer addr data
                 move.w $14(a6), d5                                      ;get addr digit
-                TSTRTNE_BMC_PrntMenu_Ramview:
+                TSTRTNE_BMC_Draw_Ramview:
                     move.w #$0001, d1                                   ;palette 1 (light blue)
                     move.w d7, d0                                       ;get loop counter
                     eori.w #$0007, d0                                   ;invert loop counter
 
                     cmp.w d0, d5                                        ;if current digit != loop digit
-                    bne.s TSTRTNE_BMC_PrntMenu_Ramview_prnt             ;print hex value
+                    bne.s TSTRTNE_BMC_Draw_Ramview_prnt             ;print hex value
                     move.w #$0004, d1                                   ;if not, set palette as 4 (red)
 
-                    TSTRTNE_BMC_PrntMenu_Ramview_prnt:
+                    TSTRTNE_BMC_Draw_Ramview_prnt:
                         move.l d6, d0                                   ;copy ram viewer addr data
                         andi.l #$0000000F, d0                           ;get D0[3:0]
-                        ori.w #$F600, d0                                ;insert 0xF6XX
+                        lsl.w #1, d0                                    ;* 2
+                        addq.w #1, d0                                   ;+ 1
+                        ori.w #$F1E0, d0                                ;insert 0xF1EX
                         move.b d1, $2001(a4)                            ;write to VRAM2
                         move.w d0, (a4)                                 ;write to VRAM1
                         sub.l #2, a4                                    ;decrease A4
                         lsr.l #4, d6                                    ;shift right ram viewer addr data
 
-                    dbf d7, TSTRTNE_BMC_PrntMenu_Ramview
+                    dbf d7, TSTRTNE_BMC_Draw_Ramview
 
 
                 movea.l $10(a6), a0                                     ;get ram viewer addr data
                 lea $5270E, a1                                          ;RAM contents start address in VRAM1
 
                 move.w #15, d7                                          ;repeat 16 times
-                TSTRTNE_BMC_PrntMenu_Ramdata_vloop:
+                TSTRTNE_BMC_Draw_Ramdata_vloop:
                     move.w #3, d6                                       ;repeat 4 times
-                    TSTRTNE_BMC_PrntMenu_Ramdata_hloop:
+                    TSTRTNE_BMC_Draw_Ramdata_hloop:
                         move.l (a0)+, d1                                ;get ram contents
                         move.w #7, d5                                   ;repeat 8 times
-                        TSTRTNE_BMC_PrntMenu_Ramdata_4B:
+                        TSTRTNE_BMC_Draw_Ramdata_4B:
                             move.l d1, d0                               ;copy ram contents
                             andi.l #$0000000F, d0                       ;get D0[3:0]
-                            ori.w #$F600, d0                            ;insert 0xF6XX
+                            lsl.w #1, d0                                ;* 2
+                            addq.w #1, d0                               ;+ 1
+                            ori.w #$F1E0, d0                            ;insert 0xF1EX
                             move.b #$0000, $2001(a1)                    ;write to VRAM2
                             move.w d0, (a1)                             ;write to VRAM1
                             sub.l #2, a1                                ;decrease A1
                             lsr.l #4, d1                                ;shift right ram viewer addr data
 
-                            dbf d5, TSTRTNE_BMC_PrntMenu_Ramdata_4B
+                            dbf d5, TSTRTNE_BMC_Draw_Ramdata_4B
                         
                         add.l #$20, a1                                  ;next 4 bytes(VRAM1)
-                        dbf d6, TSTRTNE_BMC_PrntMenu_Ramdata_hloop
+                        dbf d6, TSTRTNE_BMC_Draw_Ramdata_hloop
                     
                     add.l #$40, a1                                      ;next line(VRAM1)
-                    dbf d7, TSTRTNE_BMC_PrntMenu_Ramdata_vloop
+                    dbf d7, TSTRTNE_BMC_Draw_Ramdata_vloop
 
 
 
@@ -4963,12 +5546,16 @@ LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
         *--------------------------------------------------------
 
         funcFixedDelaySlow:
+            jsr sysSaveReg
+
             move.b #1, $5E008                           ;kick the watchdog
             move.b #0, $5E008
             move.w #$8000, d0
             funcFixedDelaySlow_delayloop:
                 nop
                 dbf d0, funcFixedDelaySlow_delayloop    ;loop
+
+            jsr sysLoadReg
             rts
 
 
@@ -4979,12 +5566,16 @@ LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
         *--------------------------------------------------------
 
         funcFixedDelayFast:
+            jsr sysSaveReg
+
             move.b #1, $5E008                           ;kick the watchdog
             move.b #0, $5E008
             move.w #$4000, d0
             funcFixedDelayFast_delayloop:
                 nop
                 dbf d0, funcFixedDelayFast_delayloop    ;loop
+
+            jsr sysLoadReg
             rts
 
 
@@ -5241,6 +5832,42 @@ EXITMESSAGE   dc.w 'Press A+LEFT(1P) to exit back to menu screen', $0000
 FRACCONST       dc.l $05000000, $02500000, $01250000, $00625000, $00312500, $00156250, $00078125
 INTCONST        dc.w $4096, $2048, $1024, $0512, $0256, $0128, $0064, $0032, $0016, $0008, $0004, $0002, $0001
 NOWLOADING      dc.w 'NOW LOADING...', $0000
+
+IVT:
+                dc.l $00000600                                  ;Initial SP
+                dc.l $00000008                                  ;Initial PC
+                dc.l $00000900                                  ;Bus error
+                dc.l $00000900                                  ;Address error
+                dc.l $00010000                                  ;Illegal Instruction
+                dc.l $00010000                                  ;Divide by 0
+                dc.l $00010000                                  ;CHK Instruction
+                dc.l $00010000                                  ;TRAPV Instruction
+                dc.l $00010000                                  ;Privilege Violation
+                dc.l $00010000                                  ;Trace
+                dc.l $00000900, $00000900                       ;Emu
+                dc.l $00000900, $00000900, $00010000            ;Reserved
+                dc.l $00010000                                  ;Uninit. Int. Vector.
+                dc.l $00010000,$00010000,$00010000,$00010000    ;Reserved
+                dc.l $00010000,$00010000,$00010000,$00010000    ;Reserved
+                dc.l $00010000                                  ;Spurious Interrupt
+                dc.l TSTRTNE_SysIO_EXCEPTION_PARITY             ;Level 1
+                dc.l TSTRTNE_SysIO_EXCEPTION_VBLANK             ;Level 2
+                dc.l $00010000                                  ;Level 3
+                dc.l TSTRTNE_SysIO_EXCEPTION_COUNTER            ;Level 4
+                dc.l TSTRTNE_SysIO_EXCEPTION_BMCDONE            ;Level 5
+                dc.l $00010000                                  ;Level 6
+                dc.l $00010000                                  ;Level 7
+                dc.l $FFFFFFFF,$FFFFFFFF,$FFFFFFFF,$FFFFFFFF    ;Traps
+                dc.l $FFFFFFFF,$FFFFFFFF,$FFFFFFFF,$FFFFFFFF
+                dc.l $FFFFFFFF,$FFFFFFFF,$FFFFFFFF,$FFFFFFFF
+                dc.l $FFFFFFFF,$FFFFFFFF,$FFFFFFFF,$FFFFFFFF
+                dc.l $FFFFFFFF,$FFFFFFFF,$FFFFFFFF,$FFFFFFFF
+                dc.l $FFFFFFFF,$FFFFFFFF,$FFFFFFFF,$FFFFFFFF
+                dc.l $FFFFFFFF,$FFFFFFFF,$FFFFFFFF,$FFFFFFFF
+                dc.l $FFFFFFFF,$FFFFFFFF,$FFFFFFFF,$FFFFFFFF
+                dc.l $FFFFFFFF,$FFFFFFFF,$FFFFFFFF,$FFFFFFFF    ;dummy
+                dc.l $FFFFFFFF,$FFFFFFFF,$FFFFFFFF,$FFFFFFFF
+                                                                ;32+40
 
     SIMHALT             ; halt simulator
 
