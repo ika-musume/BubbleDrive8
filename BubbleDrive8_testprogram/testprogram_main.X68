@@ -3733,13 +3733,16 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     TSTRTNE_SysIO_IRQ_test_eval5:
                         addq.w #1, d0
                         bsr.w funcFixedDelaySlow
-                        cmpi.w #8, d0                           ;timeout check
+                        cmpi.w #$8, d0                          ;timeout check
                         bgt.s TSTRTNE_SysIO_IRQ_test_eval5_tmout
                         btst.b #5, $3(a6)                       ;loop
                         beq.s TSTRTNE_SysIO_IRQ_test_eval5
-                    TSTRTNE_SysIO_IRQ_test_eval5_tmout:
-                        ori.w #$0700, SR                            ;IRQ MASK 111
+
                         bsr.w TSTRTNE_SysIO_IRQ_test_prntok
+
+                    TSTRTNE_SysIO_IRQ_test_eval5_tmout:
+                        ori.w #$0700, SR                        ;IRQ MASK 111
+                        addq.w #6, d1                           ;OK xpos + 6
 
                     move.w #0, d0                               ;reset timeout register
                     andi.w #$FBFF, SR                           ;IRQ MASK 011, accepts LEVEL >3, counter = LV4
@@ -3747,13 +3750,19 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     TSTRTNE_SysIO_IRQ_test_eval4:
                         addq.w #1, d0
                         bsr.w funcFixedDelaySlow
-                        cmpi.w #8, d0                           ;timeout check
+                        cmpi.w #$8, d0                          ;timeout check
                         bgt.s TSTRTNE_SysIO_IRQ_test_eval4_tmout
                         btst.b #4, $3(a6)
                         beq.s TSTRTNE_SysIO_IRQ_test_eval4
-                    TSTRTNE_SysIO_IRQ_test_eval4_tmout:
-                        ori.w #$0700, SR                            ;IRQ MASK 111
+
                         bsr.w TSTRTNE_SysIO_IRQ_test_prntok
+
+                    TSTRTNE_SysIO_IRQ_test_eval4_tmout:
+                        move.b #1, $E(a5)
+                        move.b #0, $E(a5)
+                        ori.w #$0700, SR                        ;IRQ MASK 111
+                        addq.w #6, d1                           ;OK xpos + 6
+                        
 
                     move.w #0, d0                               ;reset timeout register
                     andi.w #$F9FF, SR                           ;IRQ MASK 001, accepts LEVEL >1, VBLANK = LV2
@@ -3765,11 +3774,13 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                         bgt.s TSTRTNE_SysIO_IRQ_test_eval2_tmout
                         btst.b #2, $3(a6)
                         beq.s TSTRTNE_SysIO_IRQ_test_eval2
+
+                        bsr.w TSTRTNE_SysIO_IRQ_test_prntok
+
                     TSTRTNE_SysIO_IRQ_test_eval2_tmout:
                         move.b #0, $1(a5)                           ;disable IRQ
-                        move.b #0, $E(a5)                           ;disable IRQ
                         ori.w #$0700, SR                            ;IRQ MASK 111
-                        bsr.w TSTRTNE_SysIO_IRQ_test_prntok
+                        addq.w #6, d1                           ;OK xpos + 6
 
                     move.w #0, d0                               ;reset timeout register
                     andi.w #$F8FF, SR                           ;IRQ MASK 000, accepts LEVEL >0, 256V = LV1
@@ -3777,15 +3788,17 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                     TSTRTNE_SysIO_IRQ_test_eval1:
                         addq.w #1, d0
                         bsr.w funcFixedDelaySlow
-                        cmpi.w #8, d0                           ;timeout check
+                        cmpi.w #8, d0                              ;timeout check
                         bgt.s TSTRTNE_SysIO_IRQ_test_eval1_tmout
                         btst.b #1, $3(a6)
                         beq.s TSTRTNE_SysIO_IRQ_test_eval1
-                    TSTRTNE_SysIO_IRQ_test_eval1_tmout:
-                        move.b #0, $3(a5)                           ;disable IRQ
-                        ori.w #$0700, SR                            ;IRQ MASK 111
-                        bsr.w TSTRTNE_SysIO_IRQ_test_prntok
 
+                        bsr.w TSTRTNE_SysIO_IRQ_test_prntok
+                        
+                    TSTRTNE_SysIO_IRQ_test_eval1_tmout:
+                        move.b #0, $3(a5)                           ;disable 256V IRQ
+                        ori.w #$0700, SR                            ;IRQ MASK 111
+                        
                     lea $600, a7
 
                     bra.w TSTRTNE_SysIO_Draw
@@ -3797,8 +3810,6 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                         move.w #6, -(sp)
                         move.w #0, -(sp)
                         bsr.w funcPrintText
-
-                        addq.w #6, d1                           ;OK xpos + 6
                         rts
 
 
@@ -4087,11 +4098,23 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                 bra.w TESTMENU
 
             TSTRTNE_SysIO_EXCEPTION_BMCDONE:
+                nop
+                nop
+                nop
+                nop
                 bset.b #5, $883
+                nop
+                nop
                 rte
 
             TSTRTNE_SysIO_EXCEPTION_COUNTER:
+                nop
+                nop
                 bset.b #4, $883
+                move.b #1, $5E00E
+                move.b #0, $5E00E
+                nop
+                nop
                 rte
 
             TSTRTNE_SysIO_EXCEPTION_VBLANK:
