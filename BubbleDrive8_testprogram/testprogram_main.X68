@@ -797,7 +797,7 @@ VECTORS dc.l $00000600                                      ;reset initial SP
 TITLEMESSAGE1   dc.w 'BubbleDrive8', $0000
 TITLEMESSAGE2   dc.w 'System Test Program', $0000
 TITLEMESSAGE3   dc.w '(C) 2020-2021 Raki', $0000
-VERSION         dc.w 'B85:K:A:D:2021102602', $0000
+VERSION         dc.w 'B85:K:A:D:2021110302', $0000
 
 
         *--------------------------------------------------------
@@ -984,8 +984,8 @@ TESTMENUITEM15  dc.w ' About this BubbleDrive8 ', $0000
                     beq TSTRTNE_Return
                     cmpi #13, d6
                     beq TSTRTNE_JMP
-                    ;cmpi #14, d6
-                    ;beq TSTRTNE_About
+                    cmpi #15, d6
+                    beq TSTRTNE_About
                     bra.w TESTMENUKEYINWAIT
 
 
@@ -5181,7 +5181,7 @@ DATACOPYTARGET  dc.w '  Target', $0000
             bsr.w funcDrawTilemap
 
 
-            lea LINE0, a4
+            lea CONTLINE0, a4
             move.w #4, d5
             move.w #10, d6
             TSTRTNE_Contributors_credits_1:
@@ -5197,7 +5197,7 @@ DATACOPYTARGET  dc.w '  Target', $0000
 
                 dbf d6, TSTRTNE_Contributors_credits_1
 
-            lea LINE11, a4
+            lea CONTLINE11, a4
             move.w #22, d5
             move.w #6, d6
             TSTRTNE_Contributors_credits_2:
@@ -5221,29 +5221,27 @@ DATACOPYTARGET  dc.w '  Target', $0000
                 jsr funcFixedDelaySlow
                 bra.w TSTRTNE_Contributors_KeyInDelay
 
-LINE0           dc.w '      --------------------      ', $0000
-LINE1           dc.w '       BubbleDrive8 is a        ', $0000
-LINE2           dc.w '         bubble memory          ', $0000
-LINE3           dc.w '       cartridge emulator       ', $0000
-LINE4           dc.w '         developed for          ', $0000
-LINE5           dc.w '                                ', $0000
-LINE6           dc.w '     "Konami Bubble System"     ', $0000
-LINE7           dc.w '                                ', $0000
-LINE8           dc.w '  - Copyright 2020-2021 Raki -  ', $0000
-LINE9           dc.w '          bubsys85.net          ', $0000
-LINE10          dc.w '      --------------------      ', $0000
+CONTLINE0       dc.w '      --------------------      ', $0000
+CONTLINE1       dc.w '       BubbleDrive8 is a        ', $0000
+CONTLINE2       dc.w '         bubble memory          ', $0000
+CONTLINE3       dc.w '       cartridge emulator       ', $0000
+CONTLINE4       dc.w '         developed for          ', $0000
+CONTLINE5       dc.w '                                ', $0000
+CONTLINE6       dc.w '     "Konami Bubble System"     ', $0000
+CONTLINE7       dc.w '                                ', $0000
+CONTLINE8       dc.w '  - Copyright 2020-2021 Raki -  ', $0000
+CONTLINE9       dc.w '          bubsys85.net          ', $0000
+CONTLINE10      dc.w '      --------------------      ', $0000
 
-LINE11          dc.w '       Special thanks to        ', $0000
-LINE12          dc.w '              ----              ', $0000
-LINE13          dc.w '      v9938          MAKI       ', $0000
-LINE14          dc.w '   CSG Akatian      akamig      ', $0000
-LINE15          dc.w '                                ', $0000
-LINE16          dc.w '              MAME              ', $0000
-LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
+CONTLINE11      dc.w '       Special thanks to        ', $0000
+CONTLINE12      dc.w '              ----              ', $0000
+CONTLINE13      dc.w '      v9938          MAKI       ', $0000
+CONTLINE14      dc.w '   CSG Akatian      akamig      ', $0000
+CONTLINE15      dc.w '      Artworks by Tsuruki       ', $0000
+CONTLINE16      dc.w '              MAME              ', $0000
+CONTLINE17      dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
 
             
-
-
 
 
         *--------------------------------------------------------
@@ -5258,6 +5256,68 @@ LINE17          dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
 
 
 
+
+        *--------------------------------------------------------
+        *
+        *       TESTMENU_About subroutine
+        *
+        *--------------------------------------------------------
+
+        TSTRTNE_About:
+            jsr funcClearTilemap
+
+            lea INFOLINE0, a4
+            move.w #7, d5
+            move.w #5, d6
+            TSTRTNE_About_credits_1:
+                move.l a4, -(sp)
+                move.w #0, -(sp)
+                move.w #0, -(sp)                                        ;xpos fixed
+                move.w d5, -(sp)
+                move.w #0, -(sp)
+                bsr.w funcPrintText
+
+                addq.w #3, d5
+                add.l #68, a4
+
+                dbf d6, TSTRTNE_About_credits_1
+
+            lea INFOLINE1, a4
+            move.w #8, d5
+            move.w #5, d6
+            TSTRTNE_About_credits_2:
+                move.l a4, -(sp)
+                move.w #1, -(sp)
+                move.w #0, -(sp)                                        ;xpos fixed
+                move.w d5, -(sp)
+                move.w #0, -(sp)
+                bsr.w funcPrintText
+
+                addq.w #3, d5
+                add.l #68, a4
+
+                dbf d6, TSTRTNE_About_credits_2
+
+            TSTRTNE_About_KeyInDelay:
+                bsr.w funcCheckInput                                    ;check P1 button input
+                move.w (sp)+, d0                                        ;get latest input 
+                btst.l #$4, d0                                          ;power-up(gradius) or fire(twinbee)
+                beq.w TESTMENU
+                jsr funcFixedDelaySlow
+                bra.w TSTRTNE_About_KeyInDelay
+
+INFOLINE0       dc.w '         Serial number          ', $0000
+INFOLINE1       dc.w '         [BDXXXXXXXXX]          ', $0000
+INFOLINE3       dc.w '       Manufacturing Date       ', $0000
+INFOLINE4       dc.w '           2022-XX-XX           ', $0000
+INFOLINE6       dc.w '            User  ID            ', $0000
+INFOLINE7       dc.w '             XXXXXX             ', $0000
+INFOLINE9       dc.w '     FPGA bitstream version     ', $0000
+INFOLINE10      dc.w '              v1.7              ', $0000
+INFOLINE12      dc.w '       Test program build       ', $0000
+INFOLINE13      dc.w '      B85:K:A:D:2021110302      ', $0000
+INFOLINE15      dc.w '        Hardware version        ', $0000
+INFOLINE16      dc.w '              v3.1              ', $0000
 
 
 

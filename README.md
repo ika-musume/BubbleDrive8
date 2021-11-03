@@ -26,13 +26,13 @@ Critical bug fixes
 State machine improved
 ### v0.83
 Design finalized
-### v0.85 - Oct. 1, 2020
+### v0.85 - Oct. 01, 2020
 Minor updates
 ### v0.86 - Dec. 17, 2020
 Added bubble memory signal capture file(sigrok)
 ### v0.87 - Dec. 27, 2020
 Updated TimingGenerator.v and BubbleInterface.v for better emulation. Changed bubble memory signal capture file.
-### v0.88 - Jan. 9, 2021
+### v0.88 - Jan. 09, 2021
 Changed several signals to active low, changed obscure signal names. State machine improved.
 ### v1.0 - Apr. 14, 2021
 It works! v3 branch merged. Tested on a real PCB.
@@ -48,3 +48,5 @@ FT232HL async FIFO implementation completed.
 Bubble System test program B85:K:A:A:2021091002 released.
 ### v1.55 - Oct. 11, 2021
 Bubble System test program B85:K:A:A:2021101102 released.
+### v1.6 - Nov. 03, 2021
+Bubble System test program B85:K:A:D:2021110302 released.
