@@ -7,7 +7,8 @@ module BubbleDrive8_emucore
     input   wire            nEN,
 
     //DIP switch
-    input   wire    [2:0]   IMGNUM,
+    input   wire    [3:0]   IMGSEL,
+    input   wire            ROMSEL,
 
     //4bit width mode
     input   wire            BITWIDTH4,
@@ -31,13 +32,18 @@ module BubbleDrive8_emucore
     output  wire            DOUT2,
     output  wire            DOUT3,
 
-    //W25Q32
-    output  wire            nROMCS,
-    output  wire            ROMCLK,
-    inout   wire            ROMIO0,
-    input   wire            ROMIO1,
-    input   wire            ROMIO2,
-    input   wire            ROMIO3,
+    //Configuration flash: W25Q80, W25Q64
+    output  wire            CONFIGROM_nCS,
+    output  wire            CONFIGROM_CLK,
+    output  wire            CONFIGROM_MOSI,
+    input   wire            CONFIGROM_MISO,
+
+    //User flash
+    output  wire            USERROM_FLASH_nCS,
+    output  wire            USERROM_FRAM_nCS,
+    output  wire            USERROM_CLK,
+    output  wire            USERROM_MOSI,
+    input   wire            USERROM_MISO,
     
     //FIFO buffer
     output  wire            nFIFOBUFWRCLKEN,
@@ -68,79 +74,84 @@ assign nACC = ~ACCTYPE[2];
 
 TimingGenerator TimingGenerator_0
 (
-    .MCLK           (MCLK           ),
+    .MCLK           (MCLK               ),
 
-    .nEN            (nEN            ),
-    .TIMINGSEL      (TIMINGSEL      ),
+    .nEN            (nEN                ),
+    .TIMINGSEL      (TIMINGSEL          ),
 
-    .CLKOUT         (CLKOUT         ),
-    .nBSS           (nBSS           ),
-    .nBSEN          (nBSEN          ),
-    .nREPEN         (nREPEN         ),
-    .nBOOTEN        (nBOOTEN        ),
-    .nSWAPEN        (nSWAPEN        ),
+    .CLKOUT         (CLKOUT             ),
+    .nBSS           (nBSS               ),
+    .nBSEN          (nBSEN              ),
+    .nREPEN         (nREPEN             ),
+    .nBOOTEN        (nBOOTEN            ),
+    .nSWAPEN        (nSWAPEN            ),
 
-    .ACCTYPE        (ACCTYPE        ),
-    .BOUTCYCLENUM   (BOUTCYCLENUM   ),
-    .nBINCLKEN      (nBINCLKEN      ),
-    .nBOUTCLKEN     (nBOUTCLKEN     ),
+    .ACCTYPE        (ACCTYPE            ),
+    .BOUTCYCLENUM   (BOUTCYCLENUM       ),
+    .nBINCLKEN      (nBINCLKEN          ),
+    .nBOUTCLKEN     (nBOUTCLKEN         ),
 
-    .ABSPAGE        (ABSPAGE         )
+    .ABSPAGE        (ABSPAGE            )
 );
 
 
 
 BubbleInterface BubbleInterface_0
 (
-    .MCLK           (MCLK           ),
+    .MCLK           (MCLK               ),
 
-    .BITWIDTH4      (BITWIDTH4      ),
+    .BITWIDTH4      (BITWIDTH4          ),
 
-    .ACCTYPE        (ACCTYPE        ),
-    .BOUTCYCLENUM   (BOUTCYCLENUM   ),
-    .nBINCLKEN      (nBINCLKEN      ),
-    .nBOUTCLKEN     (nBOUTCLKEN     ),
+    .ACCTYPE        (ACCTYPE            ),
+    .BOUTCYCLENUM   (BOUTCYCLENUM       ),
+    .nBINCLKEN      (nBINCLKEN          ),
+    .nBOUTCLKEN     (nBOUTCLKEN         ),
 
-    .nOUTBUFWRCLKEN (nOUTBUFWRCLKEN ),
-    .OUTBUFWRADDR   (OUTBUFWRADDR   ),
-    .OUTBUFWRDATA   (OUTBUFWRDATA   ),
+    .nOUTBUFWRCLKEN (nOUTBUFWRCLKEN     ),
+    .OUTBUFWRADDR   (OUTBUFWRADDR       ),
+    .OUTBUFWRDATA   (OUTBUFWRDATA       ),
 
-    .DOUT0          (DOUT0          ),
-    .DOUT1          (DOUT1          ),
-    .DOUT2          (DOUT2          ),
-    .DOUT3          (DOUT3          )
+    .DOUT0          (DOUT0              ),
+    .DOUT1          (DOUT1              ),
+    .DOUT2          (DOUT2              ),
+    .DOUT3          (DOUT3              )
 );
 
 
 
 SPILoader SPILoader_0
 (
-    .MCLK           (MCLK           ),
+    .MCLK           (MCLK               ),
 
-    .IMGNUM         (IMGNUM         ),
+    .IMGSEL         (IMGSEL             ),
+    .ROMSEL         (ROMSEL             ),
 
-    .BITWIDTH4      (BITWIDTH4      ),
+    .BITWIDTH4      (BITWIDTH4          ),
 
-    .ACCTYPE        (ACCTYPE        ),
-    .ABSPAGE        (ABSPAGE         ),
-    .RELPAGE        (FIFORELPAGE   ),
+    .ACCTYPE        (ACCTYPE            ),
+    .ABSPAGE        (ABSPAGE            ),
+    .RELPAGE        (FIFORELPAGE        ),
 
-    .nOUTBUFWRCLKEN (nOUTBUFWRCLKEN ),
-    .OUTBUFWRADDR   (OUTBUFWRADDR   ),
-    .OUTBUFWRDATA   (OUTBUFWRDATA   ),
+    .nOUTBUFWRCLKEN (nOUTBUFWRCLKEN     ),
+    .OUTBUFWRADDR   (OUTBUFWRADDR       ),
+    .OUTBUFWRDATA   (OUTBUFWRDATA       ),
 
-    .nCS            (nROMCS         ),
-    .CLK            (ROMCLK         ),
-    .IO0            (ROMIO0         ),
-    .IO1            (ROMIO1         ),
-    .IO2            (ROMIO2         ),
-    .IO3            (ROMIO3         ),
+    .CONFIGROM_nCS  (CONFIGROM_nCS      ),
+    .CONFIGROM_CLK  (CONFIGROM_CLK      ),
+    .CONFIGROM_MOSI (CONFIGROM_MOSI     ),
+    .CONFIGROM_MISO (CONFIGROM_MISO     ),
 
-    .nFIFOBUFWRCLKEN(nFIFOBUFWRCLKEN),
-    .FIFOBUFWRADDR  (FIFOBUFWRADDR  ),
-    .FIFOBUFWRDATA  (FIFOBUFWRDATA  ),
-    .nFIFOSENDBOOT  (nFIFOSENDBOOT  ),
-    .nFIFOSENDUSER  (nFIFOSENDUSER  )
+    .USERROM_FLASH_nCS  (USERROM_FLASH_nCS  ),
+    .USERROM_FRAM_nCS   (USERROM_FRAM_nCS   ),
+    .USERROM_CLK    (USERROM_CLK        ),
+    .USERROM_MOSI   (USERROM_MOSI       ),
+    .USERROM_MISO   (USERROM_MISO       ),
+
+    .nFIFOBUFWRCLKEN(nFIFOBUFWRCLKEN    ),
+    .FIFOBUFWRADDR  (FIFOBUFWRADDR      ),
+    .FIFOBUFWRDATA  (FIFOBUFWRDATA      ),
+    .nFIFOSENDBOOT  (nFIFOSENDBOOT      ),
+    .nFIFOSENDUSER  (nFIFOSENDUSER      )
 );
 
 

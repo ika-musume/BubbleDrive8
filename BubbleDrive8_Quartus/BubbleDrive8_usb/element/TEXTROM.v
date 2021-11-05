@@ -8,7 +8,7 @@ module TEXTROM
 
 reg     [7:0]   text_rom[127:0];
 
-always @(negedge MCLK) //read 
+always @(posedge MCLK) //read 
 begin   
     if(nCLKEN == 1'b0)
     begin

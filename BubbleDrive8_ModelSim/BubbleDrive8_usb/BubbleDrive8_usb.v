@@ -61,8 +61,8 @@ module BubbleDrive8_usb
 
 //enable signals(active low)
 wire            fifo_output_driver_enable = nFIFOEN;
-wire            mpsse_connection_enable = nMPSSEEN;
 wire            nMPSSERQ;
+wire            mpsse_connection_enable = nMPSSEEN | nMPSSERQ;
 
 //declare fifo variables
 reg     [7:0]   FIFO_OUTLATCH;          //ADBUS0-7
@@ -75,11 +75,12 @@ reg             nFIFOSIWU = 1'b1;       //ACBUS4
 //MPSSE input / output driver
 assign MPSSECLK = (mpsse_connection_enable == 1'b0) ? ADBUS[0] : 1'b1; //prevent unintended access
 assign MPSSEMOSI = (mpsse_connection_enable == 1'b0) ? ADBUS[1] : 1'b0;
-assign ADBUS[2] = (mpsse_connection_enable == 1'b0) ? MPSSEMISO : 1'bZ;
 assign nMPSSECS = (mpsse_connection_enable == 1'b0) ? ADBUS[3] : 1'b1;
 
 //FIFO input / output driver
-assign ADBUS = (fifo_output_driver_enable == 1'b0) ? FIFO_OUTLATCH : 8'bZZZZ_ZZZZ;
+assign ADBUS = (fifo_output_driver_enable == 1'b0) ? FIFO_OUTLATCH : 
+                    (mpsse_connection_enable == 1'b0) ? {5'bZZZZ_Z, MPSSEMISO, 2'bZZ} :
+                        8'bZZZZ_ZZZZ;
 assign nFIFORXF = ACBUS[0];
 assign nFIFOTXE = ACBUS[1];
 assign ACBUS[2] = (fifo_output_driver_enable == 1'b0) ? nFIFORD : 1'bZ; //set pull-up resistor on the pin

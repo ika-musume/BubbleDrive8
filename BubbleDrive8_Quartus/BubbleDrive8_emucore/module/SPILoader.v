@@ -7,8 +7,9 @@ module SPILoader
     //48MHz input clock
     input   wire            MCLK,
 
-    //image select
-    input   wire    [2:0]   IMGNUM,
+    //image/ROM device select
+    input   wire    [3:0]   IMGSEL,
+    input   wire            ROMSEL,
 
     //4bit width mode
     input   wire            BITWIDTH4,
@@ -30,15 +31,89 @@ module SPILoader
     output  reg             nFIFOSENDBOOT = 1'b1,
     output  reg             nFIFOSENDUSER = 1'b1,
 
-    //W25Q32
-    output  reg             nCS = 1'b1,
-    output  reg             CLK = 1'b1,
-    inout   wire            IO0, //MOSI
-    input   wire            IO1, //MISO
-    input   wire            IO2,
-    input   wire            IO3
+    //Configuration flash: W25Q80, W25Q64
+    output  reg             CONFIGROM_nCS,
+    output  reg             CONFIGROM_CLK,
+    output  reg             CONFIGROM_MOSI,
+    input   wire            CONFIGROM_MISO,
+
+    //User flash
+    output  reg             USERROM_FLASH_nCS,
+    output  reg             USERROM_FRAM_nCS,
+    output  reg             USERROM_CLK,
+    output  reg             USERROM_MOSI,
+    input   wire            USERROM_MISO
 );
 
+
+
+/*
+    GLOBAL SPI REGISTERS
+*/
+
+reg             SPI_nCS = 1'b1;
+reg             SPI_CLK = 1'b1;
+reg             SPI_MOSI;
+reg             SPI_MISO;
+reg     [2:0]   SPI_IMG;
+
+
+/*
+    SPI MUX
+*/
+
+always @(*)
+begin
+    if(IMGSEL[3] == 1'b1) //FPGA configuration ROM W25Q08
+    begin
+        CONFIGROM_nCS       = SPI_nCS;
+        CONFIGROM_CLK       = SPI_CLK;
+        CONFIGROM_MOSI      = SPI_MOSI;
+
+        USERROM_FLASH_nCS   = 1'b1;
+        USERROM_FRAM_nCS    = 1'b1;
+        USERROM_CLK         = 1'b1;
+        USERROM_MOSI        = 1'b1;
+
+        SPI_MISO            = CONFIGROM_MISO;
+
+        SPI_IMG             = 3'b001;
+    end
+
+    else
+    begin
+        if(ROMSEL == 1'b0) //W25Q32
+        begin
+            CONFIGROM_nCS       = 1'b1;
+            CONFIGROM_CLK       = 1'b1;
+            CONFIGROM_MOSI      = 1'b1;
+
+            USERROM_FLASH_nCS   = SPI_nCS;
+            USERROM_FRAM_nCS    = 1'b1;
+            USERROM_CLK         = SPI_CLK;
+            USERROM_MOSI        = SPI_MOSI;
+
+            SPI_MISO            = USERROM_MISO;
+
+            SPI_IMG             = IMGSEL[2:0];
+        end
+        else //Fujitsu MB85RS4MT or Cypress CY15B108
+        begin
+            CONFIGROM_nCS       = 1'b1;
+            CONFIGROM_CLK       = 1'b1;
+            CONFIGROM_MOSI      = 1'b1;
+
+            USERROM_FLASH_nCS   = 1'b1;
+            USERROM_FRAM_nCS    = SPI_nCS;
+            USERROM_CLK         = SPI_CLK;
+            USERROM_MOSI        = SPI_MOSI;
+
+            SPI_MISO            = USERROM_MISO;
+
+            SPI_IMG             = {2'b00, IMGSEL[0]};
+        end
+    end
+end
 
 
 
@@ -54,18 +129,18 @@ reg             map_write_enable = 1'b1;
 reg             map_write_clken = 1'b1;
 reg             map_read_clken = 1'b1;
 
-always @(negedge MCLK)
+always @(posedge MCLK)
 begin
     if(map_write_clken == 1'b0)
     begin
         if(map_write_enable == 1'b0)
-          begin
-              map_table[{map_addr[11:4], ~map_addr[3:0]}] <= map_data_in; //see bubsys85.net
-          end
+        begin
+            map_table[{map_addr[11:4], ~map_addr[3:0]}] <= map_data_in; //see bubsys85.net
+        end
      end
 end
 
-always @(negedge MCLK)
+always @(posedge MCLK)
 begin
     if(map_read_clken == 1'b0)
     begin
@@ -108,22 +183,19 @@ RelativePageConverter Main (.MCLK(MCLK), .nCONV(convert), .ABSPAGE(target_positi
 */
 
 reg     [31:0]  spi_instruction = 32'h0000_0000; //33 bit: 1 bit SPI_LATCH + 8 bit instruction + 24 bit address
-reg             SPI_OUTLATCH = 1'b0;
-reg             mosi_enable = 1'b1;
-assign IO0 = (mosi_enable == 1'b0) ? SPI_OUTLATCH : 1'bZ;
 
 reg     [11:0]  general_counter = 12'd0;
 
 //declare states
 localparam RESET = 12'b0000_0000_0000;              //버블 출력 종료 후 기본 리셋상태
 
-localparam SPI_RDCMD_2B_S0 = 12'b0001_0000_0000;    //ACCTYPE가 페이지가 카운트 되기 전에 바뀌므로 ABSPAGE+1을 집어넣고, 페이지를 변환한다
-localparam SPI_RDCMD_2B_S1 = 12'b0001_0000_0001;    //nop
+localparam SPI_RDCMD_2B_S0 = 12'b0001_0000_0000;    //ACCTYPE가 페이지가 카운트 되기 전에 바뀌므로 ABSPAGE+1을 집어넣고, 페이지를 변환한다(convert = 0)
+localparam SPI_RDCMD_2B_S1 = 12'b0001_0000_0001;    //convert = 1
 localparam SPI_RDCMD_2B_S2 = 12'b0001_0000_0010;    //SPI인스트럭션을 버퍼에 로드한다, 부트로더와 페이지가 달라짐
 localparam SPI_RDCMD_2B_S3 = 12'b0001_0000_0011;    //SPI CS내려서 준비한다
 localparam SPI_RDCMD_2B_S4 = 12'b0001_0000_0100;    //branch state; 전송 안 했으면 다음 state, 만약 다 전송했으면 액세스 타입에 따라 분기한다
 localparam SPI_RDCMD_2B_S5 = 12'b0001_0000_0101;    //negedge에서 마스터가 SPI명령 쉬프트
-localparam SPI_RDCMD_2B_S6 = 12'b0001_0000_0110;    //posedge에서 슬레이브가 명령 받게 CLK = 1, branch state로 돌아가기
+localparam SPI_RDCMD_2B_S6 = 12'b0001_0000_0110;    //posedge에서 슬레이브가 명령 받게 SPI_CLK = 1, branch state로 돌아가기
 
 //bootloader load
 localparam BOOT_2B_S0 = 12'b0011_0010_0000;         //OUTBUFFER주소를 부트로더 시작 주소로 변경한다
@@ -143,17 +215,19 @@ localparam BOOT_2B_S11 = 12'b0011_0010_1011;        //모두 정리하고(clken 
 //page head 6bit
 localparam PGRD_2B_S0 = 12'b0100_0000_0000;         //OUTBUFFER주소를 페이지 시작 주소로 변경한다
 localparam PGRD_2B_S1 = 12'b0100_0000_0001;         //branch state; 초반 6비트 쉬프트를 했나 안 했나 체크(주의: 0x000, 0x804등은 컨트롤러가 자체적으로 쉬프트시키는듯함)
-localparam PGRD_2B_S2 = 12'b0100_0000_0010;         //에러맵 테이블 clken = 0으로 읽기
-localparam PGRD_2B_S3 = 12'b0100_0000_0011;         //테이블 어드레스 증가, 불량루프(0)이면 데이터 0 쓰기 준비, 정상루프면 1 쓰기 준비
-localparam PGRD_2B_S4 = 12'b0100_0000_0100;         //버퍼에 데이터 쓰기
-localparam PGRD_2B_S5 = 12'b0100_0000_0101;         //버퍼 어드레스 증가, branch로 돌아가기
+localparam PGRD_2B_S2_0 = 12'b0100_0000_0010;       //에러맵 테이블 clken = 0으로 읽기
+localparam PGRD_2B_S2_1 = 12'b0100_0000_0011;       //에러맵 테이블 clken = 1으로
+localparam PGRD_2B_S3 = 12'b0100_0000_0100;         //불량루프(0)이면 데이터 0 쓰기 준비, 정상루프면 1 쓰기 준비
+localparam PGRD_2B_S4 = 12'b0100_0000_0101;         //버퍼에 데이터 쓰기
+localparam PGRD_2B_S5 = 12'b0100_0000_0110;         //테이블 어드레스 증가, 버퍼 어드레스 증가, branch로 돌아가기
 //page data load
-localparam PGRD_2B_S6 = 12'b0100_0000_0110;         //branch state; 페이지 다 로딩했나 체크한다, 로딩했으면 SPIIDLE
-localparam PGRD_2B_S7 = 12'b0100_0000_0111;         //negedge에서 슬레이브가 SPI데이터 보냄
-localparam PGRD_2B_S8 = 12'b0100_0000_1000;         //posedge에서 데이터를 샘플링하고, 에러맵 테이블 clken = 0으로 읽기
-localparam PGRD_2B_S9 = 12'b0100_0000_1001;         //테이블 어드레스 증가, 불량루프(0)이면 데이터 0 쓰기 준비, 정상루프면 SPI데이터 쓰기 준비
-localparam PGRD_2B_S10 = 12'b0100_0000_1010;        //버퍼에 데이터를 쓴다
-localparam PGRD_2B_S11 = 12'b0100_0000_1011;        //branch state; 버퍼 어드레스 증가, 정상루프면 g.c증가시키고 S6으로 돌아가기, 불량루프면 g.c는 그대로 S8로 가서 에러맵 읽기
+localparam PGRD_2B_S6 = 12'b0100_0000_0111;         //branch state; 페이지 다 로딩했나 체크한다, 로딩했으면 SPIIDLE
+localparam PGRD_2B_S7 = 12'b0100_0000_1000;         //negedge에서 슬레이브가 SPI데이터 보냄
+localparam PGRD_2B_S8 = 12'b0100_0000_1001;         //posedge에서 데이터를 샘플링하고, 에러맵 테이블 clken = 0으로 읽기 
+localparam PGRD_2B_S9 = 12'b0100_0000_1010;         //에러맵 테이블 clken = 0으로 읽기 
+localparam PGRD_2B_S10 = 12'b0100_0000_1011;        //불량루프(0)이면 데이터 0 쓰기 준비, 정상루프면 SPI데이터 쓰기 준비
+localparam PGRD_2B_S11 = 12'b0100_0000_1100;        //버퍼에 데이터를 쓴다
+localparam PGRD_2B_S12 = 12'b0100_0000_1101;        //branch state; 테이블 어드레스 증가, 버퍼 어드레스 증가, 정상루프면 g.c증가시키고 S6으로 돌아가기, 불량루프면 g.c는 그대로 S8로 가서 에러맵 읽기
 
 localparam SPI_RDIDLE_S0 = 12'b0000_0001_0000;      //SPI CS = 1; 데이터 출력 다 끝난 후 버블 데이터 다 보낼때까지 대기시간, SENDBOOT or SENDUSER = 0
 
@@ -234,18 +308,19 @@ begin
         PGRD_2B_S1:
             if(general_counter < 12'd6)
             begin
-                spi_state <= PGRD_2B_S2;
+                spi_state <= PGRD_2B_S2_0;
             end
             else
             begin
                 spi_state <= PGRD_2B_S6;
             end
-        PGRD_2B_S2: spi_state <= PGRD_2B_S3;
+        PGRD_2B_S2_0: spi_state <= PGRD_2B_S2_1;
+        PGRD_2B_S2_1: spi_state <= PGRD_2B_S3;
         PGRD_2B_S3: spi_state <= PGRD_2B_S4;
         PGRD_2B_S4: spi_state <= PGRD_2B_S5;
         PGRD_2B_S5:
             case(map_data_out)
-                1'b0: spi_state <= PGRD_2B_S2; //불량 루프면 다음 에러맵 읽기
+                1'b0: spi_state <= PGRD_2B_S2_0; //불량 루프면 다음 에러맵 읽기
                 1'b1: spi_state <= PGRD_2B_S1; //정상 루프면 되돌아가기, 카운터 증가
             endcase
 
@@ -262,7 +337,8 @@ begin
         PGRD_2B_S8: spi_state <= PGRD_2B_S9;
         PGRD_2B_S9: spi_state <= PGRD_2B_S10;
         PGRD_2B_S10: spi_state <= PGRD_2B_S11;
-        PGRD_2B_S11:
+        PGRD_2B_S11: spi_state <= PGRD_2B_S12;
+        PGRD_2B_S12:
             case(map_data_out)
                 1'b0: spi_state <= PGRD_2B_S8; //불량 루프면 다음 에러맵 읽기
                 1'b1: spi_state <= PGRD_2B_S6; //정상 루프면 데이터 그대로 쓰기 준비
@@ -278,7 +354,7 @@ begin
     case (spi_state)
         SPI_RDIDLE_S0:
         begin
-            nCS <= 1'b1; CLK <= 1'b1; 
+            SPI_nCS <= 1'b1; SPI_CLK <= 1'b1; 
             
             if(ACCTYPE == 3'b110) //bootloader
             begin
@@ -298,7 +374,7 @@ begin
         end
         RESET:
         begin
-            nCS <= 1'b1; CLK <= 1'b1; 
+            SPI_nCS <= 1'b1; SPI_CLK <= 1'b1; 
             OUTBUFWRADDR <= {1'b0, 13'd0, 1'b0}; nOUTBUFWRCLKEN <= 1'b1;
             map_addr <= 12'd0; map_write_enable <= 1'b1; map_write_clken <= 1'b1; map_read_clken <= 1'b1;
             FIFOBUFWRADDR <= 13'd0; nFIFOBUFWRCLKEN <= 1'b1; nFIFOSENDBOOT <= 1'b1; nFIFOSENDUSER <= 1'b1;
@@ -319,34 +395,28 @@ begin
         begin
             convert <= 1'b1;
             case(ACCTYPE[0])
-                1'b0: spi_instruction <= {8'b0000_0011, 2'b00, IMGNUM[2:0], 12'h805, 7'b000_0000};
-                1'b1: spi_instruction <= {8'b0000_0011, 2'b00, IMGNUM[2:0], relative_page[11:0], 7'b000_0000};
+                1'b0: spi_instruction <= {8'b0000_0011, 2'b00, SPI_IMG, 12'h805, 7'b000_0000};
+                1'b1: spi_instruction <= {8'b0000_0011, 2'b00, SPI_IMG, relative_page[11:0], 7'b000_0000};
             endcase
         end
         SPI_RDCMD_2B_S3:
         begin
-            nCS <= 1'b0;
-            mosi_enable <= 1'b0;
+            SPI_nCS <= 1'b0;
         end
         SPI_RDCMD_2B_S4:
         begin
-            case({general_counter[5], ACCTYPE[0]})
-                2'b00: mosi_enable <= 1'b0;
-                2'b01: mosi_enable <= 1'b0;
-                2'b10: mosi_enable <= 1'b1;
-                2'b11: mosi_enable <= 1'b1;
-            endcase
+            
         end
         SPI_RDCMD_2B_S5:
         begin
-            CLK <= 1'b0;
-            SPI_OUTLATCH <= spi_instruction[31];
+            SPI_CLK <= 1'b0;
+            SPI_MOSI <= spi_instruction[31];
             spi_instruction[31:1] <= spi_instruction[30:0]; 
             general_counter <= general_counter + 12'd1; 
         end
         SPI_RDCMD_2B_S6:
         begin
-            CLK <= 1'b1;
+            SPI_CLK <= 1'b1;
         end
 
         BOOT_2B_S0:
@@ -362,13 +432,13 @@ begin
         end
         BOOT_2B_S2:
         begin
-            CLK <= 1'b0;
+            SPI_CLK <= 1'b0;
         end
         BOOT_2B_S3:
         begin
-            CLK <= 1'b1;
-            OUTBUFWRDATA <= IO1;
-            FIFOBUFWRDATA <= IO1;
+            SPI_CLK <= 1'b1;
+            OUTBUFWRDATA <= SPI_MISO;
+            FIFOBUFWRDATA <= SPI_MISO;
         end
         BOOT_2B_S4:
         begin
@@ -392,14 +462,14 @@ begin
         end
         BOOT_2B_S8:
         begin
-            CLK <= 1'b0;
+            SPI_CLK <= 1'b0;
         end
         BOOT_2B_S9:
         begin
-            CLK <= 1'b1;
-            OUTBUFWRDATA <= IO1;
-            map_data_in <= IO1;
-            FIFOBUFWRDATA <= IO1;
+            SPI_CLK <= 1'b1;
+            OUTBUFWRDATA <= SPI_MISO;
+            map_data_in <= SPI_MISO;
+            FIFOBUFWRDATA <= SPI_MISO;
         end
         BOOT_2B_S10:
         begin
@@ -425,13 +495,17 @@ begin
         begin
             
         end
-        PGRD_2B_S2:
+        PGRD_2B_S2_0:
         begin
             map_read_clken <= 1'b0;
         end
+        PGRD_2B_S2_1:
+        begin
+            map_read_clken <= 1'b1;
+        end
         PGRD_2B_S3:
         begin
-            map_read_clken <= 1'b1; map_addr <= map_addr + 12'd1;
+            map_read_clken <= 1'b1;
             case(map_data_out)
                 1'b0: OUTBUFWRDATA <= 1'b0; //불량 루프면 데이터 0쓰기 준비
                 1'b1: OUTBUFWRDATA <= 1'b1; //정상 루프면 데이터 1쓰기 준비, 카운터 증가
@@ -443,6 +517,7 @@ begin
         end
         PGRD_2B_S5:
         begin
+            map_addr <= map_addr + 12'd1;
             nOUTBUFWRCLKEN <= 1'b1; OUTBUFWRADDR <= OUTBUFWRADDR + 15'd1;
             case(map_data_out)
                 1'b0: begin end //불량 루프면 다음 에러맵 읽기
@@ -455,22 +530,26 @@ begin
         end
         PGRD_2B_S7:
         begin
-            CLK <= 1'b0;
+            SPI_CLK <= 1'b0;
         end
         PGRD_2B_S8:
         begin
-            CLK <= 1'b1;
+            SPI_CLK <= 1'b1;
             map_read_clken <= 1'b0;
         end
         PGRD_2B_S9:
         begin
-            map_read_clken <= 1'b1; map_addr <= map_addr + 12'd1;
-            case(map_data_out)
-                1'b0: begin OUTBUFWRDATA <= 1'b0; end //불량 루프면 데이터 0쓰기 준비
-                1'b1: begin OUTBUFWRDATA <= IO1; FIFOBUFWRDATA <= IO1; end //정상 루프면 데이터 그대로 쓰기 준비
-            endcase
+            map_read_clken <= 1'b1;
         end
         PGRD_2B_S10:
+        begin
+            map_read_clken <= 1'b1;
+            case(map_data_out)
+                1'b0: begin OUTBUFWRDATA <= 1'b0; end //불량 루프면 데이터 0쓰기 준비
+                1'b1: begin OUTBUFWRDATA <= SPI_MISO; FIFOBUFWRDATA <= SPI_MISO; end //정상 루프면 데이터 그대로 쓰기 준비
+            endcase
+        end
+        PGRD_2B_S11:
         begin
             nOUTBUFWRCLKEN <= 1'b0;
             case(map_data_out)
@@ -479,8 +558,9 @@ begin
             endcase
             
         end
-        PGRD_2B_S11:
+        PGRD_2B_S12:
         begin
+            map_addr <= map_addr + 12'd1;
             nOUTBUFWRCLKEN <= 1'b1; OUTBUFWRADDR <= OUTBUFWRADDR + 15'd1; 
             nFIFOBUFWRCLKEN <= 1'b1; 
             case(map_data_out)

@@ -27,18 +27,23 @@ module BubbleDrive8_top
     input   wire            MRST,
 
     //control inputs
-    input   wire    [2:0]   IMGNUMSW,
+    input   wire    [3:0]   IMGSELSW,
 
-    //W25Q32
-    output  wire            nROMCS,
-    output  wire            ROMCLK,
-    inout   wire            ROMIO0,
-    input   wire            ROMIO1,
-    input   wire            ROMIO2,
-    input   wire            ROMIO3,
+    //Configuration flash: W25Q80, W25Q64
+    output  wire            CONFIGROM_nCS,
+    output  wire            CONFIGROM_CLK,
+    output  wire            CONFIGROM_MOSI,
+    input   wire            CONFIGROM_MISO,
+
+    //User flash
+    output  wire            USERROM_FLASH_nCS,
+    output  wire            USERROM_FRAM_nCS,
+    output  wire            USERROM_CLK,
+    output  wire            USERROM_MOSI,
+    input   wire            USERROM_MISO,
 
     //general settings dip switch
-    input   wire    [3:0]   SETTINGSW,  //4MBIT/reserved/flash FRAM type/FANEN
+    input   wire    [3:0]   SETTINGSW,  //4MBIT/BOUT timing/flash FRAM type/FANEN
 
 
     /////////////////////////////////////////////
@@ -75,12 +80,13 @@ module BubbleDrive8_top
     output  wire            nLED_PWROK
 );
 
-reg     [8:0]   dip_switch_settings; //4MBIT/BOUT timing/flash-FRAM type/FANEN _ delay[1:0] _ IMGNUM[2:0]
+reg     [9:0]   dip_switch_settings; //4MBIT/BOUT timing/flash-FRAM type/FANEN _ delay[1:0] _ IMGSEL[3:0]
 
-wire            bitwidth4           = dip_switch_settings[8];
-wire            bout_timings        = dip_switch_settings[7];
-wire    [2:0]   tempsense_setting   = dip_switch_settings[5:3];
-wire    [2:0]   image_number        = dip_switch_settings[2:0];
+wire            bitwidth4           = dip_switch_settings[9];
+wire            bout_timing         = dip_switch_settings[8];
+wire            rom_select          = dip_switch_settings[7];
+wire    [2:0]   tempsense_setting   = dip_switch_settings[6:4];
+wire    [3:0]   image_number        = dip_switch_settings[3:0];
 
 assign n4BEN = SETTINGSW[3];
 
@@ -259,7 +265,7 @@ begin
             blinker_stop <= 1'b0;
             blinker_start <= 1'b1;
 
-            dip_switch_settings <= {~SETTINGSW, ~DELAYSW, ~IMGNUMSW};
+            dip_switch_settings <= {~SETTINGSW, ~DELAYSW, ~IMGSELSW};
         end
 
         EVALUATION_S0:
@@ -359,82 +365,87 @@ end
 
 BubbleDrive8_emucore BubbleDrive8_emucore_0
 (
-    .MCLK           (MCLK           ),
-    .nEN            (emucore_en     ),
-    .IMGNUM         (image_number   ),
-    .BITWIDTH4      (bitwidth4      ),
-    .TIMINGSEL      (bout_timings   ),
+    .MCLK           (MCLK               ),
+    .nEN            (emucore_en         ),
+    .IMGSEL         (image_number       ),
+    .ROMSEL         (rom_select         ),
+    .BITWIDTH4      (bitwidth4          ),
+    .TIMINGSEL      (bout_timing        ),
 
-    .CLKOUT         (CLKOUT         ),
-    .nBSS           (nBSS           ),
-    .nBSEN          (nBSEN          ),
-    .nREPEN         (nREPEN         ),
-    .nBOOTEN        (nBOOTEN        ),
-    .nSWAPEN        (nSWAPEN        ),
+    .CLKOUT         (CLKOUT             ),
+    .nBSS           (nBSS               ),
+    .nBSEN          (nBSEN              ),
+    .nREPEN         (nREPEN             ),
+    .nBOOTEN        (nBOOTEN            ),
+    .nSWAPEN        (nSWAPEN            ),
 
-    .DOUT0          (DOUT0          ),
-    .DOUT1          (DOUT1          ),
-    .DOUT2          (DOUT2          ),
-    .DOUT3          (DOUT3          ),
+    .DOUT0          (DOUT0              ),
+    .DOUT1          (DOUT1              ),
+    .DOUT2          (DOUT2              ),
+    .DOUT3          (DOUT3              ),
 
-    .nROMCS         (nROMCS         ),
-    .ROMCLK         (ROMCLK         ),
-    .ROMIO0         (ROMIO0         ),
-    .ROMIO1         (ROMIO1         ),
-    .ROMIO2         (ROMIO2         ),
-    .ROMIO3         (ROMIO3         ),
+    .CONFIGROM_nCS  (CONFIGROM_nCS      ),
+    .CONFIGROM_CLK  (CONFIGROM_CLK      ),
+    .CONFIGROM_MOSI (CONFIGROM_MOSI     ),
+    .CONFIGROM_MISO (CONFIGROM_MISO     ),
 
-    .nFIFOBUFWRCLKEN(nFIFOBUFWRCLKEN),
-    .FIFOBUFWRADDR  (FIFOBUFWRADDR  ),
-    .FIFOBUFWRDATA  (FIFOBUFWRDATA  ),
-    .nFIFOSENDBOOT  (nFIFOSENDBOOT  ),
-    .nFIFOSENDUSER  (nFIFOSENDUSER  ),
-    .FIFORELPAGE    (FIFORELPAGE    ),
+    .USERROM_FLASH_nCS  (USERROM_FLASH_nCS  ),
+    .USERROM_FRAM_nCS   (USERROM_FRAM_nCS   ),
+    .USERROM_CLK    (USERROM_CLK        ),
+    .USERROM_MOSI   (USERROM_MOSI       ),
+    .USERROM_MISO   (USERROM_MISO       ),
 
-    .nACC           (nLED_ACC       )
+    .nFIFOBUFWRCLKEN(nFIFOBUFWRCLKEN    ),
+    .FIFOBUFWRADDR  (FIFOBUFWRADDR      ),
+    .FIFOBUFWRDATA  (FIFOBUFWRDATA      ),
+    .nFIFOSENDBOOT  (nFIFOSENDBOOT      ),
+    .nFIFOSENDUSER  (nFIFOSENDUSER      ),
+    .FIFORELPAGE    (FIFORELPAGE        ),
+
+    .nACC           (nLED_ACC           )
 );
 
 BubbleDrive8_tempsense BubbleDrive8_tempsense_0
 (
-    .MCLK           (MCLK           ),
+    .MCLK           (MCLK               ),
 
-    .nEN            (tempsense_en   ),
+    .nEN            (tempsense_en       ),
 
     .SETTING        (tempsense_setting  ),
-    .FORCESTART     (FORCESTART     ),
+    .FORCESTART     (FORCESTART         ),
 
-    .nTEMPLO        (temperature_low),
-    .nFANEN         (nFANEN         ),
-    .nDELAYING      (led_delaying   ),
+    .nTEMPLO        (temperature_low    ),
+    .nFANEN         (nFANEN             ),
+    .nDELAYING      (led_delaying       ),
 
-    .nTEMPCS        (nTEMPCS        ),
-    .TEMPSIO        (TEMPSIO        ),
-    .TEMPCLK        (TEMPCLK        )
+    .nTEMPCS        (nTEMPCS            ),
+    .TEMPSIO        (TEMPSIO            ),
+    .TEMPCLK        (TEMPCLK            )
 );
 
 BubbleDrive8_usb BubbleDrive8_usb_0
 (
-    .MCLK           (MCLK           ),
+    .MCLK           (MCLK               ),
 
-    .nFIFOEN        (fifo_en        ),
-    .nMPSSEEN       (mpsse_en       ),
+    .nFIFOEN        (fifo_en            ),
+    .nMPSSEEN       (mpsse_en           ),
 
-    .BITWIDTH4      (bitwidth4      ),
+    .BITWIDTH4      (bitwidth4          ),
 
-    .nFIFOBUFWRCLKEN(nFIFOBUFWRCLKEN),
-    .FIFOBUFWRADDR  (FIFOBUFWRADDR  ),
-    .FIFOBUFWRDATA  (FIFOBUFWRDATA  ),
-    .nFIFOSENDBOOT  (nFIFOSENDBOOT  ),
-    .nFIFOSENDUSER  (nFIFOSENDUSER  ),
-    .FIFORELPAGE    (FIFORELPAGE    ),
+    .nFIFOBUFWRCLKEN(nFIFOBUFWRCLKEN    ),
+    .FIFOBUFWRADDR  (FIFOBUFWRADDR      ),
+    .FIFOBUFWRDATA  (FIFOBUFWRDATA      ),
+    .nFIFOSENDBOOT  (nFIFOSENDBOOT      ),
+    .nFIFOSENDUSER  (nFIFOSENDUSER      ),
+    .FIFORELPAGE    (FIFORELPAGE        ),
 
-    .MPSSECLK       (               ),
-    .MPSSEMOSI      (               ),
-    .MPSSEMISO      (               ),
-    .nMPSSECS       (               ),
+    .MPSSECLK       (                   ),
+    .MPSSEMOSI      (                   ),
+    .MPSSEMISO      (                   ),
+    .nMPSSECS       (                   ),
 
-    .ADBUS          (ADBUS          ),
-    .ACBUS          (ACBUS          )
+    .ADBUS          (ADBUS              ),
+    .ACBUS          (ACBUS              )
 );
 
 
