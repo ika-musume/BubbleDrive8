@@ -331,6 +331,13 @@ end
 /*
     BUBBLE CYCLE STATE MACHINE
 */
+
+/*
+        +Y 568
+-X 208           +X 448
+        -Y 328
+*/
+
 //12MHz 1 bubble cycle = 120clks
 //48MHz 1 bubble cycle = 480clks
 //12MHz 1.5클럭이 씹힌 후에 계산, 만약 BMC신호가 38ns 이상 지연되면 1클럭 추가로 씹힘
@@ -591,6 +598,38 @@ end
         -Y 328
 */
 
+/*
+    An MB3908 has two DFF with /Q OC output, and triggered on every positive
+    edge of BOUTCLK from MB14506 timing generator. For example, the waveform
+    below is showing a transfer of "6C 36 B1" 
+
+                0us     0       0       0       0       0       0       0       0       0       0       0
+    BOUTCLK     |¯|_____|¯|_____|¯|_____|¯|_____|¯|_____|¯|_____|¯|_____|¯|_____|¯|_____|¯|_____|¯|_____|¯|_____
+    D1          ¯¯¯¯¯¯¯¯|_______________|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|_______|¯¯¯¯¯¯¯|_______________________|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+    D0          ________|¯¯¯¯¯¯¯|_______|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|_______________|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|_______|¯¯¯¯¯¯¯|_______
+    bootloop          ^       ^       ^       ^       ^       ^       ^       ^       ^       ^       ^       ^
+                   +7~8us
+    user page     ^       ^       ^       ^       ^       ^       ^       ^       ^       ^       ^       ^     
+               +0~1us
+
+    Konami's BMC has different sampling timings for bootloop and user page, 
+    respectively. I don't know how the unknown MCU inside the BMC 
+    samples(or latches) data. I assume that MCU gets data from memory-mapped
+    register once per bit, but there are several possibilities that the MCU
+    gets several times, triggers flip-flops to sample data, or enables a kind
+    of transparent latch for quite a long time.
+
+    My friend Maki sent me a Bubble System PCB which has a deteriorated LS244.
+    Total three LS244 are used as bubble memory control signal buffers, and 
+    its propagation delay is often prolonged due to aging or the output 
+    goes weak. Finally, it often became insufficient to drive a fairly long
+    transmission line.
+
+    Anyway, to prevent this missampling, bubble data should be launched 0-1us
+    earlier when reading the bootloop, and 5-6us earlier when reading user
+    pages.
+*/
+
 reg     [9:0]   OUTBUFFER_CLKEN_TIMING = 10'd0;
 reg     [9:0]   CYCLECOUNTER_TIMING = 10'd568;
 
@@ -612,7 +651,7 @@ begin
         begin
             if(access_type == BOOT)
             begin
-                OUTBUFFER_CLKEN_TIMING <= 10'd328 - 10'd96; //오리지널 타이밍 -2us
+                OUTBUFFER_CLKEN_TIMING <= 10'd328 - 10'd48; //오리지널 타이밍 -1us
                 CYCLECOUNTER_TIMING <= 10'd568; //오리지널 타이밍
             end
             else if(access_type == USER)
