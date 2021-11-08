@@ -1,6 +1,6 @@
-module BubbleInterface
+module BubbleBuffer
 /*
-    BubbleDrive8_emucore > modules > BubbleInterface.v
+    BubbleDrive8_emucore > modules > BubbleBuffer.v
 
     Copyright (C) 2020-2021, Raki
 

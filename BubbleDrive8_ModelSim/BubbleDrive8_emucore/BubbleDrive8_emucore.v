@@ -96,7 +96,7 @@ TimingGenerator TimingGenerator_0
 
 
 
-BubbleInterface BubbleInterface_0
+BubbleBuffer BubbleBuffer_0
 (
     .MCLK           (MCLK               ),
 
@@ -119,7 +119,7 @@ BubbleInterface BubbleInterface_0
 
 
 
-SPILoader SPILoader_0
+SPIDriver SPIDriver_0
 (
     .MCLK           (MCLK               ),
 

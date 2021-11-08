@@ -85,19 +85,6 @@ set_location_assignment PIN_38 -to nFANEN
 set_global_assignment -name ENABLE_LOGIC_ANALYZER_INTERFACE OFF
 set_global_assignment -name FLOW_ENABLE_POWER_ANALYZER ON
 set_global_assignment -name POWER_DEFAULT_INPUT_IO_TOGGLE_RATE "12.5 %"
-set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/element/RelativePageConverter.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_tempsense/module/TempLoader.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_tempsense/module/TimeCounter.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_usb/element/RAM1k1.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/module/BubbleInterface.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_usb/element/TEXTROM.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_tempsense/BubbleDrive8_tempsense.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_top.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/BubbleDrive8_emucore.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/module/SPILoader.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_usb/module/SIPOBuffer.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_usb/BubbleDrive8_usb.v
-set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/module/TimingGenerator.v
 set_location_assignment PIN_11 -to DELAYSW[1]
 set_location_assignment PIN_10 -to DELAYSW[0]
 set_location_assignment PIN_33 -to DOUT0
@@ -150,4 +137,17 @@ set_location_assignment PIN_141 -to USERROM_MISO
 set_location_assignment PIN_143 -to USERROM_CLK
 set_location_assignment PIN_144 -to USERROM_FLASH_nCS
 set_location_assignment PIN_138 -to USERROM_FRAM_nCS
+set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/module/SPIDriver.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/module/BubbleBuffer.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/element/RelativePageConverter.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_tempsense/module/TempLoader.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_tempsense/module/TimeCounter.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_usb/element/RAM1k1.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_usb/element/TEXTROM.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_tempsense/BubbleDrive8_tempsense.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_top.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/BubbleDrive8_emucore.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_usb/module/SIPOBuffer.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_usb/BubbleDrive8_usb.v
+set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/module/TimingGenerator.v
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

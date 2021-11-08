@@ -1,5 +1,5 @@
 `timescale 10ns/10ns
-module SPILoader_tb;
+module SPIDriver_tb;
 
 reg             master_clock = 1'b1;
 
