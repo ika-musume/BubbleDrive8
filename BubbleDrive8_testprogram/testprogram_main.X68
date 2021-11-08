@@ -797,7 +797,7 @@ VECTORS dc.l $00000600                                      ;reset initial SP
 TITLEMESSAGE1   dc.w 'BubbleDrive8', $0000
 TITLEMESSAGE2   dc.w 'System Test Program', $0000
 TITLEMESSAGE3   dc.w '(C) 2020-2021 Raki', $0000
-VERSION         dc.w 'B85:K:A:D:2021110302', $0000
+VERSION         dc.w 'B85:K:A:D:2021110802', $0000
 
 
         *--------------------------------------------------------
@@ -2649,7 +2649,7 @@ SCROBJA         dc.w $0004, $0080, $0054, $00E4, $00FA, $0004, $0001, $001A ;)
                 jsr funcFixedDelayFast
                 bra.w TSTRTNE_OBJ_ModeEval
 
-OBJTSTTYPE  dc.w $0350, $0358, $035C, $0360, $0380, $0381, $0382, $0384, $0388, $0398, $0350, $03C0, $0380, $0381, $0382, $0383 
+OBJTSTTYPE  dc.w $0350, $0358, $035C, $0360, $0380, $0381, $0382, $0384, $0388, $0398, $0350, $03C0, $0380, $0381, $0382, $0384 
 OBJTSTSIZE  dc.w $2020, $1020, $2010, $4040, $0808, $1008, $0810, $1010, $2040, $1040, $2020, $4080, $0808, $1008, $0810, $1010
 OBJTSTOBJ   dc.w $0004, $0080, $0000, $0010, $0380, $000B, $0000, $0000
 OBJTSTMSG0  dc.w 'X Position:     ', $0000
@@ -5315,15 +5315,9 @@ INFOLINE7       dc.w '             XXXXXX             ', $0000
 INFOLINE9       dc.w '     FPGA bitstream version     ', $0000
 INFOLINE10      dc.w '              v1.7              ', $0000
 INFOLINE12      dc.w '       Test program build       ', $0000
-INFOLINE13      dc.w '      B85:K:A:D:2021110302      ', $0000
+INFOLINE13      dc.w '      B85:K:A:D:2021110802      ', $0000
 INFOLINE15      dc.w '        Hardware version        ', $0000
 INFOLINE16      dc.w '              v3.1              ', $0000
-
-
-
-
-
-
 
 
         
@@ -5606,6 +5600,7 @@ INFOLINE16      dc.w '              v3.1              ', $0000
             move.w d1, d0
             move.w (sp)+, d1                                    ;pop SIZE
             move.w d1, d2
+            andi.w #$0007, d1                                   ;pick size[2:0]
             lsl.w #3, d1
             or.w d1, d0
             lsr.w #2, d2
