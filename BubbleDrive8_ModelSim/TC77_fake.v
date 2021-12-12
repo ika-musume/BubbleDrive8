@@ -40,12 +40,15 @@ reg     [15:0]  tempreg = 16'b0;
 reg             OUTLATCH = 1'bZ;
 assign  #2    SIO = (nCS == 1'b1) ? 1'bZ : OUTLATCH;
 
-always @(negedge nCS)
+always @(*)
 begin
-    tempreg <= {TEMP_VALUE, IS_CONVERTED, FILLER};
+    if(nCS == 1'b1)
+    begin
+        tempreg <= {TEMP_VALUE, IS_CONVERTED, FILLER};
+    end
 end
 
-always @(negedge CLK)
+always @(negedge nCS or negedge CLK)
 begin
     OUTLATCH <= #8 tempreg[15];
     tempreg[15:1] <= #8 tempreg[14:0];

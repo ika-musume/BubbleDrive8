@@ -651,12 +651,12 @@ begin
         begin
             if(access_type == BOOT)
             begin
-                OUTBUFFER_CLKEN_TIMING <= 10'd328 - 10'd2; //오리지널 타이밍
+                OUTBUFFER_CLKEN_TIMING <= 10'd328 - 10'd2; //오리지널 타이밍 - 20ns
                 CYCLECOUNTER_TIMING <= 10'd568; //오리지널 타이밍
             end
             else if(access_type == USER)
             begin
-                OUTBUFFER_CLKEN_TIMING <= 10'd328 + 10'd192; //오리지널 타이밍 - 6us
+                OUTBUFFER_CLKEN_TIMING <= 10'd568 - 10'd48; //오리지널 타이밍 - 6us
                 CYCLECOUNTER_TIMING <= 10'd568 - 10'd120;  //오리지널보다 카운터를 2.5us 빨리 증가시킴
             end
             else
