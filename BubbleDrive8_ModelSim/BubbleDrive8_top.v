@@ -112,6 +112,7 @@ localparam STOP = 1'b1;
 reg             blinker_state = STOP;
 reg             blinker_start_n = 1'b1;
 reg             blinker = 1'b1;
+reg     [1:0]   por_delay_counter = 2'd0;
 
 //counter
 reg     [47:0]  clock_counter = 48'd0;
@@ -134,6 +135,7 @@ begin
             begin
                 blinker <= ~blinker;
                 clock_counter <= 48'd0;
+                por_delay_counter <= por_delay_counter + 2'd1;
             end
         end
     endcase
@@ -187,7 +189,7 @@ begin
             emulator_state <= RESET_S1;
         
         RESET_S1: 
-            if(blinker == 1'b0)
+            if(por_delay_counter == 2'd3)
             begin
                 emulator_state <= EVALUATION_S0;
             end

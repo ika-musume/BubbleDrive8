@@ -657,7 +657,7 @@ begin
             else if(access_type == USER)
             begin
                 OUTBUFFER_CLKEN_TIMING <= 10'd568 - 10'd48; //오리지널 타이밍 - 6us
-                CYCLECOUNTER_TIMING <= 10'd568 - 10'd120;  //오리지널보다 카운터를 2.5us 빨리 증가시킴
+                CYCLECOUNTER_TIMING <= 10'd568 - 10'd60;  //오리지널보다 카운터를 6.25us 빨리 증가시킴
             end
             else
             begin
