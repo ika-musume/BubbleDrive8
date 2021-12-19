@@ -193,7 +193,7 @@ begin
                 tempsense_state <= DELAY_REALTEMP_S0;
             end
         DELAY_REALTEMP_S5:
-            if(TL_data[13] == 1'b0 && TL_data[12:1] > 12'b0001_1110_0000) //temperature over +29 degrees,
+            if(TL_data[13] == 1'b0 && TL_data[12:1] > 12'b0001_1110_0000) //temperature over +28 degrees,
             begin
                 tempsense_state <= DELAY_REALTEMP_S12;
             end

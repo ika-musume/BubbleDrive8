@@ -16,7 +16,7 @@ module TempLoader
 
     output  reg             nCS = 1'b1,
     inout   wire            SIO,
-    output  reg             CLK = 1'b1
+    output  reg             CLK = 1'b0
 );
 
 
@@ -85,8 +85,8 @@ end
 always @(posedge MCLK)
 begin
     case(spi_state)
-        TEMP_RESET: begin nCOMPLETE <= 1'b1; nCS <= 1'b1; CLK <= 1'b1; spi_counter <= 4'd0; end
-        TEMP_RD_S0: begin nCS <= 1'b0; CLK <= 1'b1; end
+        TEMP_RESET: begin nCOMPLETE <= 1'b1; nCS <= 1'b1; CLK <= 1'b0; spi_counter <= 4'd0; end
+        TEMP_RD_S0: begin nCS <= 1'b0; CLK <= 1'b0; end
         TEMP_RD_S1: begin CLK <= 1'b0; end
         TEMP_RD_S2: begin end //nop
         TEMP_RD_S3: begin end //nop
@@ -99,7 +99,7 @@ begin
         TEMP_RD_S10: begin end //nop
         TEMP_RD_S11: begin end //nop
         TEMP_RD_S12: begin end //nop
-        TEMP_RD_S13: begin nCOMPLETE <= 1'b0; nCS <= 1'b1; end
+        TEMP_RD_S13: begin nCOMPLETE <= 1'b0; nCS <= 1'b1; CLK <= 1'b0; end
 
         default: begin nCOMPLETE <= 1'b1; nCS <= 1'b1; CLK <= 1'b1; spi_counter <= 4'd0; end
     endcase

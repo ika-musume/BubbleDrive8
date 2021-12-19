@@ -141,9 +141,11 @@ reg     [11:0]  line_v_counter = 8'd0;
 reg     [7:0]   line_h_counter = 8'd0; 
 
 //declare states
-localparam FIFO_IDLE_S0 = 8'b0000_0001;                  //FIFO 버스에 13(carriage return) 올리기
+localparam FIFO_IDLE_S0 = 8'b0000_0001;                  //FIFO 버스에 0D(carriage return) 올리기
 localparam FIFO_IDLE_S1 = 8'b0000_0010;                  //jsr, return 레지스터에 현재 state+1 넣기
-localparam FIFO_IDLE_S2 = 8'b0000_0011;                  //nop
+localparam FIFO_IDLE_S2 = 8'b0000_0011;                  //FIFO 버스에 0A(line feed) 올리기
+localparam FIFO_IDLE_S3 = 8'b0000_0100;                  //jsr, return 레지스터에 현재 state+1 넣기
+localparam FIFO_IDLE_S4 = 8'b0000_0101;                  //nop
 
 localparam FIFO_RESET = 8'b0000_0000;                    //최초 리셋
 
@@ -169,10 +171,12 @@ localparam FIFO_PRNTPAGENUM_S7 = 8'b0100_0111;           //digit 1 변환값을 
 localparam FIFO_PRNTPAGENUM_S8 = 8'b0100_1000;           //jsr(return 레지스터에 현재 state+1 넣기)
 localparam FIFO_PRNTPAGENUM_S9 = 8'b0100_1001;           //digit 0 변환값을 FIFO 버스에 올리기, 
 localparam FIFO_PRNTPAGENUM_S10 = 8'b0100_1010;          //jsr(return 레지스터에 현재 state+1 넣기)
-localparam FIFO_PRNTPAGENUM_S11 = 8'b0100_1011;          //FIFO 버스에 13(carriage return) 올리기
+localparam FIFO_PRNTPAGENUM_S11 = 8'b0100_1011;          //FIFO 버스에 0D(carriage return) 올리기
 localparam FIFO_PRNTPAGENUM_S12 = 8'b0100_1100;          //jsr, return 레지스터에 현재 state+1 넣기
+localparam FIFO_PRNTPAGENUM_S13 = 8'b0100_1101;          //FIFO 버스에 0A(line feed) 올리기
+localparam FIFO_PRNTPAGENUM_S14 = 8'b0100_1110;          //jsr, return 레지스터에 현재 state+1 넣기
 
-localparam FIFO_PRNTPAGENUM_S13 = 8'b0100_1101;          //FIFO_PRNTDATA_S0로 가기
+localparam FIFO_PRNTPAGENUM_S15 = 8'b0100_1111;          //FIFO_PRNTDATA_S0로 가기
 
 //DATA BLOCK TRANSFER
 localparam FIFO_PRNTDATA_S0 = 8'b0110_0000;              //스트링 시작 어드레스 set
@@ -199,9 +203,11 @@ localparam FIFO_PRNTDATA_S15 = 8'b0110_1111;             //jsr, return 레지스
 
 localparam FIFO_PRNTDATA_S16 = 8'b0111_0000;             //SIPO RAM 어드레스 증가, h루프 카운터 감소, S3으로 되돌아가기
 
-localparam FIFO_PRNTDATA_S17 = 8'b0111_0001;             //FIFO 버스에 13(carriage return) 올리기
+localparam FIFO_PRNTDATA_S17 = 8'b0111_0001;             //FIFO 버스에 0D(carriage return) 올리기
 localparam FIFO_PRNTDATA_S18 = 8'b0111_0010;             //jsr, return 레지스터에 현재 state+1 넣기
-localparam FIFO_PRNTDATA_S19 = 8'b0111_0011;             //v루프 카운터 감소, S1로 되돌아가기
+localparam FIFO_PRNTDATA_S19 = 8'b0111_0011;             //FIFO 버스에 0A(line feed) 올리기
+localparam FIFO_PRNTDATA_S20 = 8'b0111_0100;             //jsr, return 레지스터에 현재 state+1 넣기
+localparam FIFO_PRNTDATA_S21 = 8'b0111_0101;             //v루프 카운터 감소, S1로 되돌아가기
 
 //FIFO TX
 localparam FIFO_TX_S0 = 8'b1110_0000;                    //TXE가 LO인지 체크해서 LO이면 S1, 아니면 S0
@@ -223,8 +229,14 @@ begin
             return_fifo_state <= FIFO_IDLE_S2;
         end
         FIFO_IDLE_S2: 
+            fifo_state <= FIFO_IDLE_S3;
+        FIFO_IDLE_S3: begin
+            fifo_state <= FIFO_TX_S0;
+            return_fifo_state <= FIFO_IDLE_S4;
+        end
+        FIFO_IDLE_S4: 
             if(nFIFOSENDBOOT && nFIFOSENDUSER == 1'b1)  begin fifo_state <= FIFO_RESET; end
-            else                                        begin fifo_state <= FIFO_IDLE_S2; end
+            else                                        begin fifo_state <= FIFO_IDLE_S4; end
 
 
         FIFO_RESET: begin
@@ -284,7 +296,12 @@ begin
             fifo_state <= FIFO_TX_S0;
             return_fifo_state <= FIFO_PRNTPAGENUM_S13;
         end
-        FIFO_PRNTPAGENUM_S13: fifo_state <= FIFO_PRNTDATA_S0;
+        FIFO_PRNTPAGENUM_S13: fifo_state <= FIFO_PRNTPAGENUM_S14;
+        FIFO_PRNTPAGENUM_S14: begin
+            fifo_state <= FIFO_TX_S0;
+            return_fifo_state <= FIFO_PRNTPAGENUM_S15;
+        end
+        FIFO_PRNTPAGENUM_S15: fifo_state <= FIFO_PRNTDATA_S0;
 
 
         FIFO_PRNTDATA_S0: fifo_state <= FIFO_PRNTDATA_S1;
@@ -328,7 +345,12 @@ begin
             fifo_state <= FIFO_TX_S0;
             return_fifo_state <= FIFO_PRNTDATA_S19;
         end
-        FIFO_PRNTDATA_S19: fifo_state <= FIFO_PRNTDATA_S1;
+        FIFO_PRNTDATA_S19: fifo_state <= FIFO_PRNTDATA_S20;
+        FIFO_PRNTDATA_S20: begin
+            fifo_state <= FIFO_TX_S0;
+            return_fifo_state <= FIFO_PRNTDATA_S21;
+        end
+        FIFO_PRNTDATA_S21: fifo_state <= FIFO_PRNTDATA_S1;
 
 
         FIFO_TX_S0: 
@@ -361,9 +383,12 @@ always @(posedge MCLK)
 begin
     case (fifo_state)
         FIFO_IDLE_S0: 
-            FIFO_OUTLATCH <= 8'h13;
+            FIFO_OUTLATCH <= 8'h0D;
         FIFO_IDLE_S1: ;
-        FIFO_IDLE_S2: ;
+        FIFO_IDLE_S2: 
+            FIFO_OUTLATCH <= 8'h0A;
+        FIFO_IDLE_S3: ;
+        FIFO_IDLE_S4: ;
 
 
         FIFO_RESET: begin
@@ -378,7 +403,7 @@ begin
 
 
         FIFO_PRNTMESSAGE_S0: 
-            if(nFIFOSENDBOOT == 1'b0)           begin line_h_counter <= 8'd51; text_addr <= 7'h10; end
+            if(nFIFOSENDBOOT == 1'b0)           begin line_h_counter <= 8'd55; text_addr <= 7'h10; end
             else if (nFIFOSENDUSER == 1'b0)     begin line_h_counter <= 8'd12; text_addr <= 7'h50; end
             else                                begin end
         FIFO_PRNTMESSAGE_S1: ;
@@ -430,9 +455,12 @@ begin
         end
         FIFO_PRNTPAGENUM_S10: ;
         FIFO_PRNTPAGENUM_S11: 
-            FIFO_OUTLATCH <= 8'h13;
+            FIFO_OUTLATCH <= 8'h0D;
         FIFO_PRNTPAGENUM_S12: ;
-        FIFO_PRNTPAGENUM_S13: ;
+        FIFO_PRNTPAGENUM_S13: 
+            FIFO_OUTLATCH <= 8'h0A;
+        FIFO_PRNTPAGENUM_S14: ;
+        FIFO_PRNTPAGENUM_S15: ;
 
 
         FIFO_PRNTDATA_S0:
@@ -476,9 +504,12 @@ begin
         end
 
         FIFO_PRNTDATA_S17:
-            FIFO_OUTLATCH <= 8'h13;
+            FIFO_OUTLATCH <= 8'h0D;
         FIFO_PRNTDATA_S18: ;
-        FIFO_PRNTDATA_S19: begin
+        FIFO_PRNTDATA_S19:
+            FIFO_OUTLATCH <= 8'h0A;
+        FIFO_PRNTDATA_S20: ;
+        FIFO_PRNTDATA_S21: begin
             line_v_counter <= line_v_counter - 8'd1;
         end
 

@@ -106,44 +106,25 @@ wire    [11:0]  FIFORELPAGE;
     BLINKER
 */
 localparam CLOCK = 48'd48000000;
-localparam RESET = 1'b0;
-localparam RUN = 1'b1;
+localparam RUN = 1'b0;
+localparam STOP = 1'b1;
 
-reg             blinker_state = RESET;
-reg             blinker_start = 1'b1;
-reg             blinker_stop = 1'b1;
+reg             blinker_state = STOP;
+reg             blinker_start_n = 1'b1;
 reg             blinker = 1'b1;
-
-always @(posedge MCLK)
-begin
-    case(blinker_state)
-        RESET:
-        begin
-            if(blinker_start == 1'b0)
-            begin
-                blinker_state <= RUN;
-            end
-        end
-        RUN:
-        begin
-            if(blinker_stop == 1'b0)
-            begin
-                blinker_state <= RESET;
-            end
-        end
-    endcase
-end
+reg    [1:0]    timecntr = 2'd0;
 
 //counter
 reg     [47:0]  clock_counter = 48'd0;
 
 always @(posedge MCLK)
 begin
-    case(blinker_state)
-        RESET:
+    case(blinker_start_n)
+        STOP:
         begin
             blinker <= 1'b1;
             clock_counter <= 18'd0;
+            timecntr <= 2'd0;
         end
         RUN:
         begin
@@ -155,6 +136,15 @@ begin
             begin
                 blinker <= ~blinker;
                 clock_counter <= 48'd0;
+
+                if(timecntr == 2'd3)
+                begin
+                    timecntr <= 2'd0;
+                end
+                else
+                begin
+                    timecntr <= timecntr + 2'd1;
+                end
             end
         end
     endcase
@@ -167,12 +157,13 @@ end
 */
 
 //declare states
-localparam RESET_S0 = 3'b000;           //최초 리셋
+localparam RESET_S0 = 3'b000;           //최초 리셋, 스위치 데이터 래치
+localparam RESET_S1 = 3'b001;           //대기
 
-localparam EVALUATION_S0 = 3'b001;      //에뮬/MPSSE 선택
+localparam EVALUATION_S0 = 3'b010;      //에뮬/MPSSE 선택
 
-localparam EMULATOR_S0 = 3'b010;        //4비트 모드 체크
-localparam EMULATOR_S1 = 3'b011;        //버블 모듈 enable, FIFO enable, MPSSE disable
+localparam EMULATOR_S0 = 3'b011;        //4비트 모드 체크
+localparam EMULATOR_S1 = 3'b100;        //버블 모듈 enable, FIFO enable, MPSSE disable
 
 localparam MPSSE_STANDBY_S0 = 3'b101;   //버블 모듈 diasble, FIFO disable, MPSSE enable하면서 대기, 버블쪽 파워가 들어올 경우 에뮬레이터 모드로
 
@@ -203,7 +194,18 @@ wire            fifo_en = fifo_en_reg | ~temperature_low;
 always @(posedge MCLK)
 begin
     case(emulator_state)
-        RESET_S0: emulator_state <= EVALUATION_S0;
+        RESET_S0:
+            emulator_state <= RESET_S1;
+        
+        RESET_S1: 
+            if(timecntr == 2'd3)
+            begin
+                emulator_state <= EVALUATION_S0;
+            end
+            else
+            begin
+                emulator_state <= RESET_S1;
+            end
 
         EVALUATION_S0: 
             case({PWRSTAT, MRST})
@@ -259,13 +261,16 @@ begin
             mpsse_en <= 1'b1;
 
             ledctrl_delaying <= 1'b1;
-            ledctrl_pwrok <= 1'b1;
+            ledctrl_pwrok <= 1'b0;
             ledctrl_standby <= 1'b1;
 
-            blinker_stop <= 1'b0;
-            blinker_start <= 1'b1;
+            blinker_start_n <= STOP;
 
             dip_switch_settings <= {~SETTINGSW, ~DELAYSW, ~IMGSELSW};
+        end
+        RESET_S1: 
+        begin
+            blinker_start_n <= RUN;
         end
 
         EVALUATION_S0:
@@ -279,9 +284,7 @@ begin
             ledctrl_pwrok <= 1'b1;
             ledctrl_standby <= 1'b1;
 
-            blinker_stop <= 1'b0;
-            blinker_start <= 1'b1;
-
+            blinker_start_n <= STOP;
         end
 
         EMULATOR_S0:
@@ -295,9 +298,7 @@ begin
             ledctrl_pwrok <= 1'b1;
             ledctrl_standby <= 1'b1;
 
-            blinker_stop <= 1'b0;
-            blinker_start <= 1'b1;
-
+            blinker_start_n <= STOP;
         end
         EMULATOR_S1:
         begin
@@ -310,8 +311,7 @@ begin
             ledctrl_pwrok <= 1'b0;
             ledctrl_standby <= 1'b1;
 
-            blinker_stop <= 1'b0;
-            blinker_start <= 1'b1;
+            blinker_start_n <= STOP;
         end
 
         MPSSE_STANDBY_S0:
@@ -325,8 +325,7 @@ begin
             ledctrl_pwrok <= 1'b0;
             ledctrl_standby <= 1'b0;
 
-            blinker_stop <= 1'b1;
-            blinker_start <= 1'b0;
+            blinker_start_n <= RUN;
         end
 
         ERROR_S0:
@@ -340,8 +339,7 @@ begin
             ledctrl_pwrok <= 1'b1;
             ledctrl_standby <= 1'b1;
 
-            blinker_stop <= 1'b1;
-            blinker_start <= 1'b0;
+            blinker_start_n <= RUN;
         end
         ERROR_S1:
         begin
@@ -354,8 +352,7 @@ begin
             ledctrl_pwrok <= 1'b1;
             ledctrl_standby <= 1'b1;
             
-            blinker_stop <= 1'b1;
-            blinker_start <= 1'b0;
+            blinker_start_n <= RUN;
         end
 
         default: begin end

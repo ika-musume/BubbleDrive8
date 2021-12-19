@@ -1,4 +1,4 @@
-module SPIDriver
+module SPILoader
 /*
     
 */
@@ -64,7 +64,7 @@ reg     [2:0]   SPI_IMG;
 
 always @(*)
 begin
-    if(IMGSEL[0] == 1'b1) //FPGA configuration ROM W25Q08
+    if(IMGSEL[3] == 1'b1) //FPGA configuration ROM W25Q08
     begin
         CONFIGROM_nCS       = SPI_nCS;
         CONFIGROM_CLK       = SPI_CLK;
@@ -95,7 +95,7 @@ begin
 
             SPI_MISO            = USERROM_MISO;
 
-            SPI_IMG             = IMGSEL[3:1];
+            SPI_IMG             = IMGSEL[2:0];
         end
         else //Fujitsu MB85RS4MT or Cypress CY15B108
         begin
@@ -110,7 +110,7 @@ begin
 
             SPI_MISO            = USERROM_MISO;
 
-            SPI_IMG             = {2'b00, IMGSEL[1]};
+            SPI_IMG             = {2'b00, IMGSEL[0]};
         end
     end
 end
