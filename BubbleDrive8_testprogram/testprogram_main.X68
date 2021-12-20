@@ -161,9 +161,17 @@ VECTORS dc.l $00000600                                      ;reset initial SP
         lsl.w #3, d2
         or.w d2, d7                                         ;save test result in d7[3]
 
-        move.w #1, -(sp)                                    ;Work RAM test
+        move.w #1, -(sp)                                    ;Work RAM test 1
         move.l #$10000, -(sp)
-        move.l #$10000, -(sp)
+        move.l #$8000, -(sp)
+        bsr.w volatileRamTestInit
+        move.w (sp)+, d2
+        lsl.w #1, d2
+        or.w d2, d7                                         ;save test result in d7[1]
+
+        move.w #1, -(sp)                                    ;Work RAM test 2
+        move.l #$18000, -(sp)
+        move.l #$8000, -(sp)
         bsr.w volatileRamTestInit
         move.w (sp)+, d2
         lsl.w #1, d2
@@ -201,9 +209,18 @@ VECTORS dc.l $00000600                                      ;reset initial SP
         lsl.w #8, d2           
         or.w d2, d7                                         ;save test result in d7[8]
 
-        move.w #1, -(sp)                                    ;Character RAM test
+        move.w #1, -(sp)                                    ;Character RAM test 1
         move.l #$30000, -(sp)                
-        move.l #$10000, -(sp)                   
+        move.l #$8000, -(sp)                   
+        bsr.w volatileRamTestInit                  
+        move.w (sp)+, d2
+        lsl.w #8, d2
+        lsl.w #1, d2                
+        or.w d2, d7                                         ;save test result in d7[9]
+
+        move.w #1, -(sp)                                    ;Character RAM test 2
+        move.l #$38000, -(sp)                
+        move.l #$8000, -(sp)                   
         bsr.w volatileRamTestInit                  
         move.w (sp)+, d2
         lsl.w #8, d2
@@ -295,23 +312,6 @@ VECTORS dc.l $00000600                                      ;reset initial SP
             move.l d1, -(sp)
             move.l d0, -(sp)
 
-            move.l #0, d0
-            move.l #0, d1
-            move.l #0, d2
-            move.l #0, d3
-            move.l #0, d4
-            move.l #0, d5
-            move.l #0, d6
-            move.l #0, d7
-
-            movea.l d0, a0
-            movea.l d0, a1
-            movea.l d0, a2
-            movea.l d0, a3
-            movea.l d0, a4
-            movea.l d0, a5
-            movea.l d0, a6
-
             move.l $6FC, a7                                     ;restore SP
 
             rts
@@ -327,23 +327,6 @@ VECTORS dc.l $00000600                                      ;reset initial SP
 
             move.l a7, $6FC                                     ;save current SP address
             lea $6C0, a7                                        ;change stack pointer
-
-            move.l #0, d0
-            move.l #0, d1
-            move.l #0, d2
-            move.l #0, d3
-            move.l #0, d4
-            move.l #0, d5
-            move.l #0, d6
-            move.l #0, d7
-
-            movea.l d0, a0
-            movea.l d0, a1
-            movea.l d0, a2
-            movea.l d0, a3
-            movea.l d0, a4
-            movea.l d0, a5
-            movea.l d0, a6
 
             move.l (sp)+, d0
             move.l (sp)+, d1
