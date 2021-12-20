@@ -1,9 +1,9 @@
 *-----------------------------------------------------------
 * Title      : BubbleDrive8_testprogram
 * Written by : Raki
-* Date       : 2021-10-26
+* Date       : 2021-12-20
 * Description: BubbleDrive8 Test Program
-*              B85:K:A:C:2021102602
+*              B85:K:A:D:2021122002
 *-----------------------------------------------------------
 
 ;MEMORY STRUCTURE
@@ -794,10 +794,7 @@ VECTORS dc.l $00000600                                      ;reset initial SP
                     dbf d0, BANNERSCROLLINC
                 bra.s TITLEKEYINWAIT
 
-TITLEMESSAGE1   dc.w 'BubbleDrive8', $0000
-TITLEMESSAGE2   dc.w 'System Test Program', $0000
-TITLEMESSAGE3   dc.w '(C) 2020-2021 Raki', $0000
-VERSION         dc.w 'B85:K:A:D:2021110802', $0000
+
 
 
         *--------------------------------------------------------
@@ -3579,7 +3576,7 @@ PRAUTOINC       dc.w 'Auto increment', $0000
         TSTRTNE_SysIO:
             lea $880, a6
             lea $5E000, a5
-            move.w #0, (a6)                                         ;initialize menu num reg
+            move.w #1, (a6)                                         ;initialize menu num reg
             move.w #$FF00, $2(a6)                                   ;initialize FF/IRQ response reg
             move.w #0, $4(a6)                                       ;initialize misc outlatch reg
 
@@ -3667,6 +3664,15 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                 addi.w #12, d2                                      ;xpos+12
 
                 dbf d0, TSTRTNE_SysIO_initmisc_loop_out
+
+            lea NOTAVAILABLE, a0
+            move.l a0, -(sp)
+            move.w #5, -(sp)
+            move.w #5, -(sp)
+            move.w #6, -(sp)
+            move.w #0, -(sp)
+            bsr.w funcPrintText
+
 
             lea $52000, a0
             move.w #$E010, $592(a0)                                 ;ASCII 0
@@ -3827,8 +3833,8 @@ PRAUTOINC       dc.w 'Auto increment', $0000
                 beq.s TSTRTNE_SysIO_COIN_test
                 btst.l #$3, d0                                  ;check for DOWN
                 beq.w TSTRTNE_SysIO_COIN_inc
-                btst.l #$2, d0                                  ;check for UP
-                beq.w TSTRTNE_SysIO_COIN_dec
+                ;btst.l #$2, d0                                  ;check for UP
+                ;beq.w TSTRTNE_SysIO_COIN_dec
                 bra.w TSTRTNE_SysIO_Draw
 
                 TSTRTNE_SysIO_Coin_test:
@@ -4139,6 +4145,8 @@ SYSTEMIO2       dc.w '288LN', $0000
 SYSTEMIO3       dc.w '480i', $0000
 
 SYSIOMESSAGE0   dc.w 'Press B to exit', $0000
+
+NOTAVAILABLE    dc.w '      DEBUG ONLY      ', $0000    ;not working on the real machine currently
 
 
 
@@ -5306,19 +5314,6 @@ CONTLINE17      dc.w '  EXCELLENT Easy68k ASSEMBLER   ', $0000
                 jsr funcFixedDelaySlow
                 bra.w TSTRTNE_About_KeyInDelay
 
-INFOLINE0       dc.w '         Serial number          ', $0000
-INFOLINE1       dc.w '         [BDXXXXXXXXX]          ', $0000
-INFOLINE3       dc.w '       Manufacturing Date       ', $0000
-INFOLINE4       dc.w '           2022-XX-XX           ', $0000
-INFOLINE6       dc.w '            User  ID            ', $0000
-INFOLINE7       dc.w '             XXXXXX             ', $0000
-INFOLINE9       dc.w '     FPGA bitstream version     ', $0000
-INFOLINE10      dc.w '              v1.7              ', $0000
-INFOLINE12      dc.w '       Test program build       ', $0000
-INFOLINE13      dc.w '      B85:K:A:D:2021110802      ', $0000
-INFOLINE15      dc.w '        Hardware version        ', $0000
-INFOLINE16      dc.w '              v3.1              ', $0000
-
 
         
         *--------------------------------------------------------
@@ -5571,6 +5566,7 @@ INFOLINE16      dc.w '              v3.1              ', $0000
             move.w (sp)+, d5                                    ;pop XPOS
             move.w d5, d1
             lsr.w #8, d1
+            andi.w #$0001, d1                                   ;mask [7:1]
             or.w d1, d0
 
             move.w d7, d1                                       ;copy FLIP bits
@@ -5946,6 +5942,26 @@ IVT:
                 dc.l $FFFFFFFF,$FFFFFFFF,$FFFFFFFF,$FFFFFFFF    ;dummy
                 dc.l $FFFFFFFF,$FFFFFFFF,$FFFFFFFF,$FFFFFFFF
                                                                 ;32+40
+
+
+TITLEMESSAGE1   dc.w 'BubbleDrive8', $0000
+TITLEMESSAGE2   dc.w 'System Test Program', $0000
+TITLEMESSAGE3   dc.w '(C) 2020-2021 Raki', $0000
+VERSION         dc.w 'B85:K:A:D:2021122002', $0000
+
+INFOLINE0       dc.w '             Serial             ', $0000
+INFOLINE1       dc.w '         [BDXXXXXXXXXX]         ', $0000
+INFOLINE3       dc.w '       Manufacturing Date       ', $0000
+INFOLINE4       dc.w '           2022-XX-XX           ', $0000
+INFOLINE6       dc.w '            User  ID            ', $0000
+INFOLINE7       dc.w '             XXXXXX             ', $0000
+INFOLINE9       dc.w '     FPGA bitstream version     ', $0000
+INFOLINE10      dc.w '              v1.7              ', $0000
+INFOLINE12      dc.w '       Test program build       ', $0000
+INFOLINE13      dc.w '      B85:K:A:D:2021122002      ', $0000
+INFOLINE15      dc.w '        Hardware version        ', $0000
+INFOLINE16      dc.w '              v3.1              ', $0000
+
 
     SIMHALT             ; halt simulator
 
