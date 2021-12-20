@@ -105,14 +105,14 @@ wire    [11:0]  FIFORELPAGE;
 /*
     BLINKER
 */
-localparam CLOCK = 48'd8192; //00000;
+localparam CLOCK = 48'd8192;
 localparam RUN = 1'b0;
 localparam STOP = 1'b1;
 
 reg             blinker_state = STOP;
 reg             blinker_start_n = 1'b1;
 reg             blinker = 1'b1;
-reg     [1:0]   por_delay_counter = 2'd0;
+reg    [1:0]    timecntr = 2'd0;
 
 //counter
 reg     [47:0]  clock_counter = 48'd0;
@@ -124,6 +124,7 @@ begin
         begin
             blinker <= 1'b1;
             clock_counter <= 18'd0;
+            timecntr <= 2'd0;
         end
         RUN:
         begin
@@ -135,7 +136,15 @@ begin
             begin
                 blinker <= ~blinker;
                 clock_counter <= 48'd0;
-                por_delay_counter <= por_delay_counter + 2'd1;
+
+                if(timecntr == 2'd3)
+                begin
+                    timecntr <= 2'd0;
+                end
+                else
+                begin
+                    timecntr <= timecntr + 2'd1;
+                end
             end
         end
     endcase
@@ -189,7 +198,7 @@ begin
             emulator_state <= RESET_S1;
         
         RESET_S1: 
-            if(por_delay_counter == 2'd3)
+            if(timecntr == 2'd3)
             begin
                 emulator_state <= EVALUATION_S0;
             end
