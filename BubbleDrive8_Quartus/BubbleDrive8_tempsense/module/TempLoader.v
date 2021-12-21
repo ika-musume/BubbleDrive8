@@ -26,20 +26,20 @@ module TempLoader
 */
 
 //TC77 fmax = 7MHz, 48MHz / 8 = 6MHz
-localparam TEMP_RESET = 4'b1111;    //리셋
-localparam TEMP_RD_S0 = 4'b0000;    //CS내리기
-localparam TEMP_RD_S1 = 4'b0001;    //CLK 0
-localparam TEMP_RD_S2 = 4'b0010;    //nop
-localparam TEMP_RD_S3 = 4'b0011;    //nop
-localparam TEMP_RD_S4 = 4'b0100;    //nop
-localparam TEMP_RD_S5 = 4'b0101;    //nop
-localparam TEMP_RD_S6 = 4'b0110;    //nop
-localparam TEMP_RD_S7 = 4'b0111;    //CLK 1, 데이터 샘플링
-localparam TEMP_RD_S8 = 4'b1000;    //nop
-localparam TEMP_RD_S9 = 4'b1001;    //nop
-localparam TEMP_RD_S10 = 4'b1010;   //nop
-localparam TEMP_RD_S11 = 4'b1011;   //nop
-localparam TEMP_RD_S12 = 4'b1100;   //nop, S1로 branch할건지 S13으로 갈건지 결정
+localparam TEMP_RESET = 4'b0000;    //리셋
+localparam TEMP_RD_S0 = 4'b0001;    //CS내리기
+localparam TEMP_RD_S1 = 4'b0010;    //CLK 0
+localparam TEMP_RD_S2 = 4'b0011;    //nop
+localparam TEMP_RD_S3 = 4'b0100;    //nop
+localparam TEMP_RD_S4 = 4'b0101;    //nop
+localparam TEMP_RD_S5 = 4'b0110;    //nop
+localparam TEMP_RD_S6 = 4'b0111;    //nop
+localparam TEMP_RD_S7 = 4'b1000;    //CLK 1, 데이터 샘플링
+localparam TEMP_RD_S8 = 4'b1001;    //nop
+localparam TEMP_RD_S9 = 4'b1010;    //nop
+localparam TEMP_RD_S10 = 4'b1011;   //nop
+localparam TEMP_RD_S11 = 4'b1100;   //nop
+localparam TEMP_RD_S12 = 4'b1101;   //nop, S1로 branch할건지 S13으로 갈건지 결정
 localparam TEMP_RD_S13 = 4'b1110;   //CS올리기
 
 reg     [3:0]   spi_state = TEMP_RESET;
