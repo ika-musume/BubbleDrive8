@@ -119,6 +119,7 @@ localparam FAN_CONTROL_S5 = 5'b0_1101;      //38도 이상이면 팬 켜기, 타
 localparam FAN_CONTROL_S6 = 5'b0_1110;      //리셋 올리기, S0으로
 
 reg     [4:0]   tempsense_state = RESET_S0;
+reg             negtemp_retry = 1'b0;
 
 //flow control
 always @(posedge MCLK)
@@ -186,14 +187,28 @@ begin
         DELAY_REALTEMP_S4:
             if(TL_data[0] == 1'b1)
             begin
-                tempsense_state <= DELAY_REALTEMP_S5; //temperature conversion completed
+                if(TL_data[13] == 1'b1) //if temperature is negative
+                begin
+                    if(negtemp_retry == 1'b0) //retry once
+                    begin
+                        tempsense_state <= DELAY_REALTEMP_S0;
+                    end
+                    else
+                    begin
+                        tempsense_state <= DELAY_REALTEMP_S5;
+                    end
+                end
+                else
+                begin
+                    tempsense_state <= DELAY_REALTEMP_S5; //temperature conversion completed
+                end
             end
             else
             begin
                 tempsense_state <= DELAY_REALTEMP_S0;
             end
         DELAY_REALTEMP_S5:
-            if(TL_data[13] == 1'b0 && TL_data[12:1] > 12'b0001_1110_0000) //temperature over +28 degrees,
+            if(TL_data[13] == 1'b0 && TL_data[12:1] > 12'b0001_1010_1111) //from +27.0 degrees,
             begin
                 tempsense_state <= DELAY_REALTEMP_S12;
             end
@@ -334,7 +349,10 @@ begin
         end
         DELAY_REALTEMP_S5: 
         begin
-        
+            if(TL_data[13] == 1'b1) //if temperature is negative
+            begin
+                negtemp_retry <= 1'b1;
+            end
         end
         DELAY_REALTEMP_S6:
         /*
