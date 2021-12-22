@@ -102,9 +102,9 @@ localparam DELAY_REALTEMP_S2 = 5'b1_0010;   //온도 로드, 타이머 리셋 0
 localparam DELAY_REALTEMP_S3 = 5'b1_0011;   //올리고 대기, 로드되면 S4로
 localparam DELAY_REALTEMP_S4 = 5'b1_0100;   //LSB 체크, 최초 변환 완료이면 S5, 아니면 S0
 localparam DELAY_REALTEMP_S5 = 5'b1_0101;   //30도 넘으면 S12, 아니면 S6
-localparam DELAY_REALTEMP_S6 = 5'b1_0110;   //t(T) = -16.8T + (485+3) -> -16.8 곱하기
+localparam DELAY_REALTEMP_S6 = 5'b1_0110;   //t(T) = -16.8T + 485 -> -16.8 곱하기
 localparam DELAY_REALTEMP_S7 = 5'b1_0111;   //곱하기 nop
-localparam DELAY_REALTEMP_S8 = 5'b1_1000;   //t(T) = -16.8T + (485+3) -> 488 더하기
+localparam DELAY_REALTEMP_S8 = 5'b1_1000;   //t(T) = -16.8T + 485 -> 485 더하기
 localparam DELAY_REALTEMP_S9 = 5'b1_1001;   //타이머 시작
 localparam DELAY_REALTEMP_S10 = 5'b1_1010;   //올리고 대기, 타이머 다 되면 S11, 아니면 S10 유지, FORCESTART(1) 눌리면 S12으로
 localparam DELAY_REALTEMP_S11 = 5'b1_1011;   //타이머 리셋 0
@@ -119,6 +119,7 @@ localparam FAN_CONTROL_S5 = 5'b0_1101;      //38도 이상이면 팬 켜기, 타
 localparam FAN_CONTROL_S6 = 5'b0_1110;      //리셋 올리기, S0으로
 
 reg     [4:0]   tempsense_state = RESET_S0;
+reg             negtemp_retry = 1'b0;
 
 //flow control
 always @(posedge MCLK)
@@ -186,16 +187,37 @@ begin
         DELAY_REALTEMP_S4:
             if(TL_data[0] == 1'b1)
             begin
-                tempsense_state <= DELAY_REALTEMP_S5; //temperature conversion completed
+                if(TL_data[13] == 1'b1) //if temperature is negative
+                begin
+                    if(negtemp_retry == 1'b0) //retry once
+                    begin
+                        tempsense_state <= DELAY_REALTEMP_S0;
+                    end
+                    else
+                    begin
+                        tempsense_state <= DELAY_REALTEMP_S5;
+                    end
+                end
+                else
+                begin
+                    tempsense_state <= DELAY_REALTEMP_S5; //temperature conversion completed
+                end
             end
             else
             begin
                 tempsense_state <= DELAY_REALTEMP_S0;
             end
         DELAY_REALTEMP_S5:
-            if(TL_data[13] == 1'b0 && TL_data[12:1] > 12'b0001_1110_0000) //temperature over +28 degrees,
+            if(TL_data[13] == 1'b0) //from +27.0 degrees,
             begin
-                tempsense_state <= DELAY_REALTEMP_S12;
+                if(TL_data[12:1] > 12'b0001_1010_1111)
+                begin
+                    tempsense_state <= DELAY_REALTEMP_S12;
+                end
+                else
+                begin
+                    tempsense_state <= DELAY_REALTEMP_S6;
+                end
             end
             else
             begin
@@ -334,7 +356,10 @@ begin
         end
         DELAY_REALTEMP_S5: 
         begin
-        
+            if(TL_data[13] == 1'b1) //if temperature is negative
+            begin
+                negtemp_retry <= 1'b1;
+            end
         end
         DELAY_REALTEMP_S6:
         /*
@@ -354,7 +379,7 @@ begin
         end
         DELAY_REALTEMP_S8: 
         begin
-            delaying_time <= delaying_time + 32'sb0000_0000_0000_0001_1110_1000_0000_0000; //delay = delay + (485+3)
+            delaying_time <= delaying_time + 32'sb0000_0000_0000_0001_1110_0101_0000_0000; //delay = delay + 485
         end
         DELAY_REALTEMP_S9:
         begin
