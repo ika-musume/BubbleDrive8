@@ -24,7 +24,11 @@ module BubbleDrive8_tempsense
     //TC77
     output  wire            nTEMPCS,
     inout   wire            TEMPSIO,
-    output  wire            TEMPCLK
+    output  wire            TEMPCLK,
+
+    output  reg     [12:0]  FIFOTEMP,
+    output  reg     [11:0]  FIFODLYTIME,
+    output  reg             nFIFOSENDTEMP = 1'b1
 );
 
 /*
@@ -33,10 +37,7 @@ module BubbleDrive8_tempsense
 
 //Temperature checking period(seconds)
 localparam      CHECKING_PERIOD = 16'd20;
-
-reg signed  [31:0]  delaying_time = 32'd0;
-wire        [23:0]  __REF_UNSIGNED_DELAYINGTIME = delaying_time[31:8];
-
+reg signed  [31:0]  delay_time = 32'd0;
 
 
 /*
@@ -65,6 +66,7 @@ wire    [13:0]  TL_data;
 wire            TL_completion;
 reg             TL_load;
 
+
 TempLoader TempLoader_0
 (
     .MCLK           (MCLK           ),
@@ -90,7 +92,7 @@ localparam RESET_S0 = 5'b0_0000;
 localparam RESET_S1 = 5'b0_0001;            //nop
 localparam RESET_S2 = 5'b0_0010;            //branch
 
-localparam DELAY_FIXED_S0 = 5'b0_0011;      //여름(00) = 2초, 봄가을(01) = 80초, 겨울(10) = 260초 delaying_time에 로드
+localparam DELAY_FIXED_S0 = 5'b0_0011;      //여름(00) = 2초, 봄가을(01) = 80초, 겨울(10) = 260초 delay_time에 로드
 localparam DELAY_FIXED_S1 = 5'b0_0100;      //타이머 시작
 localparam DELAY_FIXED_S2 = 5'b0_0101;      //올리고 대기, 타이머 다 되면 S3으로, 아니면 S2, FORCESTART(1) 눌리면 S4로
 localparam DELAY_FIXED_S3 = 5'b0_0110;      //타이머 리셋 0
@@ -102,9 +104,9 @@ localparam DELAY_REALTEMP_S2 = 5'b1_0010;   //온도 로드, 타이머 리셋 0
 localparam DELAY_REALTEMP_S3 = 5'b1_0011;   //올리고 대기, 로드되면 S4로
 localparam DELAY_REALTEMP_S4 = 5'b1_0100;   //LSB 체크, 최초 변환 완료이면 S5, 아니면 S0
 localparam DELAY_REALTEMP_S5 = 5'b1_0101;   //30도 넘으면 S12, 아니면 S6
-localparam DELAY_REALTEMP_S6 = 5'b1_0110;   //t(T) = -16.8T + (485+3) -> -16.8 곱하기
-localparam DELAY_REALTEMP_S7 = 5'b1_0111;   //곱하기 nop
-localparam DELAY_REALTEMP_S8 = 5'b1_1000;   //t(T) = -16.8T + (485+3) -> 488 더하기
+localparam DELAY_REALTEMP_S6 = 5'b1_0110;   //t(T) = -16.8T + 484 -> -16.8 곱하기
+localparam DELAY_REALTEMP_S7 = 5'b1_0111;   //t(T) = -16.8T + 484 -> 484 더하기 //카운터 계수 시 == 사용하면 1초가 더 세짐, 원래 485
+localparam DELAY_REALTEMP_S8 = 5'b1_1000;   //delayingtime 정수 12비트만 남기기
 localparam DELAY_REALTEMP_S9 = 5'b1_1001;   //타이머 시작
 localparam DELAY_REALTEMP_S10 = 5'b1_1010;   //올리고 대기, 타이머 다 되면 S11, 아니면 S10 유지, FORCESTART(1) 눌리면 S12으로
 localparam DELAY_REALTEMP_S11 = 5'b1_1011;   //타이머 리셋 0
@@ -152,7 +154,7 @@ begin
             begin
                 tempsense_state <= DELAY_FIXED_S4;
             end
-            else if(TC_time >= delaying_time[23:8])
+            else if(TC_time >= delay_time[19:8])
             begin
                 tempsense_state <= DELAY_FIXED_S3;
             end
@@ -208,9 +210,16 @@ begin
                 tempsense_state <= DELAY_REALTEMP_S0;
             end
         DELAY_REALTEMP_S5:
-            if(TL_data[13] == 1'b0 && TL_data[12:1] > 12'b0001_1010_1111) //from +27.0 degrees,
+            if(TL_data[13] == 1'b0) //from +27.0 degrees,
             begin
-                tempsense_state <= DELAY_REALTEMP_S12;
+                if(TL_data[12:1] > 12'b0001_1010_1111)
+                begin
+                    tempsense_state <= DELAY_REALTEMP_S12;
+                end
+                else
+                begin
+                    tempsense_state <= DELAY_REALTEMP_S6;
+                end
             end
             else
             begin
@@ -225,7 +234,7 @@ begin
             begin
                 tempsense_state <= DELAY_REALTEMP_S12;
             end
-            else if(TC_time > delaying_time[23:8])
+            else if(TC_time > delay_time[23:8])
             begin
                 tempsense_state <= DELAY_REALTEMP_S11;
             end
@@ -284,6 +293,7 @@ begin
             TC_reset <= 1'b1;
             TC_start <= 1'b1;
             TL_load <= 1'b1;
+            nFIFOSENDTEMP <= 1'b1;
         end
         RESET_S1: 
         begin
@@ -298,10 +308,10 @@ begin
         DELAY_FIXED_S0:
         begin
             case(SETTING[1:0])
-                2'b00: delaying_time <= 32'sb0000_0000_0000_0000_0000_0010_0000_0000; //2초
-                2'b01: delaying_time <= 32'sb0000_0000_0000_0000_0101_0000_0000_0000; //80초
-                2'b10: delaying_time <= 32'sb0000_0000_0000_0001_0000_0100_0000_0000; //260초
-                2'b11: delaying_time <= 32'sb0000_0000_0000_0000_0000_0000_0000_0000; //0초(온도감지, 여기 아님)
+                2'b00: delay_time <= 32'sh000_001_00; //1초
+                2'b01: delay_time <= 32'sh000_050_00; //80초
+                2'b10: delay_time <= 32'sh000_104_00; //260초
+                2'b11: delay_time <= 32'sh000_000_00; //0초(온도감지, 여기 아님)
             endcase
         end
         DELAY_FIXED_S1:
@@ -361,31 +371,44 @@ begin
           X                     S+SSS_TTTT_TTTT.TTTT =  TC77
           __________________________________________
             X+XXX_XXXX_XXXX_XXXX_XXXX_XXXX.XXXX_XXXX
+            |--not used---| |-time value-| |not used|
         */
         begin
-            delaying_time <= $signed({TL_data[13], {{3{TL_data[13]}}, TL_data[12:1]}} ) * $signed({1'b1, 15'b111_1110_1111_0011}); //delay = TC77 airtemp * -16.8
+            delay_time <= $signed({TL_data[13], {{3{TL_data[13]}}, TL_data[12:1]}} ) * $signed({1'b1, 15'b111_1110_1111_0011}); //delay = TC77 airtemp * -16.8
             //                      (-(sign bit)-  -(sign bit ext.)-  --(temp data)-- ) *         -(sb)- -------( -16.8 )-------
         end
         DELAY_REALTEMP_S7:
         begin
-            
+            delay_time <= delay_time + 32'sh000_1E4_00; //delay = delay + 484
         end
         DELAY_REALTEMP_S8: 
         begin
-            delaying_time <= delaying_time + 32'sb0000_0000_0000_0001_1110_1000_0000_0000; //delay = delay + (485+3)
+            if(delay_time > 32'sh000_FFF_FF)
+            begin
+                delay_time <= 32'sh000_FFF_00;
+            end
+            else
+            begin
+                delay_time <= delay_time & 32'sh000_FFF_00; //leave only 12bit unsigned int
+            end
         end
         DELAY_REALTEMP_S9:
         begin
             TC_start <= 1'b0;
+            nFIFOSENDTEMP <= 1'b0;
+
+            FIFOTEMP <= TL_data[13:1];
+            FIFODLYTIME <= delay_time[19:8];  
         end
         DELAY_REALTEMP_S10:
         begin
             nDELAYING <= 1'b0;
-            TC_start <= 1'b1;
+            TC_start <= 1'b1; 
         end
         DELAY_REALTEMP_S11:
         begin
             TC_reset <= 1'b0;
+            nFIFOSENDTEMP <= 1'b1;
         end
         DELAY_REALTEMP_S12:
         begin

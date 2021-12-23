@@ -9,12 +9,14 @@ add wave -noupdate /BubbleDrive8_top_tb/Main/nLED_DELAYING
 add wave -noupdate /BubbleDrive8_top_tb/Main/nLED_STANDBY
 add wave -noupdate /BubbleDrive8_top_tb/Main/nLED_PWROK
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/MCLK
+add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/TC77_0/LISTCOUNTER
+add wave -noupdate /BubbleDrive8_top_tb/TC77_0/SERIALREG
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/nTEMPCS
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/TEMPCLK
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/TEMPSIO
 add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/TC_time
-add wave -noupdate -radix unsigned -childformat {{{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[31]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[30]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[29]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[28]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[27]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[26]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[25]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[24]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[23]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[22]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[21]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[20]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[19]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[18]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[17]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[16]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[15]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[14]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[13]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[12]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[11]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[10]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[9]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[8]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[7]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[6]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[5]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[4]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[3]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[2]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[1]} -radix unsigned} {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[0]} -radix unsigned}} -subitemconfig {{/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[31]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[30]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[29]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[28]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[27]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[26]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[25]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[24]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[23]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[22]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[21]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[20]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[19]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[18]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[17]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[16]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[15]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[14]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[13]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[12]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[11]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[10]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[9]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[8]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[7]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[6]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[5]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[4]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[3]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[2]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[1]} {-height 15 -radix unsigned} {/BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time[0]} {-height 15 -radix unsigned}} /BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/delaying_time
-add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/__REF_UNSIGNED_DELAYINGTIME
+add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/FIFOTEMP
+add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/FIFODLYTIME
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_tempsense_0/nDELAYING
 add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/counter12
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/TimingGenerator_0/SWAP
@@ -69,6 +71,7 @@ add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/SIPOBuffer_0/D7/nWRCLKEN
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPIDriver_0/nFIFOSENDBOOT
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_emucore_0/SPIDriver_0/nFIFOSENDUSER
+add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/nFIFOSENDTEMP
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/return_fifo_state
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/fifo_state
 add wave -noupdate -radix ascii /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/FIFO_OUTLATCH
@@ -76,16 +79,24 @@ add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/nFIFOWR
 add wave -noupdate -radix hexadecimal /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/sipo_buffer_addr
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/sipo_buffer_read_en
 add wave -noupdate -radix hexadecimal /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/sipo_buffer_data
+add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/FIFOTEMP
+add wave -noupdate -radix binary /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/FIFODLYTIME
+add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/dd_shift_counter
+add wave -noupdate -radix binary /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/temp_unsigned
+add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/temp_int_bin
+add wave -noupdate -radix binary /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/temp_int_bcd
+add wave -noupdate -radix hexadecimal /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/temp_frac_bcd
+add wave -noupdate -radix binary /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/time_bin
+add wave -noupdate -radix binary /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/time_bcd
 add wave -noupdate -radix hexadecimal /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/text_addr
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/text_read_en
-add wave -noupdate -radix hexadecimal /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/text_output
 add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/line_v_counter
 add wave -noupdate -radix unsigned /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/line_h_counter
 add wave -noupdate -radix hexadecimal /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/ascii_page_number
 add wave -noupdate -radix ascii /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/ADBUS
 add wave -noupdate /BubbleDrive8_top_tb/Main/BubbleDrive8_usb_0/ACBUS
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {65607540 ns} 0} {{Cursor 3} {79513600 ns} 1}
+WaveRestoreCursors {{Cursor 1} {3503418 ns} 0} {{Cursor 3} {79513600 ns} 1}
 quietly wave cursor active 1
 configure wave -namecolwidth 251
 configure wave -valuecolwidth 100
@@ -101,4 +112,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {65599086 ns} {65606496 ns}
+WaveRestoreZoom {3503693 ns} {3503881 ns}

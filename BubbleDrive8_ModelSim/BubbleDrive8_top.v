@@ -101,6 +101,10 @@ wire            nFIFOSENDBOOT;
 wire            nFIFOSENDUSER;
 wire    [11:0]  FIFORELPAGE;
 
+wire    [12:0]  FIFOTEMP;
+wire    [11:0]  FIFODLYTIME;
+wire            nFIFOSENDTEMP;
+
 
 /*
     BLINKER
@@ -184,9 +188,8 @@ reg     [2:0]   emulator_state = RESET_S0;
 
 reg             emucore_en = 1'b1;
 reg             tempsense_en = 1'b1;
-reg             fifo_en_reg = 1'b1;
+reg             fifo_en = 1'b1;
 reg             mpsse_en = 1'b1;
-wire            fifo_en = fifo_en_reg | ~temperature_low;
 
 
 
@@ -257,7 +260,7 @@ begin
         begin
             emucore_en <= 1'b1;
             tempsense_en <= 1'b1;
-            fifo_en_reg <= 1'b1;
+            fifo_en <= 1'b1;
             mpsse_en <= 1'b1;
 
             ledctrl_delaying <= 1'b1;
@@ -277,7 +280,7 @@ begin
         begin 
             emucore_en <= 1'b1;
             tempsense_en <= 1'b1;
-            fifo_en_reg <= 1'b1;
+            fifo_en <= 1'b1;
             mpsse_en <= 1'b1;
 
             ledctrl_delaying <= 1'b1;
@@ -291,7 +294,7 @@ begin
         begin
             emucore_en <= 1'b1;
             tempsense_en <= 1'b1;
-            fifo_en_reg <= 1'b1;
+            fifo_en <= 1'b1;
             mpsse_en <= 1'b1;
 
             ledctrl_delaying <= 1'b1;
@@ -304,7 +307,7 @@ begin
         begin
             emucore_en <= 1'b0;
             tempsense_en <= 1'b0;
-            fifo_en_reg <= 1'b0;
+            fifo_en <= 1'b0;
             mpsse_en <= 1'b1;
 
             ledctrl_delaying <= 1'b0;
@@ -318,7 +321,7 @@ begin
         begin
             emucore_en <= 1'b1;
             tempsense_en <= 1'b1;
-            fifo_en_reg <= 1'b1;
+            fifo_en <= 1'b1;
             mpsse_en <= 1'b0;
 
             ledctrl_delaying <= 1'b1;
@@ -332,7 +335,7 @@ begin
         begin
             emucore_en <= 1'b1;
             tempsense_en <= 1'b1;
-            fifo_en_reg <= 1'b1;
+            fifo_en <= 1'b1;
             mpsse_en <= 1'b1;
 
             ledctrl_delaying <= 1'b1;
@@ -345,7 +348,7 @@ begin
         begin
             emucore_en <= 1'b1;
             tempsense_en <= 1'b1;
-            fifo_en_reg <= 1'b1;
+            fifo_en <= 1'b1;
             mpsse_en <= 1'b1;
 
             ledctrl_delaying <= 1'b1;
@@ -417,7 +420,11 @@ BubbleDrive8_tempsense BubbleDrive8_tempsense_0
 
     .nTEMPCS        (nTEMPCS            ),
     .TEMPSIO        (TEMPSIO            ),
-    .TEMPCLK        (TEMPCLK            )
+    .TEMPCLK        (TEMPCLK            ),
+
+    .FIFOTEMP       (FIFOTEMP           ),
+    .FIFODLYTIME    (FIFODLYTIME        ),
+    .nFIFOSENDTEMP  (nFIFOSENDTEMP      )
 );
 
 BubbleDrive8_usb BubbleDrive8_usb_0
@@ -435,6 +442,10 @@ BubbleDrive8_usb BubbleDrive8_usb_0
     .nFIFOSENDBOOT  (nFIFOSENDBOOT      ),
     .nFIFOSENDUSER  (nFIFOSENDUSER      ),
     .FIFORELPAGE    (FIFORELPAGE        ),
+
+    .FIFOTEMP       (FIFOTEMP           ),
+    .FIFODLYTIME    (FIFODLYTIME        ),
+    .nFIFOSENDTEMP  (nFIFOSENDTEMP      ),
 
     .MPSSECLK       (                   ),
     .MPSSEMOSI      (                   ),

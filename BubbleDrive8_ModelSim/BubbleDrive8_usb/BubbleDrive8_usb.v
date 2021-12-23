@@ -22,6 +22,11 @@ module BubbleDrive8_usb
     input   wire            nFIFOSENDUSER,
     input   wire    [11:0]  FIFORELPAGE,
 
+    //FIFO temperature debug message
+    input   wire    [12:0]  FIFOTEMP,
+    input   wire    [11:0]  FIFODLYTIME,
+    input   wire            nFIFOSENDTEMP,
+
     //MPSSE input/output
     output  wire            MPSSECLK,
     output  wire            MPSSEMOSI,
@@ -114,20 +119,81 @@ SIPOBuffer SIPOBuffer_0
 
 
 
+
+
+
+
+/*
+    FIFO temp/time ASCII register
+*/
+reg     [3:0]   dd_shift_counter;
+reg     [11:0]  temp_unsigned;
+
+reg     [11:0]  temp_int_bcd;
+reg     [11:0]  temp_int_bin;
+reg     [11:0]  time_bcd;
+reg     [11:0]  time_bin;
+
+wire    [11:0]  temp_int_bcd_addend;
+assign  temp_int_bcd_addend[3:0] = (temp_int_bcd[3:0] > 4'd4) ? 4'd3 : 4'd0;
+assign  temp_int_bcd_addend[7:4] = (temp_int_bcd[7:4] > 4'd4) ? 4'd3 : 4'd0;
+assign  temp_int_bcd_addend[11:8] = (temp_int_bcd[11:8] > 4'd4) ? 4'd3 : 4'd0;
+wire    [11:0]  time_bcd_addend;
+assign  time_bcd_addend[3:0] = (time_bcd[3:0] > 4'd4) ? 4'd3 : 4'd0;
+assign  time_bcd_addend[7:4] = (time_bcd[7:4] > 4'd4) ? 4'd3 : 4'd0;
+assign  time_bcd_addend[11:8] = (time_bcd[11:8] > 4'd4) ? 4'd3 : 4'd0;
+
+reg             temp_frac_conv_en;
+wire    [15:0]  temp_frac_bcd;
+
+FRACBCDROM FRACBCDROM_0
+(
+    .MCLK               (MCLK               ),
+    .nCLKEN             (temp_frac_conv_en  ),
+    .ADDR               (temp_unsigned[3:0] ),
+    .DATA               (temp_frac_bcd      )
+);
+
+
+
 /*
     FIFO ASCII message memory
 */
 reg             text_read_en = 1'b0;
 reg     [6:0]   text_addr = 7'h0;
-wire    [7:0]   text_output;
+wire    [7:0]   text_data;
 
 TEXTROM TEXTROM_0
 (
     .MCLK               (MCLK               ),
     .nCLKEN             (text_read_en       ),
     .ADDR               (text_addr          ),
-    .DATA               (text_output        )
+    .DATA               (text_data          )
 );
+
+
+
+/*
+    FIFO ASCII message output mux
+*/
+reg     [7:0]   ascii_message;
+
+always @(*)
+begin
+    case(text_addr)
+        7'h66: ascii_message <= {4'h3, temp_int_bcd[11:8]};
+        7'h67: ascii_message <= {4'h3, temp_int_bcd[7:4]};
+        7'h68: ascii_message <= {4'h3, temp_int_bcd[3:0]};
+        7'h6A: ascii_message <= {4'h3, temp_frac_bcd[15:12]};
+        7'h6B: ascii_message <= {4'h3, temp_frac_bcd[11:8]};
+        7'h6C: ascii_message <= {4'h3, temp_frac_bcd[7:4]};
+        7'h6D: ascii_message <= {4'h3, temp_frac_bcd[3:0]};
+        7'h79: ascii_message <= {4'h3, time_bcd[11:8]};
+        7'h7A: ascii_message <= {4'h3, time_bcd[7:4]};
+        7'h7B: ascii_message <= {4'h3, time_bcd[3:0]};
+        default: ascii_message <= text_data;
+    endcase
+end
 
 
 
@@ -157,6 +223,7 @@ localparam FIFO_PRNTMESSAGE_S3 = 8'b0010_0011;           //메시지 롬 read = 
 localparam FIFO_PRNTMESSAGE_S4 = 8'b0010_0100;           //메시지 가져다가 FIFO 버스에 올리기, jsr(return 레지스터에 현재 state+1 넣기)
 localparam FIFO_PRNTMESSAGE_S5 = 8'b0010_0101;           //S1으로 가기
 localparam FIFO_PRNTMESSAGE_S6 = 8'b0010_0110;           //부트로더 v루프 설정하고 FIFO_PRNTDATA_S0로 가기, 페이지 v루프 설정하고 PRNTPAGENUM_S0으로 가기
+                                                         //온도면 아무 작업 없이 IDLE로
  
 //PRINT PAGE NUMBER 
 localparam FIFO_PRNTPAGENUM_S0 = 8'b0100_0000;           //digit 2 값을 갖다가 FIFO 어드레스에 넣기, FIFO ROM read = 0
@@ -215,6 +282,13 @@ localparam FIFO_TX_S1 = 8'b1110_0001;                    //FIFO WR = 0
 localparam FIFO_TX_S2 = 8'b1110_0010;                    //nop
 localparam FIFO_TX_S3 = 8'b1110_0011;                    //FIFO WR = 1, rts
 
+//TEMP/TIME
+localparam FIFO_TEMPTIMECONV_S0 = 8'b1000_0000;          //dd_shift_counter 리셋, 온도 unsigned로 변환, 분수쪽 어드레스에 넣고 read = 0
+localparam FIFO_TEMPTIMECONV_S1 = 8'b1000_0001;          //온도/시간 변환 버퍼에 로드
+localparam FIFO_TEMPTIMECONV_S2 = 8'b1000_0010;          //1비트 시프트, read = 1
+localparam FIFO_TEMPTIMECONV_S3 = 8'b1000_0011;          //10진법 각 자릿수가 4초과면 3더하기, 12면 FIFO_PRNTMESSAGE_S0으로 아니면 S2로, dd_shift_counter++
+
+
 reg     [7:0]   fifo_state = FIFO_RESET;
 reg     [7:0]   return_fifo_state = FIFO_RESET;
 
@@ -235,7 +309,7 @@ begin
             return_fifo_state <= FIFO_IDLE_S4;
         end
         FIFO_IDLE_S4: 
-            if(nFIFOSENDBOOT && nFIFOSENDUSER == 1'b1)  begin fifo_state <= FIFO_RESET; end
+            if(nFIFOSENDBOOT && nFIFOSENDUSER && nFIFOSENDTEMP == 1'b1)  begin fifo_state <= FIFO_RESET; end
             else                                        begin fifo_state <= FIFO_IDLE_S4; end
 
 
@@ -249,6 +323,7 @@ begin
                 return_fifo_state <= FIFO_RESET;
                 if(nFIFOSENDBOOT == 1'b0)           begin fifo_state <= FIFO_PRNTMESSAGE_S0; end
                 else if(nFIFOSENDUSER == 1'b0)      begin fifo_state <= FIFO_PRNTMESSAGE_S0; end
+                else if(nFIFOSENDTEMP == 1'b0)      begin fifo_state <= FIFO_TEMPTIMECONV_S0; end
                 else                                begin fifo_state <= FIFO_RESET; end
             end
         end
@@ -268,6 +343,7 @@ begin
         FIFO_PRNTMESSAGE_S6:
             if(nFIFOSENDBOOT == 1'b0)           begin fifo_state <= FIFO_PRNTDATA_S0; end
             else if(nFIFOSENDUSER == 1'b0)      begin fifo_state <= FIFO_PRNTPAGENUM_S0; end
+            else if(nFIFOSENDTEMP == 1'b0)      begin fifo_state <= FIFO_IDLE_S0; end
             else                                begin fifo_state <= FIFO_RESET; end
 
 
@@ -354,7 +430,7 @@ begin
 
 
         FIFO_TX_S0: 
-            if(nFIFOSENDBOOT && nFIFOSENDUSER == 1'b1) 
+            if(nFIFOSENDBOOT && nFIFOSENDUSER && nFIFOSENDTEMP == 1'b1) 
             begin 
                 fifo_state <= FIFO_RESET; 
             end
@@ -372,6 +448,26 @@ begin
         FIFO_TX_S1: fifo_state <= FIFO_TX_S2;
         FIFO_TX_S2: fifo_state <= FIFO_TX_S3;
         FIFO_TX_S3: fifo_state <= return_fifo_state;
+
+        FIFO_TEMPTIMECONV_S0: begin
+            fifo_state <= FIFO_TEMPTIMECONV_S1;
+        end
+        FIFO_TEMPTIMECONV_S1: begin
+            fifo_state <= FIFO_TEMPTIMECONV_S2;
+        end
+        FIFO_TEMPTIMECONV_S2: begin
+            fifo_state <= FIFO_TEMPTIMECONV_S3;         
+        end
+        FIFO_TEMPTIMECONV_S3: begin
+            if(dd_shift_counter == 4'd12)
+            begin
+                fifo_state <= FIFO_PRNTMESSAGE_S0;
+            end
+            else
+            begin
+                fifo_state <= FIFO_TEMPTIMECONV_S2;
+            end  
+        end
 
         default: fifo_state <= FIFO_RESET;
     endcase
@@ -397,6 +493,7 @@ begin
             line_v_counter <= 8'd0;
             text_addr <= 7'h00;
             text_read_en <= 1'b1;
+            temp_frac_conv_en <= 1'b1;
             sipo_buffer_addr <= 10'h000;
             sipo_buffer_read_en <= 1'b1;
         end
@@ -405,6 +502,7 @@ begin
         FIFO_PRNTMESSAGE_S0: 
             if(nFIFOSENDBOOT == 1'b0)           begin line_h_counter <= 8'd55; text_addr <= 7'h10; end
             else if (nFIFOSENDUSER == 1'b0)     begin line_h_counter <= 8'd12; text_addr <= 7'h50; end
+            else if (nFIFOSENDTEMP == 1'b0)     begin line_h_counter <= 8'd31; text_addr <= 7'h60; end
             else                                begin end
         FIFO_PRNTMESSAGE_S1: ;
         FIFO_PRNTMESSAGE_S2: 
@@ -412,7 +510,7 @@ begin
         FIFO_PRNTMESSAGE_S3: 
             text_read_en <= 1'b1;
         FIFO_PRNTMESSAGE_S4: begin 
-            FIFO_OUTLATCH <= text_output;
+            FIFO_OUTLATCH <= ascii_message;
         end
         FIFO_PRNTMESSAGE_S5: begin
             text_addr <= text_addr + 7'h1;
@@ -432,14 +530,14 @@ begin
             text_addr <= {3'b000, FIFORELPAGE[7:4]};
         end
         FIFO_PRNTPAGENUM_S2: begin
-            ascii_page_number[23:16] <= text_output;
+            ascii_page_number[23:16] <= ascii_message;
             text_addr <= {3'b000, FIFORELPAGE[3:0]};
         end
         FIFO_PRNTPAGENUM_S3: begin
-            ascii_page_number[15:8] <= text_output;
+            ascii_page_number[15:8] <= ascii_message;
         end
         FIFO_PRNTPAGENUM_S4: begin
-            ascii_page_number[7:0] <= text_output;
+            ascii_page_number[7:0] <= ascii_message;
             text_read_en <= 1'b1;
         end
         FIFO_PRNTPAGENUM_S5: begin
@@ -481,7 +579,7 @@ begin
         FIFO_PRNTDATA_S7: 
             text_read_en <= 1'b1;
         FIFO_PRNTDATA_S8:
-            FIFO_OUTLATCH <= text_output;   
+            FIFO_OUTLATCH <= ascii_message;   
         FIFO_PRNTDATA_S9: ;
 
         FIFO_PRNTDATA_S10: begin
@@ -491,7 +589,7 @@ begin
         FIFO_PRNTDATA_S11:
             text_read_en <= 1'b1;
         FIFO_PRNTDATA_S12:
-            FIFO_OUTLATCH <= text_output;  
+            FIFO_OUTLATCH <= ascii_message;  
         FIFO_PRNTDATA_S13: ;
 
         FIFO_PRNTDATA_S14:
@@ -519,6 +617,38 @@ begin
         FIFO_TX_S2: ;
         FIFO_TX_S3:
              nFIFOWR <= 1'b1;
+
+        FIFO_TEMPTIMECONV_S0: begin
+            dd_shift_counter <= 4'd0;
+            temp_int_bcd <= 12'h0;
+            time_bcd <= 12'h0;
+            temp_unsigned <= (FIFOTEMP[11:0] ^ {12{FIFOTEMP[12]}}) + FIFOTEMP[12]; //2's complement
+            temp_frac_conv_en <= 1'b0;
+        end
+        FIFO_TEMPTIMECONV_S1: begin
+            temp_int_bin <= {4'h0, temp_unsigned[11:4]};
+            time_bin <= FIFODLYTIME;
+        end
+        FIFO_TEMPTIMECONV_S2: begin
+            temp_int_bcd[11:1] <= temp_int_bcd[10:0];
+            temp_int_bcd[0]    <= temp_int_bin[11];
+            temp_int_bin[11:1] <= temp_int_bin[10:0];
+            temp_int_bin[0]    <= 1'b0;
+
+            time_bcd[11:1] <= time_bcd[10:0];
+            time_bcd[0]    <= time_bin[11];
+            time_bin[11:1] <= time_bin[10:0];
+            time_bin[0]    <= 1'b0;
+
+            dd_shift_counter <= dd_shift_counter + 4'd1;       
+        end
+        FIFO_TEMPTIMECONV_S3: begin
+            if(dd_shift_counter < 4'd12)
+            begin
+                temp_int_bcd <= temp_int_bcd + temp_int_bcd_addend;
+                time_bcd <= time_bcd + time_bcd_addend;
+            end
+        end
 
         default: ;
     endcase
