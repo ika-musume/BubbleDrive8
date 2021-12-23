@@ -137,6 +137,7 @@ set_location_assignment PIN_141 -to USERROM_MISO
 set_location_assignment PIN_143 -to USERROM_CLK
 set_location_assignment PIN_144 -to USERROM_FLASH_nCS
 set_location_assignment PIN_138 -to USERROM_FRAM_nCS
+set_global_assignment -name VERILOG_FILE BubbleDrive8_usb/element/FRACBCDROM.v
 set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/module/SPIDriver.v
 set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/module/BubbleBuffer.v
 set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/element/RelativePageConverter.v

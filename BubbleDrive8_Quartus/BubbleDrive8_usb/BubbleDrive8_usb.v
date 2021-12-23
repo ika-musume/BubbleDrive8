@@ -196,7 +196,7 @@ begin
         7'h6D: ascii_message <= {4'h3, temp_frac_bcd[7:4]};
         7'h6E: ascii_message <= {4'h3, temp_frac_bcd[3:0]};
         7'h79: begin
-            if(temp_int_bcd[11:8] == 4'd0) begin ascii_message <= 8'h20; end
+            if(time_bcd[11:8] == 4'd0)     begin ascii_message <= 8'h20; end
             else                           begin ascii_message <= {4'h3, time_bcd[11:8]}; end
         end
         7'h7A: ascii_message <= {4'h3, time_bcd[7:4]};
