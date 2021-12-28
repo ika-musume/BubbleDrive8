@@ -181,14 +181,24 @@ reg     [7:0]   ascii_message;
 always @(*)
 begin
     case(text_addr)
-        7'h66: ascii_message <= {4'h3, temp_int_bcd[11:8]};
-        7'h67: ascii_message <= {4'h3, temp_int_bcd[7:4]};
-        7'h68: ascii_message <= {4'h3, temp_int_bcd[3:0]};
-        7'h6A: ascii_message <= {4'h3, temp_frac_bcd[15:12]};
-        7'h6B: ascii_message <= {4'h3, temp_frac_bcd[11:8]};
-        7'h6C: ascii_message <= {4'h3, temp_frac_bcd[7:4]};
-        7'h6D: ascii_message <= {4'h3, temp_frac_bcd[3:0]};
-        7'h79: ascii_message <= {4'h3, time_bcd[11:8]};
+        7'h66: begin
+            if(FIFOTEMP[12] == 1'b0)       begin ascii_message <= 8'h2B; end
+            else                           begin ascii_message <= 8'h2D; end
+        end
+        7'h67: begin
+            if(temp_int_bcd[11:8] == 4'd0) begin ascii_message <= 8'h20; end
+            else                           begin ascii_message <= {4'h3, temp_int_bcd[11:8]}; end
+        end
+        7'h68: ascii_message <= {4'h3, temp_int_bcd[7:4]};
+        7'h69: ascii_message <= {4'h3, temp_int_bcd[3:0]};
+        7'h6B: ascii_message <= {4'h3, temp_frac_bcd[15:12]};
+        7'h6C: ascii_message <= {4'h3, temp_frac_bcd[11:8]};
+        7'h6D: ascii_message <= {4'h3, temp_frac_bcd[7:4]};
+        7'h6E: ascii_message <= {4'h3, temp_frac_bcd[3:0]};
+        7'h79: begin
+            if(time_bcd[11:8] == 4'd0)     begin ascii_message <= 8'h20; end
+            else                           begin ascii_message <= {4'h3, time_bcd[11:8]}; end
+        end
         7'h7A: ascii_message <= {4'h3, time_bcd[7:4]};
         7'h7B: ascii_message <= {4'h3, time_bcd[3:0]};
         default: ascii_message <= text_data;
