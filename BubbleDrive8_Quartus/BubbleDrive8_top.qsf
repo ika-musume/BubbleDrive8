@@ -74,7 +74,6 @@ set_location_assignment PIN_3 -to TEMPCLK
 set_location_assignment PIN_1 -to TEMPSIO
 set_location_assignment PIN_28 -to PWRSTAT
 set_location_assignment PIN_43 -to CLKOUT
-set_location_assignment PIN_68 -to FORCESTART
 set_location_assignment PIN_54 -to nBSEN
 set_location_assignment PIN_53 -to nREPEN
 set_location_assignment PIN_52 -to nBOOTEN
@@ -151,4 +150,5 @@ set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/BubbleDrive8_emuco
 set_global_assignment -name VERILOG_FILE BubbleDrive8_usb/module/SIPOBuffer.v
 set_global_assignment -name VERILOG_FILE BubbleDrive8_usb/BubbleDrive8_usb.v
 set_global_assignment -name VERILOG_FILE BubbleDrive8_emucore/module/TimingGenerator.v
+set_location_assignment PIN_68 -to PUSHSW
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

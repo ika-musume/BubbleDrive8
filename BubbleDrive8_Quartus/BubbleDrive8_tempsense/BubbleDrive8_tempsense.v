@@ -14,11 +14,11 @@ module BubbleDrive8_tempsense
     input   wire    [2:0]   SETTING, //[FAN/DELAY1/DELAY0]
 
     //force start switch
-    input   wire            FORCESTART,
+    input   wire            PUSHSW,
 
     //status
     output  reg             nTEMPLO = 1'b0,
-    output  reg             nFANEN = 1'b1,
+    output  wire            nFANEN,
     output  reg             nDELAYING = 1'b0,
 
     //TC77
@@ -38,6 +38,10 @@ module BubbleDrive8_tempsense
 //Temperature checking period(seconds)
 localparam      CHECKING_PERIOD = 16'd20;
 reg signed  [31:0]  delay_time = 32'd0;
+
+reg             fanon_temphi_n = 1'b1;
+reg             fanon_manual_n = 1'b1;
+assign  nFANEN = fanon_temphi_n & fanon_manual_n;
 
 
 /*
@@ -94,7 +98,7 @@ localparam RESET_S2 = 5'b0_0010;            //branch
 
 localparam DELAY_FIXED_S0 = 5'b0_0011;      //여름(00) = 2초, 봄가을(01) = 80초, 겨울(10) = 260초 delay_time에 로드
 localparam DELAY_FIXED_S1 = 5'b0_0100;      //타이머 시작
-localparam DELAY_FIXED_S2 = 5'b0_0101;      //올리고 대기, 타이머 다 되면 S3으로, 아니면 S2, FORCESTART(1) 눌리면 S4로
+localparam DELAY_FIXED_S2 = 5'b0_0101;      //올리고 대기, 타이머 다 되면 S3으로, 아니면 S2, PUSHSW(1) 눌리면 S4로
 localparam DELAY_FIXED_S3 = 5'b0_0110;      //타이머 리셋 0
 localparam DELAY_FIXED_S4 = 5'b0_0111;      //리셋 올리기, 부팅 시작, FAN_CONTROL_S0으로
 
@@ -108,7 +112,7 @@ localparam DELAY_REALTEMP_S6 = 5'b1_0110;   //t(T) = -16.8T + 484 -> -16.8 곱�
 localparam DELAY_REALTEMP_S7 = 5'b1_0111;   //t(T) = -16.8T + 484 -> 484 더하기 //카운터 계수 시 == 사용하면 1초가 더 세짐, 원래 485
 localparam DELAY_REALTEMP_S8 = 5'b1_1000;   //delayingtime 정수 12비트만 남기기
 localparam DELAY_REALTEMP_S9 = 5'b1_1001;   //타이머 시작
-localparam DELAY_REALTEMP_S10 = 5'b1_1010;   //올리고 대기, 타이머 다 되면 S11, 아니면 S10 유지, FORCESTART(1) 눌리면 S12으로
+localparam DELAY_REALTEMP_S10 = 5'b1_1010;   //올리고 대기, 타이머 다 되면 S11, 아니면 S10 유지, PUSHSW(1) 눌리면 S12으로
 localparam DELAY_REALTEMP_S11 = 5'b1_1011;   //타이머 리셋 0
 localparam DELAY_REALTEMP_S12 = 5'b1_1100;  //리셋 올리기, 부팅 시작, FAN_CONTROL_S0으로
 
@@ -150,7 +154,7 @@ begin
         DELAY_FIXED_S0: tempsense_state <= DELAY_FIXED_S1;
         DELAY_FIXED_S1: tempsense_state <= DELAY_FIXED_S2;
         DELAY_FIXED_S2:
-            if(FORCESTART == 1'b1)
+            if(PUSHSW == 1'b1)
             begin
                 tempsense_state <= DELAY_FIXED_S4;
             end
@@ -230,7 +234,7 @@ begin
         DELAY_REALTEMP_S8: tempsense_state <= DELAY_REALTEMP_S9;
         DELAY_REALTEMP_S9: tempsense_state <= DELAY_REALTEMP_S10;
         DELAY_REALTEMP_S10:
-            if(FORCESTART == 1'b1)
+            if(PUSHSW == 1'b1)
             begin
                 tempsense_state <= DELAY_REALTEMP_S12;
             end
@@ -289,7 +293,7 @@ begin
         begin
             nDELAYING <= 1'b0;
             nTEMPLO <= 1'b0;
-            nFANEN <= 1'b1; 
+            fanon_manual_n <= 1'b1; fanon_temphi_n <= 1'b1;
             TC_reset <= 1'b1;
             TC_start <= 1'b1;
             TL_load <= 1'b1;
@@ -421,15 +425,19 @@ begin
         //팬컨
         FAN_CONTROL_S0:
         begin
-
+            fanon_manual_n <= (PUSHSW == 1'b1) ? 1'b0 : 1'b1;
         end
         FAN_CONTROL_S1:
         begin
             TC_start <= 1'b0;
+
+            fanon_manual_n <= (PUSHSW == 1'b1) ? 1'b0 : 1'b1;
         end
         FAN_CONTROL_S2:
         begin
             TC_start <= 1'b1;
+
+            fanon_manual_n <= (PUSHSW == 1'b1) ? 1'b0 : 1'b1;
         end
         FAN_CONTROL_S3:
         begin
@@ -443,11 +451,11 @@ begin
         begin
             if(TL_data[13] == 1'b0 && TL_data[12:1] > 12'b0010_0110_0000) //temperature over +38 degrees,
             begin
-                nFANEN <= 1'b0;
+                fanon_temphi_n <= 1'b0;
             end
             else
             begin
-                nFANEN <= 1'b1;
+                fanon_temphi_n <= 1'b1;
             end
 
             TC_reset <= 1'b0;

@@ -51,7 +51,7 @@ module BubbleDrive8_top
 
     //control inputs
     input   wire    [1:0]   DELAYSW,
-    input   wire            FORCESTART,
+    input   wire            PUSHSW,
 
     //TC77
     output  wire            nTEMPCS,
@@ -412,7 +412,7 @@ BubbleDrive8_tempsense BubbleDrive8_tempsense_0
     .nEN            (tempsense_en       ),
 
     .SETTING        (tempsense_setting  ),
-    .FORCESTART     (FORCESTART         ),
+    .PUSHSW         (PUSHSW             ),
 
     .nTEMPLO        (temperature_low    ),
     .nFANEN         (nFANEN             ),
