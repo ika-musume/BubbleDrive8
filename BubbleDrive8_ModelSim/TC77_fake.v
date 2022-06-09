@@ -1,7 +1,6 @@
 `timescale 10ns/10ns
 module TC77_fake
 /*
-
 */
 
 (

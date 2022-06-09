@@ -89,7 +89,7 @@ BubbleDrive8_top Main
 
     //temperature detector
     .DELAYSW        (2'b00          ),
-    .FORCESTART     (1'b0           ),
+    .PUSHSW     (1'b0           ),
 
     .nTEMPCS        (nTEMPCS        ),
     .TEMPCLK        (TEMPCLK        ),
