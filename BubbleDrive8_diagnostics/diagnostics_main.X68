@@ -1,9 +1,9 @@
 *-----------------------------------------------------------
 * Title      : BubbleDrive8_diagnostics
 * Written by : Raki
-* Date       : 2021-12-20
+* Date       : 2024-08-04
 * Description: BubbleDrive8 Diagnostics
-*              B85:K:A:D:2022060702
+*              B85:K:B:A:2024080402
 *-----------------------------------------------------------
 
 ;MEMORY STRUCTURE
@@ -253,8 +253,6 @@ VECTORS dc.l $00000600                                      ;reset initial SP
         move.l d7, $800                                     ;save RAM test result to 0x800
 
         move.b #0, $5E004                                   ;Z80 interrupt
-        nop
-        nop
         move.b #1, $5E004
 
         lea $56000, a0                                      ;sprite RAM
@@ -382,8 +380,6 @@ VECTORS dc.l $00000600                                      ;reset initial SP
                         WORDRWTEST:
                             move.w d3, (a0)                 ;write $FFFF, 5555, AAAA, 0000
                             nop
-                            nop
-                            nop
                             cmp.w (a0)+, d3                 ;read and compare
                             bne.s WORDERROR                 ;if not matches, goto ERROR
                             dbf d0, WORDRWTEST              ;loop
@@ -457,7 +453,7 @@ VECTORS dc.l $00000600                                      ;reset initial SP
 
             movea.l (sp)+, a5                                   ;pop return address
             move.w (sp)+, d7                                    ;pop loading bar switch
-            tst.w d7
+            btst.l #$0, d7
             beq.w funcLoadBubble_Init
             lea $850, a4
 
@@ -514,7 +510,9 @@ VECTORS dc.l $00000600                                      ;reset initial SP
                     ;lea $830, a4                               ;progress bar table
                     lea $52890, a3                              ;progress bar address
 
+                    bclr.l #2, d7                               ;clear D[2] of d7, previously loaded flag
                     bra.s funcLoadBubble_Read
+
 
 
             funcLoadBubble_Init:
@@ -523,7 +521,6 @@ VECTORS dc.l $00000600                                      ;reset initial SP
                 subi.w #1, d1                                   ;consecutive page length - 1 
                 movea.l (sp)+, a2                               ;pop destination address
 
-            
             funcLoadBubble_Read:
                 move.w #0, $4(a1)                           ;initialize controller
                 move.w d0, (a1)                             ;set page
@@ -550,36 +547,67 @@ VECTORS dc.l $00000600                                      ;reset initial SP
                     move.w d2, (a0)+                        ;write shifted data
                     dbf d3, funcLoadBubble_Read_shift       ;loop 66 times
 
+            btst.l #2, d7                                   ;check if <...._X1XX -> COPY
+            bset.l #2, d7                                   ;set "previously LOADED"
+            beq.s funcLoadBubble_Copy
+
+            funcLoadBubble_Verify:
+                lea $F00, a0
+                sub.w #$80, a2                              ;subtract 128 from the destination address counter
+                move.w #31, d3
+                funcLoadBubble_Verify_loop:
+                    move.l (a0)+, d2                        ;get newly loaded page data
+                    cmp.l (a2)+, d2                         ;compare two data
+                    beq.s funcLoadBubble_Verify_loop_noerr  ;if matches, continue loop
+
+                    funcLoadBubble_Verify_loop_err:
+                    subi.w #32, d3                          ;subtract the loop value from d3
+                    neg.w d3                                ;negate d3
+                    lsl.w #1, d3                            ;*2
+                    sub.w d3, a2
+                    bra.s funcLoadBubble_Copy
+
+                    funcLoadBubble_Verify_loop_noerr:
+                    dbf d3, funcLoadBubble_Verify_loop
+                
+                bra.w funcLoadBubble_Nextpg
+
+            funcLoadBubble_Copy:
                 lea $F00, a0                                ;first address of the page
                 move.w #31, d3
-                funcLoadBubble_Read_copy:
+                funcLoadBubble_Copy_loop:
                     move.l (a0)+, (a2)+
-                    dbf d3, funcLoadBubble_Read_copy        ;loop 32 times
+                    dbf d3, funcLoadBubble_Copy_loop        ;loop 32 times
 
+                btst.l #2, d7
+                bne.w funcLoadBubble_Read
+
+            funcLoadBubble_Nextpg:
+                bclr.l #2, d7                               ;clear "loaded" flag
                 addq.w #1, d0                               ;start page +1
+            
+            btst.l #$0, d7
+            bne.s funcLoadBubble_Updtldbar
+            dbf d1, funcLoadBubble_Read
+            bra.w funcLoadBubble_Exit
 
-                tst.w d7
-                bne.s funcLoadBubble_Read_updtldbar
+            funcLoadBubble_Updtldbar:
+                move.w (a4), d6                                 ;get table value
+                cmp.w d6, d1                                    ;compare loop counter with table
+                ble.w funcLoadBubble_Updtldbar_inc
                 dbf d1, funcLoadBubble_Read
-                bra.w funcLoadBubble_Exit
+                
+                funcLoadBubble_Updtldbar_inc:
+                    move.w #$0001, $2000(a3) 
+                    move.w #$F05F, (a3)+
+                    adda.l #$2, a4
+                
+                dbf d1, funcLoadBubble_Read
 
-                funcLoadBubble_Read_updtldbar:
-                    move.w (a4), d6                         ;get table value
-                    cmp.w d6, d1                            ;compare loop counter with table
-                    ble.w funcLoadBubble_Read_updtldbar_inc
-                    dbf d1, funcLoadBubble_Read
-                    
-                    funcLoadBubble_Read_updtldbar_inc:
-                        move.w #$0001, $2000(a3) 
-                        move.w #$F05F, (a3)+
-                        adda.l #$2, a4
-                    
-                    dbf d1, funcLoadBubble_Read
-
-                    move.l #15, d0
-                    funcLoadBubble_Read_updtldbar_del:
-                        move.w #$E000, -(a3)
-                        dbf d0, funcLoadBubble_Read_updtldbar_del
+                move.l #15, d0
+                funcLoadBubble_Updtldbar_del:
+                    move.w #$E000, -(a3)
+                    dbf d0, funcLoadBubble_Updtldbar_del
 
             funcLoadBubble_Exit:
                 move.l a5, -(sp)                                ;push return address
@@ -968,25 +996,26 @@ TESTMENUITEM15  dc.w ' About this BubbleDrive8 ', $0000
 
 
 
-        *--------------------------------------------------------
+*--------------------------------------------------------
         *
         *       TESTMENU_RAM test subroutine
         *
         *--------------------------------------------------------
 
         TSTRTNE_RAM:
-            move.b #$01, $20003                         ;excute Z80 checksum calculation routine
+            ;move.b #$01, $20003                         ;excute Z80 checksum calculation routine
 
             jsr TSTRTNE_RAM_additionaltest
 
-            move.b #$04, $27FF9                         ;always wrong checksum, nop loop escape command
-            move.b #$00, $20003                         ;disable cheksum execute flag
+            ;move.b #$04, $27FF9                         ;always wrong checksum, nop loop escape command
+            ;move.b #$00, $20003                         ;disable cheksum execute flag
 
-            move.b #0, $5E004                           ;Z80 interrupt
-            nop
-            nop
-            move.b #1, $5E004
+            ;move.b #0, $5E004                           ;Z80 interrupt
+            ;nop
+            ;nop
+            ;move.b #1, $5E004
 
+            ;V---V---V-------> ignore this
             ;I just wanted to execute RAM test routine maintaining original data while Z80 calculates checksum of 0x4000-0x7DFF.
             ;The code worked well on MAME, but the real machine spits Z80 RAM error. Its behavior is quite different from MAME's.
             ;I thought there was no way, so I decided to simply initialize all the data and request a Z80 interrupt.
@@ -1164,45 +1193,67 @@ TESTMENUITEM15  dc.w ' About this BubbleDrive8 ', $0000
                 move.w (sp)+, d2   
                 or.w d2, d7                                         ;save test result in d7[0]
 
-                 move.w #0, -(sp)                                    ;Z80 RAM test
-                move.l #$20004, -(sp)                
-                move.l #$1FFC, -(sp)                   
-                jsr volatileRamTestInit
-                move.w (sp)+, d2
-                lsl.w #2, d2
-                or.w d2, d7                                         ;save test result in d7[2]
+                jsr funcStartDMA                                    ;Z80 RAM test
+                move.w $27FFA, d2                                   ;get 3FFD(7FFD-4000) * 2 data
+                jsr funcCloseDMA                                    ;end DMA access
 
-                move.w #0, -(sp)                                    ;Z80 RAM test
-                move.l #$22000, -(sp)                
-                move.l #$2000, -(sp)                   
-                jsr volatileRamTestInit
-                move.w (sp)+, d2
-                lsl.w #2, d2
-                or.w d2, d7                                         ;save test result in d7[2]
+                cmpi.b #$01, d2
+                beq.s TSTRTNE_RAM_additionaltest_z80bad
+                cmpi.b #$02, d2
+                beq.s TSTRTNE_RAM_additionaltest_z80good
+                clr.w d2                                            ;RAM bad
+                bset.l #0, d2
+                bra.s TSTRTNE_RAM_additionaltest_z80
 
-                move.w #0, -(sp)                                    ;Z80 RAM test
-                move.l #$24000, -(sp)                
-                move.l #$2000, -(sp)                   
-                jsr volatileRamTestInit
-                move.w (sp)+, d2
-                lsl.w #2, d2
-                or.w d2, d7                                         ;save test result in d7[2]
+                TSTRTNE_RAM_additionaltest_z80bad:
+                    clr.w d2                                        ;RAM bad
+                    bset.l #0, d2
+                    bra.s TSTRTNE_RAM_additionaltest_z80
+                TSTRTNE_RAM_additionaltest_z80good:
+                    clr.w d2                                        ;RAM good
+                TSTRTNE_RAM_additionaltest_z80:
+                    lsl.w #2, d2
+                    or.w d2, d7                                     ;save test result in d7[2]
 
-                move.w #0, -(sp)                                    ;Z80 RAM test
-                move.l #$26000, -(sp)                
-                move.l #$2000, -(sp)                   
-                jsr volatileRamTestInit
-                move.w (sp)+, d2
-                lsl.w #2, d2
-                or.w d2, d7                                         ;save test result in d7[2]
-
-                
-
-                move.l d7, $800                                     ;load RAM test result from 0x800
+                move.l d7, $800                                     ;save RAM test result from 0x800
 
                 jsr funcClearTilemap
 
                 rts
+
+
+            ;
+            ;           FUNCTION START DMA
+            ;
+            ;JSR:  RETURN ADDRESS 
+            funcStartDMA:                               ;return address
+                jsr sysSaveReg
+                lea $5E006, a0                          ;5E006 = DMA request
+                lea $5D001, a1                          ;5D001 = DMA status(0 = granted)
+
+                move.b (a1), d0                         ;check DMA status
+                btst.l #0, d0                           ;1 = bus closed 0 = bus granted
+                beq.s funcStartDMA_exit                 ;if 0(Z=1), end this function
+
+                move.b #1, (a0)                         ;bus request
+                funcStartDMA_wait:
+                    move.b (a1), d0                     ;check DMA status
+                    btst.l #0, d0
+                    bne.s funcStartDMA_wait             ;if 1, do loop, watchdog will reset the 68k if the loop takes too long
+                
+                funcStartDMA_exit:
+                    jsr sysLoadReg
+                    rts
+
+
+            ;
+            ;           FUNCTION CLOSE DMA
+            ;
+            ;JSR:  RETURN ADDRESS 
+            funcCloseDMA:                               ;return address
+                move.b #0, $5E006                       ;close bus
+                rts
+
 
 
             ;
@@ -4821,7 +4872,9 @@ NOTAVAILABLE    dc.w '      DEBUG ONLY      ', $0000    ;not working on the real
                 bne.w TSTRTNE_BMC_Read_byte
                 ;TSTRTNE_BMC_Read_word:
                     move.l d0, a0                                   ;get address
+                    jsr funcStartDMA
                     move.w (a0), $8(a6)                             ;read and write data
+                    jsr funcCloseDMA
                     addi.l #2, $2(a6)                               ;auto increment
                     
                     lea WREADCOMPLETE, a0
@@ -4836,7 +4889,9 @@ NOTAVAILABLE    dc.w '      DEBUG ONLY      ', $0000    ;not working on the real
 
                 TSTRTNE_BMC_Read_byte:
                     move.l d0, a0                                   ;get address
+                    jsr funcStartDMA
                     move.b (a0), $9(a6)                             ;read and write data
+                    jsr funcCloseDMA
                     addi.l #2, $2(a6)                               ;auto increment
                     
                     lea BREADCOMPLETE, a0
@@ -4879,7 +4934,9 @@ NOTAVAILABLE    dc.w '      DEBUG ONLY      ', $0000    ;not working on the real
                 bne.w TSTRTNE_BMC_Write_byte
                 ;TSTRTNE_BMC_Write_word:
                     movea.l $2(a6), a0                              ;get address
+                    jsr funcStartDMA
                     move.w $8(a6), (a0)                             ;read and write data
+                    jsr funcCloseDMA
                     addi.l #2, $2(a6)                               ;auto increment
                     
                     lea WWRITECOMPLETE, a0
@@ -4894,7 +4951,9 @@ NOTAVAILABLE    dc.w '      DEBUG ONLY      ', $0000    ;not working on the real
 
                 TSTRTNE_BMC_Write_byte:
                     movea.l $2(a6), a0                              ;get address
+                    jsr funcStartDMA
                     move.b $9(a6), (a0)                             ;read and write data
+                    jsr funcCloseDMA
                     addi.l #2, $2(a6)                               ;auto increment
                     
                     lea BWRITECOMPLETE, a0
@@ -5073,7 +5132,7 @@ NOTAVAILABLE    dc.w '      DEBUG ONLY      ', $0000    ;not working on the real
                     eori.w #$0003, d0                                   ;invert loop counter
 
                     cmp.w d0, d5                                        ;if current digit != loop digit
-                    bne.s TSTRTNE_BMC_Draw_Data_prnt                ;print hex value
+                    bne.s TSTRTNE_BMC_Draw_Data_prnt                    ;print hex value
                     move.w #$0004, d1                                   ;if not, set palette as 4 (red)
 
                     TSTRTNE_BMC_Draw_Data_prnt:
@@ -5121,7 +5180,11 @@ NOTAVAILABLE    dc.w '      DEBUG ONLY      ', $0000    ;not working on the real
                 swap d0                                                 ;swap d0 to move 5th digit to 1st digit
                 cmpi.w #$0004, d0                                       ;check if address is on 0x40000 block
                 beq.w TSTRTNE_BMC_Draw_BMCprotect
+                cmpi.w #$0002, d0                                       ;check if address is on 0x20000 block
+                bne.s TSTRTNE_BMC_Draw_skipdma                          ;if not equal, skip dma
+                jsr funcStartDMA
 
+                TSTRTNE_BMC_Draw_skipdma:
                 lea $5270E, a1                                          ;RAM contents start address in VRAM1
 
                 move.w #15, d7                                          ;repeat 16 times
@@ -5148,6 +5211,8 @@ NOTAVAILABLE    dc.w '      DEBUG ONLY      ', $0000    ;not working on the real
                     
                     add.l #$40, a1                                      ;next line(VRAM1)
                     dbf d7, TSTRTNE_BMC_Draw_Ramdata_vloop
+
+                jsr funcCloseDMA
 
                 bra.s TSTRTNE_BMC_KeyInDelay
 
@@ -5980,11 +6045,11 @@ IVT:
 TITLEMESSAGE1   dc.w 'BubbleDrive8', $0000
 TITLEMESSAGE2   dc.w 'System Diagnostics', $0000
 TITLEMESSAGE3   dc.w '(C) 2020-2022 Raki', $0000
-VERSION         dc.w 'B85:K:A:D:2022060702', $0000
+VERSION         dc.w 'B85:K:B:A:2024080402', $0000
 
 
 INFOLINE0       dc.w '         Software build         ', $0000
-INFOLINE1       dc.w '      B85:K:A:D:2022060702      ', $0000
+INFOLINE1       dc.w '      B85:K:B:A:2024080402      ', $0000
 INFOLINE3       dc.w '     FPGA bitstream version     ', $0000
 INFOLINE4       dc.w '              v1.8              ', $0000
 INFOLINE6       dc.w '        Hardware revision       ', $0000
@@ -6014,3 +6079,27 @@ INFOLINE16      dc.w '      twitter @RCAVictorCo      ', $0000
 *~Tab type~1~
 *~Tab size~4~
 {"mode":"full","isActive":false}
+*~Font name~Courier New~
+*~Font size~10~
+*~Tab type~1~
+*~Tab size~4~
+
+*~Font name~Courier New~
+*~Font size~10~
+*~Tab type~1~
+*~Tab size~4~
+
+*~Font name~Courier New~
+*~Font size~10~
+*~Tab type~1~
+*~Tab size~4~
+
+*~Font name~Courier New~
+*~Font size~10~
+*~Tab type~1~
+*~Tab size~4~
+
+*~Font name~Courier New~
+*~Font size~10~
+*~Tab type~1~
+*~Tab size~4~
